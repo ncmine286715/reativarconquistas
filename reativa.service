@@ -1,0 +1,22 @@
+# systemd (VPS Linux) — mantém o site ligado e religa sozinho se cair.
+# 1) Copie os arquivos p/ /opt/reativa e edite WorkingDirectory/Environment abaixo
+# 2) sudo cp reativa.service /etc/systemd/system/ && sudo systemctl enable --now reativa
+[Unit]
+Description=ReativaConquistas
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/reativa
+Environment=PORT=8080
+Environment=PUBLIC_BASE_URL=https://seudominio.duckdns.org
+# Chaves de verdade vão aqui (nunca no código):
+# Environment=ABACATEPAY_API_KEY=abc_...
+# Environment=ABACATEPAY_PRODUCT_ID=prod_...
+ExecStart=/usr/bin/python3 /opt/reativa/reativar_conquistas.py --server 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+# Caddy (VPS) — HTTPS automático. Troque pelo seu domínio (ex.: DuckDNS, grátis).
+# 1) Aponte o domínio pro IP do servidor
+# 2) caddy run / caddy start com este arquivo
+seudominio.duckdns.org {
+	reverse_proxy 127.0.0.1:8080
+}

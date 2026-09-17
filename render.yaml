@@ -1,0 +1,27 @@
+# Render.com — conecte seu GitHub e use este blueprint (ou crie manual).
+# ATENÇÃO: no plano grátis o disco APAGA a cada restart (contas Premium somem).
+# Só use o grátis pra testar/vitrine. Pra valer, veja DEPLOY-GRATIS.md (Fly/Oracle).
+services:
+  - type: web
+    name: reativaconquistas
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/config
+    envVars:
+      - key: ABACATEPAY_API_KEY
+        sync: false
+      - key: ABACATEPAY_PRODUCT_ID
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: ABACATEPAY_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false

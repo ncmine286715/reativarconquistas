@@ -1,0 +1,20 @@
+# Fly.io — troque "reativaconquistas" pelo nome que você escolher no `fly launch`.
+app = "reativaconquistas"
+primary_region = "gru" # São Paulo, melhor ping pro Brasil
+
+[build]
+
+[env]
+  PORT = "8080"
+  PUBLIC_BASE_URL = "https://reativaconquistas.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[mounts]]
+  source = "rc_data"
+  destination = "/app/data"

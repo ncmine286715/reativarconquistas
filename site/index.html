@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReativaConquistas — conquistas de volta no seu mundo Minecraft Bedrock</title>
+<meta name="description" content="Envie seu mundo .mcworld e baixe de volta com as conquistas reativadas. Uma conversão grátis por semana. Premium com modo Criativo, remoção de behavior packs e troca de imagem.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ea580c'/%3E%3Cpath d='M16 6l9 5v10l-9 5-9-5V11z' fill='%23fff' opacity='.95'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 48 48" width="30" height="30" aria-hidden="true"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#ea580c"/><path d="M7 13.5L24 23v21L7 34.5z" fill="#c2410c"/><path d="M41 13.5L24 23v21l17-9.5z" fill="#9a3412"/></svg>
+      <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
+    </a>
+    <nav class="nav">
+      <a class="hide-m" href="#como-funciona">Como funciona</a>
+      <a class="hide-m" href="#planos">Planos</a>
+      <a class="hide-m" href="#faq">Dúvidas</a>
+      <a href="#" id="navPremium">Premium</a>
+      <span id="authArea"><a href="#" id="authBtn">Entrar</a></span>
+      <a class="btn-nav" href="#converter">Converter grátis</a>
+    </nav>
+  </div>
+</div>
+
+<div class="page page-wide">
+  <div class="page" style="padding-left:0;padding-right:0;max-width:760px">
+
+  <header class="hero">
+    <p class="kicker">Projeto independente — sem vínculo com Mojang ou Microsoft</p>
+    <h1>Reative as conquistas<br>do seu mundo Bedrock</h1>
+    <p class="tagline">Envie o arquivo <b>.mcworld</b> e baixe de volta corrigido, pronto para jogar. Uma conversão grátis por semana. O Premium libera o resto.</p>
+    <div class="trust">
+      <span>Arquivo apagado após a entrega</span>
+      <span>Pix ou cartão via AbacatePay</span>
+      <span>Termos e reembolso publicados</span>
+    </div>
+  </header>
+
+  <div id="quotaBar" class="quota">
+    <span class="dot"></span>
+    <span id="quotaText">Verificando sua cota semanal…</span>
+  </div>
+
+  <main class="card" id="converter">
+    <h2>Converter um mundo</h2>
+    <p class="sub">O original nunca é alterado — você baixa um novo arquivo <b>“-conquistas.mcworld”</b>.</p>
+
+    <form id="form" novalidate>
+      <label id="drop" class="drop" for="file" tabindex="0">
+        <input id="file" type="file" name="mcworld" accept=".mcworld,.zip" hidden>
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
+        </span>
+        <span class="drop-title">Solte o arquivo .mcworld aqui</span>
+        <span class="drop-sub">ou clique para escolher (até 100 MB)</span>
+        <span id="fileName" class="file-name" hidden></span>
+      </label>
+
+      <div class="field">
+        <b>Modo de jogo do mundo corrigido</b>
+        <div class="seg">
+          <label><input type="radio" name="gamemode" value="survival" checked>
+            <span>Sobrevivência<small>O modo das conquistas. Incluído no grátis.</small></span></label>
+          <label id="creativeLabel"><input type="radio" name="gamemode" value="creative" id="gameCreative">
+            <span>Criativo <span class="lock">Premium</span><small>Disponível no Premium. <a href="#" class="unlock" data-pay>Assinar</a></small></span></label>
+        </div>
+      </div>
+
+      <label class="opt locked" id="stripOpt">
+        <input type="checkbox" id="strip">
+        <span>
+          <b>Remover behavior packs <span class="lock">Premium</span></b>
+          <em>Behavior pack ativo bloqueia as conquistas de novo ao abrir o mundo. <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+        </span>
+      </label>
+
+      <label class="opt locked" id="iconOpt">
+        <input type="checkbox" id="wantIcon">
+        <span style="flex:1">
+          <b>Trocar a imagem do mundo <span class="lock">Premium</span></b>
+          <em>Usa a imagem que você enviar como ícone do mundo (PNG ou JPG). <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <input type="file" id="iconFile" accept=".png,.jpg,.jpeg,.webp" hidden>
+            <button type="button" class="btn-ghost" id="iconBtn">Escolher imagem</button>
+            <img id="iconPreview" class="icon-preview" alt="Prévia do ícone">
+            <span id="iconName" style="font-size:12.5px"></span>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt locked" id="renameOpt">
+        <input type="checkbox" id="wantRename">
+        <span style="flex:1">
+          <b>Renomear o mundo <span class="lock">Premium</span></b>
+          <em>O nome que aparece na lista de mundos do jogo. <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
+              style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+          </span>
+        </span>
+      </label>
+
+      <label class="accept">
+        <input type="checkbox" id="accept">
+        <span>Li e concordo com os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>, a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade (LGPD)</a> e a <a href="reembolso.html" target="_blank" rel="noopener">Política de Reembolso</a>. Declaro que o mundo enviado é meu (ou tenho direito de modificá-lo) e entendo que <b>não há garantia de desbloqueio de conquistas</b> — isso depende do jogo/Mojang. <b>Obrigatório.</b></span>
+      </label>
+
+      <button id="submit" class="primary" type="submit" disabled>Corrigir e baixar</button>
+    </form>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <!-- PLANOS -->
+  <section class="section" id="planos">
+    <h2>Planos</h2>
+    <div class="plans">
+      <div class="plan">
+        <h3>Grátis</h3>
+        <div class="price">R$ 0<small> · para sempre</small></div>
+        <ul>
+          <li class="yes"><b>1 conversão por semana</b>, sem cadastro</li>
+          <li class="yes">Modo <b>Sobrevivência</b></li>
+          <li class="no">Modo Criativo</li>
+          <li class="no">Remover behavior packs</li>
+          <li class="no">Trocar imagem do mundo</li>
+          <li class="no">Renomear o mundo</li>
+        </ul>
+        <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
+      </div>
+      <div class="plan hot">
+        <h3>Premium</h3>
+        <div class="price" id="premiumPrice">R$ 6,99<small> · 30 dias</small></div>
+        <ul>
+          <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
+          <li class="yes"><b>Sobrevivência ou Criativo</b></li>
+          <li class="yes"><b>Remoção de behavior packs</b></li>
+          <li class="yes"><b>Troca da imagem</b> do mundo</li>
+          <li class="yes"><b>Renomear</b> o mundo</li>
+          <li class="yes">Suporte por e-mail</li>
+        </ul>
+        <a class="btn-plan btn-pay" href="#" data-pay>Assinar o Premium</a>
+      </div>
+    </div>
+    <p class="pay-note">Pagamento processado pela <b>AbacatePay</b> (Pix ou cartão). Pré-pago, sem renovação automática.</p>
+  </section>
+
+  <section class="section" id="como-funciona">
+    <h2>Como funciona</h2>
+    <div class="steps">
+      <div class="step"><b>1.</b> Corrigimos o <code>level.dat</code> dentro do seu mundo: <code>cheatsEnabled</code>, <code>commandsEnabled</code> e <code>hasBeenLoadedInCreative</code> voltam a <b>0</b>, e o modo padrão vai para <b>Sobrevivência</b> (ou <b>Criativo</b>, no Premium).</div>
+      <div class="step"><b>2.</b> Só esses dados mudam — mapa, construções e inventários ficam intactos. O arquivo passa por validação antes de ser devolvido.</div>
+      <div class="step"><b>3.</b> Abra o mundo corrigido em <b>Sobrevivência</b>, com cheats <b>desligados</b>. As regras de conquistas são da Mojang/Microsoft e variam por versão e plataforma.</div>
+    </div>
+    <div class="warn"><b>Sem promessa de resultado:</b> nenhum serviço de terceiros pode garantir que a Mojang/Microsoft vai liberar conquistas. O que garantimos: arquivo íntegro, no mesmo formato, com os flags corrigidos e validado — ou vale a <a href="reembolso.html">política de reembolso</a> (7 dias, art. 49 do CDC).</div>
+  </section>
+
+  <section class="section" id="faq">
+    <h2>Perguntas frequentes</h2>
+    <details class="faq" open><summary>Vou perder meu mundo ou minhas construções?</summary><p>Não. O original nunca é alterado: geramos um <b>novo arquivo</b> com sufixo <code>-conquistas.mcworld</code>. Mesmo assim, <b>guarde uma cópia do original</b> antes de jogar — é o básico de qualquer edição de save.</p></details>
+    <details class="faq"><summary>Isso é permitido? Posso ser banido?</summary><p>Editar um <b>save local seu</b>, para uso pessoal, não é invasão nem pirataria. Mas as regras de conquistas são da <b>Mojang/Microsoft</b> e podem mudar. Não copiamos nem distribuímos nada do jogo. Use só em mundos seus ou com autorização.</p></details>
+    <details class="faq"><summary>Por que “1 por semana” no grátis?</summary><p>Para cobrir o servidor e evitar abuso. A cota é de <b>1 conversão a cada 7 dias</b> por dispositivo/rede. Precisou de mais, o Premium de 30 dias é ilimitado.</p></details>
+    <details class="faq"><summary>Meus arquivos ficam salvos no servidor?</summary><p><b>Não.</b> O arquivo é processado e <b>apagado logo após a entrega</b>. Guardamos só registros técnicos mínimos de segurança e os dados do pagamento na AbacatePay. Detalhes na <a href="privacidade.html">Política de Privacidade</a>.</p></details>
+    <details class="faq"><summary>E se não funcionar?</summary><p>Confira: mundo em <b>Sobrevivência</b>, cheats <b>desligados</b>, sem behavior pack ativo, jogo atualizado. Se o arquivo voltou com defeito técnico nosso, vale o arrependimento de <b>7 dias</b> — peça pelo e-mail de suporte com o comprovante (<a href="reembolso.html">política</a>).</p></details>
+    <details class="faq"><summary>Como cancelo o Premium?</summary><p>Não precisa: o Premium é <b>pré-pago, sem renovação automática</b> — expira sozinho em 30 dias.</p></details>
+  </section>
+
+  <footer class="foot">
+    <nav>
+      <a href="termos.html">Termos de Uso</a>
+      <a href="privacidade.html">Privacidade (LGPD)</a>
+      <a href="reembolso.html">Reembolso</a>
+      <a href="sucesso.html">Verificar pagamento</a>
+      <a href="mailto:ncmine75@gmail.com">Contato</a>
+    </nav>
+    <p><b>ReativaConquistas</b> é um utilitário independente. <b>Não afiliado, endossado ou patrocinado por Mojang Studios, Microsoft ou Minecraft.</b> MINECRAFT é marca registrada da Mojang Synergies AB.<br>
+    Operador: <b>ReativaConquistas</b> · <span id="opCity">Terra Roxa/PR</span> · <span id="supEmail">ncmine75@gmail.com</span><br>
+    Preços em BRL. © 2026 — Todos os direitos reservados.</p>
+  </footer>
+
+  </div><!-- /inner -->
+</div>
+
+<!-- MODAL PAGAMENTO -->
+<div class="modal-bg" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="modal">
+    <h3 id="payTitle">Premium — 30 dias</h3>
+    <p>Pagamento pela <b>AbacatePay</b> (Pix ou cartão). O Premium entra na sua conta assim que o pagamento confirma.</p>
+    <div id="payNoAccount">
+      <div class="warn" style="margin:0 0 14px"><b>Primeiro sua conta:</b> entre ou crie sua conta para continuar. O Premium fica vinculado a ela.</div>
+      <div class="row">
+        <button class="cancel" id="payToAuth" type="button">Criar conta / Entrar</button>
+      </div>
+    </div>
+    <div id="payHasAccount" hidden>
+      <div class="warn" style="margin:0 0 14px">Conta: <b id="payAccountEmail"></b><br><span style="font-size:12px">O Premium será ativado neste e-mail.</span></div>
+      <div id="payVerifyWarn" class="warn" style="margin:0 0 14px" hidden>Falta <b>confirmar seu e-mail</b> com o código de 6 dígitos. <a href="#" id="payGoVerify"><b>Verificar agora</b></a>.</div>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:500;color:var(--muted)">
+        <input type="checkbox" id="payAccept" style="width:17px;margin-top:2px"> <span>Aceito <a href="termos.html" target="_blank">Termos</a>, <a href="privacidade.html" target="_blank">Privacidade</a> e <a href="reembolso.html" target="_blank">Reembolso</a>.</span>
+      </label>
+      <div class="row">
+        <button class="cancel" id="payCancel" type="button">Voltar</button>
+        <button class="pay" id="payGo" type="button">Pagar <span id="payPrice">R$ 6,99</span></button>
+      </div>
+    </div>
+    <div class="secure">Checkout hospedado na AbacatePay. Não recebemos dados do seu cartão.</div>
+  </div>
+</div>
+
+<!-- MODAL CONTA -->
+<div class="modal-bg" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modal">
+    <h3 id="authTitle">Sua conta</h3>
+    <p id="authNotice">Entre ou crie sua conta. É grátis; o Premium é ativado nela.</p>
+    <div class="seg" style="margin-bottom:6px">
+      <label style="justify-content:center"><input type="radio" name="authtab" value="login" checked> <span><b>Entrar</b></span></label>
+      <label style="justify-content:center"><input type="radio" name="authtab" value="register"> <span><b>Criar conta</b></span></label>
+    </div>
+    <div id="authLogin">
+      <label for="loginEmail">E-mail</label>
+      <input id="loginEmail" type="email" maxlength="120" placeholder="voce@email.com" autocomplete="email">
+      <label for="loginPass">Senha</label>
+      <input id="loginPass" type="password" maxlength="128" placeholder="Sua senha" autocomplete="current-password">
+      <div class="row">
+        <button class="cancel" id="authCancel" type="button">Voltar</button>
+        <button class="pay" id="loginGo" type="button">Entrar</button>
+      </div>
+    </div>
+    <div id="authRegister" hidden>
+      <label for="regName">Seu nome</label>
+      <input id="regName" type="text" maxlength="80" placeholder="Ex.: Maria Silva" autocomplete="name">
+      <label for="regEmail">Seu e-mail</label>
+      <input id="regEmail" type="email" maxlength="120" placeholder="voce@email.com" autocomplete="email">
+      <label for="regEmail2">Confirme o e-mail</label>
+      <input id="regEmail2" type="email" maxlength="120" placeholder="Repita o e-mail" autocomplete="email">
+      <label for="regPass">Crie uma senha (mínimo 8 caracteres)</label>
+      <input id="regPass" type="password" maxlength="128" placeholder="Senha" autocomplete="new-password">
+      <div class="warn" style="margin:12px 0 0"><b>Confira o e-mail:</b> é nele que o Premium é ativado. Guardamos só o hash da senha, nunca a senha.</div>
+      <label for="regCaptcha">Verificação: quanto é <b id="captchaQ">…</b></label>
+      <input id="regCaptcha" type="text" inputmode="numeric" maxlength="3" placeholder="Resposta" autocomplete="off">
+      <input id="regWebsite" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;height:0" aria-hidden="true">
+      <div class="row">
+        <button class="cancel" id="authCancel2" type="button">Voltar</button>
+        <button class="pay" id="registerGo" type="button">Criar conta</button>
+      </div>
+    </div>
+    <div id="authVerify" hidden>
+      <div class="warn" style="margin:0 0 10px">Enviamos um <b>código de 6 dígitos</b> para <b id="verifyEmail"></b>. Vale 10 minutos.</div>
+      <label for="verifyCode">Código</label>
+      <input id="verifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+      <div class="row">
+        <button class="cancel" id="resendCode" type="button">Reenviar</button>
+        <button class="pay" id="verifyGo" type="button">Confirmar</button>
+      </div>
+    </div>
+    <div class="secure">Senha armazenada como hash. Sessão de 30 dias neste aparelho.</div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
