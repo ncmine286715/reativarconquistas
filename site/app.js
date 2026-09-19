@@ -1,11 +1,12 @@
-/* ReativaConquistas — frontend
-   Conta (login/senha) -> verifica e-mail -> paga (AbacatePay) -> Premium.
-   Cota grátis: 1 conversão / 7 dias. Popups só abrem em clique explícito.
+/* ReativaConquistas — frontend ESTÁTICO (sem servidor, sem AbacatePay)
+   Conversão 100% local (converter.js) + licença Kiwify (codes.js).
+   Cota grátis: 1/semana por navegador (localStorage). Premium via código.
 */
 (function () {
   "use strict";
 
   var CFG = window.RC_CONFIG || {};
+  var PRODUCTS = CFG.PRODUCTS || {};
   var FREE_PER_WEEK = CFG.FREE_PER_WEEK || 1;
   var WEEK_MS = 7 * 24 * 3600 * 1000;
 
@@ -20,104 +21,53 @@
       fileName = $("fileName"), submit = $("submit"), strip = $("strip"),
       accept = $("accept"), status = $("status"),
       quotaBar = $("quotaBar"), quotaText = $("quotaText"),
-      gameCreative = $("gameCreative"), creativeLabel = $("creativeLabel"),
+      creativeLabel = $("creativeLabel"),
       wantIcon = $("wantIcon"), iconFile = $("iconFile"), iconBtn = $("iconBtn"),
       iconPreview = $("iconPreview"), iconName = $("iconName"),
       wantRename = $("wantRename"), renameInput = $("renameInput");
 
-  var payModal = $("payModal"), authModal = $("authModal");
-  var selected = null, selectedIcon = null, pendingPay = false;
+  var licModal = $("licModal");
+  var selected = null, selectedIcon = null, selectedList = [];
+  var diagBtn = $("diagnose");
 
-  if (CFG.PREMIUM_PRICE_LABEL) {
-    var pp = $("premiumPrice");
-    if (pp) pp.innerHTML = CFG.PREMIUM_PRICE_LABEL + "<small> · 30 dias</small>";
-    var payPrice = $("payPrice");
-    if (payPrice) payPrice.textContent = CFG.PREMIUM_PRICE_LABEL;
-  }
-  if (CFG.SUPPORT_EMAIL) {
-    document.querySelectorAll('a[href^="mailto:suporte"]').forEach(function (a) {
-      a.href = "mailto:" + CFG.SUPPORT_EMAIL;
-    });
-    var se = $("supEmail");
-    if (se) se.textContent = CFG.SUPPORT_EMAIL;
-  }
-  if (CFG.OPERATOR_DOC) { var od = $("opDoc"); if (od) od.textContent = CFG.OPERATOR_DOC; }
-  if (CFG.OPERATOR_CITY_UF) { var oc = $("opCity"); if (oc) oc.textContent = CFG.OPERATOR_CITY_UF; }
-
-  /* ---------- sessão / conta ---------- */
-  function getToken() { try { return localStorage.getItem("rc_token") || ""; } catch (e) { return ""; } }
-  function setToken(t) { try { t ? localStorage.setItem("rc_token", t) : localStorage.removeItem("rc_token"); } catch (e) {} }
-  function getAccount() { try { return JSON.parse(localStorage.getItem("rc_account") || "null"); } catch (e) { return null; } }
-  function setAccount(a) { try { a ? localStorage.setItem("rc_account", JSON.stringify(a)) : localStorage.removeItem("rc_account"); } catch (e) {} }
-
-  function api(path, opts) {
-    opts = opts || {};
-    opts.headers = opts.headers || {};
-    var t = getToken();
-    if (t) opts.headers["Authorization"] = "Bearer " + t;
-    return fetch(path, opts).then(function (res) {
-      return res.text().then(function (txt) {
-        var j = null;
-        try { j = txt ? JSON.parse(txt) : {}; } catch (e) { j = { error: "Resposta inválida do servidor." }; }
-        if (!res.ok) {
-          var err = new Error((j && j.error) || ("Erro " + res.status));
-          err.code = j && j.code;
-          throw err;
+  /* ---------- preços / links Kiwify ---------- */
+  function paintProducts() {
+    ["single", "monthly", "lifetime"].forEach(function (k) {
+      var p = PRODUCTS[k];
+      if (!p) return;
+      var priceEl = document.getElementById("price-" + k);
+      if (priceEl && p.price) priceEl.textContent = p.price;
+      var btns = document.querySelectorAll('[data-buy="' + k + '"]');
+      btns.forEach(function (b) {
+        if (p.url) { b.href = p.url; b.classList.remove("disabled"); }
+        else {
+          b.href = "sucesso.html";
+          b.setAttribute("data-noconfig", "1");
         }
-        return j;
       });
     });
-  }
-
-  function refreshMe() {
-    var t = getToken();
-    if (!t) { renderAuth(null); refreshQuota(); return; }
-    api("/api/auth/me").then(function (me) {
-      setAccount({ email: me.email, name: me.name, verified: me.verified });
-      renderAuth(me);
-      refreshQuota();
-      if (pendingPay && me.verified) { pendingPay = false; openPay(); }
-    }).catch(function () {
-      setToken(""); setAccount(null);
-      renderAuth(null); refreshQuota();
-    });
-  }
-
-  function renderAuth(me) {
-    var area = $("authArea");
-    if (!area) return;
-    if (me) {
-      var until = me.premium_until_ms || 0;
-      var badge = until > Date.now() ? " · Premium" : "";
-      area.innerHTML = '<a href="minha-conta.html" class="who" title="' + escapeHtml(me.email) + '">' +
-        escapeHtml(me.name || me.email) + badge + '</a> <a href="#" id="logoutLink">Sair</a>';
-      var lo = $("logoutLink");
-      if (lo) lo.addEventListener("click", function (e) {
-        e.preventDefault();
-        api("/api/auth/logout", { method: "POST" }).catch(function () {});
-        setToken(""); setAccount(null);
-        renderAuth(null); refreshQuota();
-        setStatus("ok", "Você saiu da conta.");
+    if (CFG.SUPPORT_EMAIL) {
+      document.querySelectorAll('a[href^="mailto:"]').forEach(function (a) {
+        if (a.id !== "supEmail") a.href = "mailto:" + CFG.SUPPORT_EMAIL;
       });
-    } else {
-      area.innerHTML = '<a href="#" id="authBtn">Entrar</a>';
-      var b = $("authBtn");
-      if (b) b.addEventListener("click", function (e) { e.preventDefault(); openAuth(); });
+      var se = $("supEmail");
+      if (se) se.textContent = CFG.SUPPORT_EMAIL;
     }
+    if (CFG.OPERATOR_CITY_UF) { var oc = $("opCity"); if (oc) oc.textContent = CFG.OPERATOR_CITY_UF; }
   }
 
-  /* ---------- premium / cota ---------- */
-  var serverPremiumUntil = 0;
-  function getPremium() {
-    if (serverPremiumUntil > Date.now()) return { until: serverPremiumUntil, server: true };
-    try {
-      var p = JSON.parse(localStorage.getItem("rc_premium") || "null");
-      if (p && p.until && Date.now() < p.until) return p;
-      localStorage.removeItem("rc_premium");
-    } catch (e) {}
-    return null;
-  }
-  function isPremium() { return !!getPremium(); }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest('[data-buy]');
+    if (b && b.getAttribute("data-noconfig")) {
+      e.preventDefault();
+      setStatus("", "Os links da Kiwify ainda não foram configurados neste site. Fale com <b>" + escapeHtml(CFG.SUPPORT_EMAIL || "o suporte") + "</b> ou veja o <b>KIWIFY_SETUP.md</b>.");
+      document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
+    }
+  });
+
+  /* ---------- licença ---------- */
+  function lic() { try { return window.RC_codes.getLicense(); } catch (e) { return null; } }
+  function isPremium() { try { return window.RC_codes.isPremium(); } catch (e) { return false; } }
 
   function quotaUses() {
     try {
@@ -130,43 +80,35 @@
   }
   function quotaAdd() {
     var arr = quotaUses(); arr.push(Date.now());
-    localStorage.setItem("rc_quota", JSON.stringify(arr));
+    try { localStorage.setItem("rc_quota", JSON.stringify(arr)); } catch (e) {}
   }
   function freeLeft() { return Math.max(0, FREE_PER_WEEK - quotaUses().length); }
 
-  function refreshQuota() {
-    var t = getToken();
-    if (t) {
-      api("/api/auth/me").then(function (me) {
-        serverPremiumUntil = me.premium_until_ms || 0;
-        paintQuota(me);
-      }).catch(function () { paintQuota(null); });
-    } else {
-      serverPremiumUntil = 0;
-      paintQuota(null);
-    }
-    updateSubmit();
-  }
-
-  function paintQuota(me) {
-    var p = getPremium();
-    if (p) {
+  function paintQuota() {
+    var l = lic();
+    if (l && (l.type === "M" || l.type === "V")) {
       quotaBar.classList.add("premium");
-      var d = new Date(p.until);
-      var who = (me && me.email) ? escapeHtml(me.email) : "sua conta";
-      quotaText.innerHTML = "<strong>Premium ativo</strong> (" + who + ") até <strong>" +
-        d.toLocaleDateString("pt-BR") + "</strong> — sem limite de conversões.";
+      var txt = l.type === "V"
+        ? "<strong>Vitalício ativo</strong> — conversões ilimitadas neste navegador."
+        : "<strong>Premium ativo</strong> até <strong>" + new Date(l.expiresAt).toLocaleDateString("pt-BR") + "</strong> — ilimitado.";
+      quotaText.innerHTML = txt + ' <a href="#" id="licManage">Gerenciar código</a>';
+    } else if (l && l.type === "A") {
+      quotaBar.classList.remove("premium");
+      quotaText.innerHTML = "Você tem <strong>1 conversão avulsa</strong> liberada neste navegador. <a href='#planos'>Ver planos</a>";
     } else {
       quotaBar.classList.remove("premium");
       var left = freeLeft();
       if (left > 0) {
-        quotaText.innerHTML = "Você tem <strong>" + left + " conversão grátis</strong> esta semana, sem cadastro. <a href='#planos'>Ver o Premium</a>";
+        quotaText.innerHTML = "Você tem <strong>" + left + " conversão grátis</strong> esta semana, sem cadastro. Arquivo processado <strong>no seu PC</strong>. <a href='#planos'>Ver o Premium</a>";
       } else {
         var arr = quotaUses();
         var next = arr.length ? new Date(arr[0] + WEEK_MS).toLocaleDateString("pt-BR") : "";
-        quotaText.innerHTML = "Sua <strong>cota grátis acabou</strong> esta semana" + (next ? " (renova em <strong>" + next + "</strong>)" : "") + ". <a href='#' data-pay>Assinar o Premium</a>";
+        quotaText.innerHTML = "Sua <strong>cota grátis acabou</strong>" + (next ? " (renova em <strong>" + next + "</strong>)" : "") + ". <a href='#planos'>Liberar com código Kiwify</a>";
       }
     }
+    var m = $("licManage");
+    if (m) m.addEventListener("click", function (e) { e.preventDefault(); openLic(); });
+    updateSubmit();
   }
 
   /* ---------- status ---------- */
@@ -176,9 +118,8 @@
     status.className = "status " + kind;
     status.innerHTML = html;
   }
-  // Aviso discreto (sem popup): usado quando clicam em função Premium bloqueada
   function lockedHint(msg) {
-    setStatus("", escapeHtml(msg) + ' <a href="#" data-pay><b>Ver o Premium</b></a>');
+    setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos Kiwify</b></a> · <a href="#" data-lic><b>Tenho código</b></a>');
   }
 
   /* ---------- arquivo ---------- */
@@ -189,63 +130,76 @@
   }
   function baseName(name) { return name.replace(/\.(mcworld|zip)$/i, "") + "-conquistas.mcworld"; }
 
-  function pick(file) {
-    if (!file) return;
-    var ok = /\.(mcworld|zip)$/i.test(file.name);
-    if (file.size > 100 * 1024 * 1024) {
-      selected = null; fileName.hidden = true; updateSubmit();
-      setStatus("err", "Arquivo grande demais (máx. <b>100 MB</b>).");
+  var ACCEPT = /\.(mcworld|zip|dat)$/i;
+
+  function pick(list) {
+    if (!list || !list.length) return; // usuário cancelou a janela: mantém seleção
+    var files = Array.prototype.slice.call(list || []);
+    files = files.filter(function (f) { return ACCEPT.test(f.name || ""); });
+    if (!files.length) {
+      selected = null; selectedList = [];
+      fileName.hidden = true; updateSubmit();
+      setStatus("err", "Formato não suportado. Envie <b>.mcworld</b>, <b>.zip</b> ou <b>level.dat</b>.");
       return;
     }
-    selected = ok ? file : null;
-    if (ok) {
-      fileName.textContent = file.name + "  (" + fmtSize(file.size) + ")";
+    var big = files.filter(function (f) { return f.size > 100 * 1024 * 1024; });
+    if (big.length) {
+      selected = null; selectedList = [];
+      fileName.hidden = true; updateSubmit();
+      setStatus("err", "Arquivo grande demais (máx. <b>100 MB</b> cada): " + escapeHtml(big[0].name));
+      return;
+    }
+    selectedList = files;
+    selected = files[0];
+    if (files.length > 1) {
+      fileName.textContent = files.length + " arquivos selecionados (lote = Premium)";
       fileName.hidden = false;
       setStatus(null);
-    } else {
-      fileName.hidden = true;
-      setStatus("err", "Formato não suportado. Envie um arquivo <b>.mcworld</b> ou <b>.zip</b>.");
+    } else if (selected) {
+      fileName.textContent = selected.name + "  (" + fmtSize(selected.size) + ")";
+      fileName.hidden = false;
+      setStatus(null);
     }
     updateSubmit();
   }
 
   function updateSubmit() {
     submit.disabled = !(selected && accept.checked);
+    if (diagBtn) diagBtn.disabled = !selected;
   }
 
-  input.addEventListener("change", function () { pick(input.files && input.files[0]); });
+  input.addEventListener("change", function () { pick(input.files); });
   ["dragenter", "dragover"].forEach(function (ev) {
     drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("over"); });
   });
   ["dragleave", "drop"].forEach(function (ev) {
     drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); });
   });
-  drop.addEventListener("drop", function (e) { pick(e.dataTransfer.files && e.dataTransfer.files[0]); });
+  drop.addEventListener("drop", function (e) { pick(e.dataTransfer.files); });
   drop.addEventListener("keydown", function (e) {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); }
   });
   accept.addEventListener("change", updateSubmit);
 
-  /* travas premium — SEM popup automático, só aviso inline */
   if (strip) strip.addEventListener("change", function () {
-    if (strip.checked && !isPremium()) { strip.checked = false; lockedHint("Remover behavior packs é função Premium."); }
+    if (strip.checked && !lic()) { strip.checked = false; lockedHint("Remover behavior packs é Premium (código Kiwify)."); }
   });
   if (creativeLabel) creativeLabel.addEventListener("click", function () {
-    if (!isPremium()) {
+    if (!lic()) {
       var r = document.querySelector('input[name="gamemode"][value="survival"]');
       setTimeout(function () { if (r) r.checked = true; }, 0);
-      lockedHint("Deixar no Criativo é função Premium.");
+      lockedHint("Modo Criativo é Premium (código Kiwify).");
     }
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
-    if (wantIcon.checked && !isPremium()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é função Premium."); }
+    if (wantIcon.checked && !lic()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
   });
   if (wantRename) wantRename.addEventListener("change", function () {
-    if (wantRename.checked && !isPremium()) { wantRename.checked = false; lockedHint("Renomear o mundo é função Premium."); return; }
+    if (wantRename.checked && !lic()) { wantRename.checked = false; lockedHint("Renomear o mundo é Premium."); return; }
     if (wantRename.checked) renameInput.focus();
   });
   if (iconBtn) iconBtn.addEventListener("click", function () {
-    if (!isPremium()) { lockedHint("Trocar a foto do mundo é função Premium."); return; }
+    if (!lic()) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     iconFile.click();
   });
   if (iconFile) iconFile.addEventListener("change", function () {
@@ -261,274 +215,209 @@
     setStatus(null);
   });
 
-  /* ---------- modais ---------- */
-  function openPay() {
-    closeAuth();
-    var acc = getAccount();
-    if (!acc) {
-      // Sem conta: manda criar conta primeiro (fluxo conta -> pagar)
-      openAuth("Crie sua conta grátis para continuar com o Premium.");
-      pendingPay = true;
-      return;
+  /* ---------- modal licença ---------- */
+  function openLic() { if (licModal) { licModal.classList.add("open"); paintLicState(); } }
+  function closeLic() { if (licModal) licModal.classList.remove("open"); }
+  function paintLicState() {
+    var l = lic();
+    var box = $("licState");
+    if (!box) return;
+    if (l && (l.type === "M" || l.type === "V")) {
+      var info = window.RC_codes.typeInfo(l.type);
+      box.innerHTML = "Código ativo: <b>" + escapeHtml(l.code) + "</b> (" + info.label + ")" +
+        (l.type === "M" ? " até <b>" + new Date(l.expiresAt).toLocaleDateString("pt-BR") + "</b>." : " (sem validade).") +
+        ' <a href="#" id="licClear">Remover</a>';
+      var c = $("licClear");
+      if (c) c.addEventListener("click", function (e) {
+        e.preventDefault();
+        try { localStorage.removeItem("rc_license_v1"); } catch (err) {}
+        paintQuota(); paintLicState();
+      });
+    } else if (l && l.type === "A") {
+      box.innerHTML = "Código avulso pronto: <b>" + escapeHtml(l.code) + "</b> (vale 1 conversão).";
+    } else {
+      box.innerHTML = "Nenhum código ativo neste navegador.";
     }
-    $("payNoAccount").hidden = true;
-    $("payHasAccount").hidden = false;
-    $("payAccountEmail").textContent = acc.email;
-    $("payVerifyWarn").hidden = !!acc.verified;
-    payModal.classList.add("open");
-  }
-  function closePay() { payModal.classList.remove("open"); }
-
-  var captchaId = "";
-  function openAuth(notice) {
-    closePay();
-    if (notice) $("authNotice").textContent = notice;
-    else $("authNotice").textContent = "Entre ou crie sua conta. É grátis; o Premium é ativado nela.";
-    authModal.classList.add("open");
-    loadCaptcha();
-  }
-  function closeAuth() { authModal.classList.remove("open"); }
-
-  function loadCaptcha() {
-    $("captchaQ").textContent = "carregando…";
-    api("/api/captcha/new").then(function (c) {
-      captchaId = c.id;
-      $("captchaQ").textContent = c.question;
-      $("regCaptcha").value = "";
-    }).catch(function () { $("captchaQ").textContent = "erro — reabra"; });
   }
 
   document.addEventListener("click", function (e) {
-    var t = e.target.closest && e.target.closest("[data-pay]");
-    if (t) { e.preventDefault(); openPay(); } // único lugar que abre o popup: clique explícito
+    var t = e.target.closest && e.target.closest("[data-lic]");
+    if (t) { e.preventDefault(); openLic(); }
   });
-  var navPrem = $("navPremium");
-  if (navPrem) navPrem.addEventListener("click", function (e) {
-    e.preventDefault();
-    var p = getPremium();
-    if (p) {
-      setStatus("ok", "Premium ativo até <b>" + new Date(p.until).toLocaleDateString("pt-BR") + "</b>.");
-      document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
-    } else openPay();
-  });
-  $("payCancel").addEventListener("click", closePay);
-  payModal.addEventListener("click", function (e) { if (e.target === payModal) closePay(); });
-  authModal.addEventListener("click", function (e) { if (e.target === authModal) closeAuth(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closePay(); closeAuth(); } });
-  $("payToAuth").addEventListener("click", function () {
-    openAuth("Crie sua conta grátis para continuar com o Premium.");
-    pendingPay = true;
-  });
-  var pgv = $("payGoVerify");
-  if (pgv) pgv.addEventListener("click", function (e) {
-    e.preventDefault(); closePay();
-    openAuth();
-    showVerify((getAccount() || {}).email || "");
-  });
-
-  /* abas login/registro */
-  document.querySelectorAll('input[name="authtab"]').forEach(function (r) {
-    r.addEventListener("change", function () {
-      var reg = document.querySelector('input[name="authtab"]:checked').value === "register";
-      $("authLogin").hidden = reg;
-      $("authRegister").hidden = !reg;
-      if (reg) loadCaptcha();
-    });
-  });
-  $("authCancel").addEventListener("click", closeAuth);
-  $("authCancel2").addEventListener("click", closeAuth);
-
-  function afterAuth(j) {
-    setToken(j.token);
-    setAccount({ email: j.email, name: j.name, verified: j.verified });
-    renderAuth({ email: j.email, name: j.name, premium_until_ms: 0 });
-    refreshQuota();
-    if (!j.verified) {
-      showVerify(j.email);
-      if (!j.mail_sent) setStatus("", "Conta criada. O envio de e-mail ainda não está configurado neste servidor — peça o código ao suporte ou veja o terminal do servidor (modo teste).");
-    } else {
-      closeAuth();
-      setStatus("ok", "Olá, <b>" + escapeHtml(j.name) + "</b>. Conta pronta" + (pendingPay ? " — continue para o pagamento." : ".") );
-      if (pendingPay) { pendingPay = false; openPay(); }
-    }
+  var navLic = $("navLic");
+  if (navLic) navLic.addEventListener("click", function (e) { e.preventDefault(); openLic(); });
+  if (licModal) {
+    licModal.addEventListener("click", function (e) { if (e.target === licModal) closeLic(); });
+    var cx = $("licCancel");
+    if (cx) cx.addEventListener("click", closeLic);
   }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeLic(); });
 
-  $("registerGo").addEventListener("click", function () {
-    var name = ($("regName").value || "").trim();
-    var email = ($("regEmail").value || "").trim().toLowerCase();
-    var email2 = ($("regEmail2").value || "").trim().toLowerCase();
-    var pass = $("regPass").value || "";
-    if (name.length < 2) { $("regName").focus(); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $("regEmail").focus(); return; }
-    if (email !== email2) { setStatus("err", "Os e-mails não conferem — digite o mesmo nos dois campos."); $("regEmail2").focus(); return; }
-    if (pass.length < 8) { $("regPass").focus(); setStatus("err", "A senha precisa de ao menos <b>8 caracteres</b>."); return; }
-    var btn = $("registerGo"); btn.disabled = true; btn.textContent = "Criando…";
-    api("/api/auth/register", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, email: email, password: pass,
-        captcha_id: captchaId, captcha: $("regCaptcha").value,
-        website: $("regWebsite").value })
-    }).then(function (j) {
-      btn.disabled = false; btn.textContent = "Criar conta →";
-      afterAuth(j);
-    }).catch(function (err) {
-      btn.disabled = false; btn.textContent = "Criar conta →";
-      if (err.code === "BAD_CAPTCHA") loadCaptcha();
-      if (err.code === "EXISTS") {
-        document.querySelector('input[name="authtab"][value="login"]').checked = true;
-        $("authLogin").hidden = false; $("authRegister").hidden = true;
-        $("loginEmail").value = email;
+  var licGo = $("licGo");
+  if (licGo) licGo.addEventListener("click", function () {
+    var raw = ($("licInput").value || "").trim();
+    if (!raw) { $("licInput").focus(); return; }
+    licGo.disabled = true; licGo.textContent = "Verificando…";
+    window.RC_codes.activateCode(raw).then(function (r) {
+      licGo.disabled = false; licGo.textContent = "Ativar";
+      if (!r.valid) {
+        setStatus("err", "Código inválido: " + escapeHtml(r.reason || "confira e tente de novo."));
+        closeLic();
+        document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
+        return;
       }
-      setStatus("err", escapeHtml(err.message));
+      closeLic(); paintQuota();
+      setStatus("ok", "Código <b>" + escapeHtml(r.label) + "</b> ativo neste navegador. Pode converter.");
+    }).catch(function () {
+      licGo.disabled = false; licGo.textContent = "Ativar";
+      setStatus("err", "Não deu para validar o código. Tente de novo.");
     });
   });
 
-  $("loginGo").addEventListener("click", function () {
-    var btn = $("loginGo"); btn.disabled = true; btn.textContent = "Entrando…";
-    api("/api/auth/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: ($("loginEmail").value || "").trim().toLowerCase(),
-        password: $("loginPass").value || "" })
-    }).then(function (j) {
-      btn.disabled = false; btn.textContent = "Entrar →";
-      afterAuth(j);
-    }).catch(function (err) {
-      btn.disabled = false; btn.textContent = "Entrar →";
-      setStatus("err", escapeHtml(err.message));
-    });
-  });
-
-  function showVerify(email) {
-    $("authVerify").hidden = false;
-    $("verifyEmail").textContent = email;
-  }
-  $("verifyGo").addEventListener("click", function () {
-    api("/api/auth/verify-code", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: $("verifyCode").value || "" })
-    }).then(function () {
-      var acc = getAccount() || {};
-      acc.verified = true; setAccount(acc);
-      $("authVerify").hidden = true;
-      closeAuth();
-      setStatus("ok", "E-mail confirmado.");
-      if (pendingPay) { pendingPay = false; openPay(); }
-    }).catch(function (err) { setStatus("err", escapeHtml(err.message)); });
-  });
-  $("resendCode").addEventListener("click", function () {
-    api("/api/auth/send-code", { method: "POST" }).then(function (j) {
-      setStatus("", escapeHtml(j.hint || "Código reenviado."));
-    }).catch(function (err) { setStatus("err", escapeHtml(err.message)); });
-  });
-
-  /* ---------- pagamento (conta primeiro, sempre) ---------- */
-  var payGoHTML = $("payGo").innerHTML;
-  $("payGo").addEventListener("click", function () {
-    if (!$("payAccept").checked) { setStatusPay("Você precisa aceitar os Termos, a Privacidade e o Reembolso para assinar."); return; }
-    var btn = $("payGo");
-    btn.disabled = true; btn.textContent = "Gerando pagamento…";
-    api("/api/abacate/create", { method: "POST" })
-      .then(function (j) {
-        btn.disabled = false; btn.innerHTML = payGoHTML;
-        if (!j.url) throw new Error("Falha ao gerar pagamento. Tente de novo ou chame o suporte.");
-        try {
-          var acc = getAccount() || {};
-          localStorage.setItem("rc_pending_email", acc.email || "");
-        } catch (e) {}
-        window.location.href = j.url;
-      })
-      .catch(function (err) {
-        btn.disabled = false; btn.innerHTML = payGoHTML;
-        if (err.code === "LOGIN_REQUIRED") { closePay(); openAuth("Entre ou crie sua conta para continuar com o Premium."); pendingPay = true; return; }
-        if (err.code === "VERIFY_REQUIRED") {
-          closePay(); openAuth(); showVerify((getAccount() || {}).email || "");
-          setStatus("err", "Confirme seu e-mail com o código antes de pagar.");
-          return;
-        }
-        setStatusPay(err.message);
-      });
-  });
-  function setStatusPay(msg) {
-    setStatus("err", escapeHtml(msg));
-    closePay();
-    document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
-  }
-
-  /* ---------- envio ---------- */
+  /* ---------- conversão local ---------- */
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
 
-    var prem = getPremium();
+    var l = lic();
+    var prem = !!(l && (l.type === "M" || l.type === "V" || l.type === "A"));
+    var premUnlimited = isPremium(); // M ou V
     var mode = (document.querySelector('input[name="gamemode"]:checked') || {}).value || "survival";
     if (mode === "creative" && !prem) { lockedHint("Modo Criativo é Premium."); return; }
     if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
-    if (wantRename && wantRename.checked && !prem) { lockedHint("Renomear o mundo é Premium."); return; }
-    if (newName && !prem) { lockedHint("Renomear o mundo é Premium."); return; }
-    if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#' data-pay><b>Assinar o Premium</b></a>"); return; }
+    if ((wantRename && wantRename.checked && !prem) || (newName && !prem)) { lockedHint("Renomear o mundo é Premium."); return; }
+    if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#planos'><b>Ver planos Kiwify</b></a> ou <a href='#' data-lic><b>ativar código</b></a>"); return; }
 
-    setStatus("", '<span class="spin"></span> Corrigindo mundo, aguarde… Não feche a página.');
+    var batch = selectedList.length > 1;
+    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é Premium (código Kiwify). No grátis/avulso, converta um por vez."); return; }
+    if (typeof window.RC_convert === "undefined" || ((batch || /\.dat$/i.test(selected.name || "")) && typeof window.RC_local === "undefined")) {
+      setStatus("err", "Conversor ainda carregando (JSZip). Aguarde 5s e tente de novo.");
+      return;
+    }
+
+    setStatus("", '<span class="spin"></span> Corrigindo <b>no seu PC</b>, aguarde… (arquivo não é enviado)');
     submit.disabled = true;
 
-    var fd = new FormData();
-    fd.append("mcworld", selected, selected.name);
-    fd.append("game_mode", mode);
-    if (strip.checked) fd.append("strip", "1");
-    if (wantIcon.checked && selectedIcon) fd.append("icon", selectedIcon, selectedIcon.name);
-    if (newName) fd.append("world_name", newName);
-    fd.append("accept_terms", "1");
-    var acc = getAccount();
-    if (acc && acc.email) fd.append("premium_email", acc.email);
+    var iconPromise = Promise.resolve(null);
+    if (wantIcon.checked && selectedIcon) {
+      iconPromise = selectedIcon.arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
+    }
 
-    var headers = {};
-    var t = getToken();
-    if (t) headers["Authorization"] = "Bearer " + t;
-    fetch("/api/fix", { method: "POST", headers: headers, body: fd })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.json().then(function (j) {
-            var err = new Error((j && j.error) || ("Erro " + res.status));
-            err.code = j && j.code;
-            throw err;
-          }).catch(function (err) {
-            if (err instanceof Error && err.code) throw err;
-            throw new Error("Erro " + res.status + ". Tente de novo.");
-          });
-        }
-        return res.blob();
-      })
-      .then(function (blob) {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = baseName(selected.name);
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-        if (!prem) { quotaAdd(); refreshQuota(); }
-        setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(baseName(selected.name)) +
-          "</b>. Abra o mundo em <b>" + (mode === "creative" ? "Criativo" : "Sobrevivência") + "</b>" +
-          (mode === "survival" ? " e com cheats <b>desligados</b>" : "") +
-          ". <b>Guarde o arquivo original</b> por segurança.");
-        submit.disabled = false;
-      })
-      .catch(function (err) {
-        if (err.code === "PREMIUM_REQUIRED") {
-          lockedHint(err.message);
-        } else if (err.code === "QUOTA_EXCEEDED") {
-          refreshQuota();
-          setStatus("err", escapeHtml(err.message) + ' <a href="#" data-pay><b>Assinar o Premium</b></a>');
-        } else {
-          setStatus("err", "Não deu certo: " + escapeHtml(err.message));
-        }
+    function downloadBlob(blob, name) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }
+
+    function finishSingle(outName, f, res, iconBytes) {
+      downloadBlob(res.blob, outName);
+      if (l && l.type === "A") { try { window.RC_codes.consumeSingleUse(); } catch (err) {} }
+      else if (!isPremium()) { quotaAdd(); }
+      paintQuota();
+      var det = (res.changes || []).slice(0, 6).map(escapeHtml).join("<br>· ");
+      setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
+        "</b>. Abra em <b>" + (mode === "creative" ? "Criativo" : "Sobrevivência") + "</b>" +
+        (mode === "survival" ? " e com cheats <b>desligados</b>" : "") +
+        ". <b>Guarde o original</b>." + (det ? "<br><span style='font-size:12.5px;color:var(--muted)'>· " + det + "</span>" : ""));
+      submit.disabled = false;
+    }
+
+    // level.dat direto (1 arquivo): foto/nome/behavior são opções de .mcworld
+    if (!batch && /\.dat$/i.test(selected.name || "")) {
+      selected.arrayBuffer().then(function (ab) {
+        return window.RC_local.patchLevelDat(ab, mode);
+      }).then(function (res) {
+        finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
+      }).catch(function (err) {
+        setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
         submit.disabled = false;
       });
+      return;
+    }
+
+    // lote premium: vale modo + behavior pack (foto/nome: um arquivo por vez)
+    if (batch) {
+      if ((wantIcon.checked && selectedIcon) || newName) {
+        setStatus("err", "No lote, <b>foto e nome</b> não se aplicam — converta um arquivo por vez para usá-los.");
+        submit.disabled = false;
+        return;
+      }
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, strip: strip.checked }).then(function (results) {
+        results.forEach(function (r) {
+          downloadBlob(r.blob, r.outName);
+        });
+        paintQuota();
+        setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>" +
+          (mode === "creative" ? "Criativo" : "Sobrevivência") + "</b>. <b>Guarde os originais</b>.");
+        submit.disabled = false;
+      }).catch(function (err) {
+        setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
+        submit.disabled = false;
+      });
+      return;
+    }
+
+    Promise.all([selected.arrayBuffer(), iconPromise]).then(function (arr) {
+      return window.RC_convert(arr[0], { gameMode: mode, strip: strip.checked, iconBytes: arr[1], worldName: newName }).then(function (res) {
+        return { res: res, iconBytes: arr[1] };
+      });
+    }).then(function (both) {
+      finishSingle(baseName(selected.name), selected, both.res, both.iconBytes);
+    }).catch(function (err) {
+      setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
+      submit.disabled = false;
+    });
   });
 
-  renderAuth(null);
-  refreshMe();
+  /* ---------- diagnóstico --check (somente leitura, não consome cota) ---------- */
+  if (diagBtn) diagBtn.addEventListener("click", function () {
+    if (!selected) { input.click(); return; }
+    if (typeof window.RC_local === "undefined") {
+      setStatus("err", "Ferramentas locais ainda carregando. Aguarde 5s e tente de novo.");
+      return;
+    }
+    var f = selectedList.length > 1 ? selectedList[0] : selected;
+    setStatus("", '<span class="spin"></span> Analisando <b>sem modificar nada</b>…');
+    diagBtn.disabled = true;
+    f.arrayBuffer().then(function (ab) {
+      return window.RC_local.diagnoseAny(ab, f.name);
+    }).then(function (rep) {
+      diagBtn.disabled = false;
+      if (!rep.ok) { setStatus("err", "Não deu para analisar: " + escapeHtml(rep.error || "arquivo inválido")); return; }
+      if (rep.alreadyClean) {
+        setStatus("ok", "<b>" + escapeHtml(f.name) + "</b> já está limpo (flags zeradas" +
+          (rep.gameType.length ? ", GameType = " + rep.gameType.join(", ") : "") + "). Nada a corrigir." +
+          (selectedList.length > 1 ? " (mostrei o 1º de " + selectedList.length + ")" : ""));
+        return;
+      }
+      var det = rep.wouldChange.slice(0, 8).map(escapeHtml).join("<br>· ");
+      setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
+        (rep.gameType.length ? "<br>Modo atual (GameType): <b>" + rep.gameType.join(", ") + "</b> (0 = Sobrevivência, 1 = Criativo)" : "") +
+        "<br><br>Aperte <b>Corrigir e baixar</b> para aplicar.");
+    }).catch(function (err) {
+      diagBtn.disabled = false;
+      setStatus("err", "Não deu para analisar: " + escapeHtml((err && err.message) || err));
+    });
+  });
+
+  // ?codigo= na URL (volta da Kiwify / e-mail) ativa sozinho
+  try {
+    var q = new URLSearchParams(location.search).get("codigo");
+    if (q) {
+      var inp = $("licInput");
+      if (inp) inp.value = q;
+      openLic();
+    }
+  } catch (e) {}
+
+  paintProducts();
+  paintQuota();
 })();

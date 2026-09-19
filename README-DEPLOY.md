@@ -1,5 +1,9 @@
 # ReativaConquistas — como colocar no ar (produção)
 
+> **Modelo atual: site estático + Kiwify (sem servidor, sem AbacatePay).**
+> Leia `KIWIFY_SETUP.md` (venda com CPF) + `DEPLOY_GRATIS.md` (Cloudflare Pages).
+> Abaixo, o modo servidor antigo (Python + AbacatePay) — mantido só como referência/offline.
+
 Site pronto: layout branco + laranja, planos Grátis (1/semana) x Premium 30 dias,
 Termos + Privacidade (LGPD) + Reembolso, checkout AbacatePay (Pix) e servidor sem dependências.
 

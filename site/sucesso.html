@@ -3,26 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pagamento — ReativaConquistas</title>
+<title>Ativar código — ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
-<a class="brand" href="index.html"><svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4l17 9.5v21L24 44 7 34.5v21z" fill="#f97316" transform="translate(0,-4)"/><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#f97316"/></svg><span>ReativaConquistas</span></a>
-<nav class="nav"><a href="index.html">← Voltar</a></nav>
+<a class="brand" href="index.html"><svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#f97316"/></svg><span>ReativaConquistas</span></a>
+<nav class="nav"><a href="index.html">← Voltar ao conversor</a></nav>
 </div></div>
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
-<h2 id="title">Verificando pagamento…</h2>
-<p class="sub" id="desc">Aguarde — estamos confirmando com a AbacatePay.</p>
-<div id="box" class="status" hidden></div>
-<p style="font-size:13px;color:var(--muted)" id="hint"></p>
-<p><a href="index.html" class="btn-ghost" style="text-decoration:none;display:inline-block">Voltar ao conversor</a></p>
+<h2>Ativar seu código Kiwify</h2>
+<p class="sub">Pagou na Kiwify? O código chega no <b>e-mail da compra</b> e na área de membros. Digite abaixo — vale neste navegador.</p>
+<label for="code" style="display:block;font-size:13px;font-weight:700;margin:0 0 5px">Código</label>
+<input id="code" type="text" maxlength="20" placeholder="RC-XXXX-XXXX-XXXX" autocomplete="off"
+  style="width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:11px 12px;font-size:15px;text-transform:uppercase">
+<div class="row2" style="display:flex;gap:10px;margin-top:12px">
+  <button class="btn-ghost" id="back" type="button" style="flex:1">Voltar</button>
+  <button class="btn-ghost" id="go" type="button" style="flex:2;background:var(--orange);border-color:var(--orange);color:#fff">Ativar e converter</button>
 </div>
-<p class="foot" style="font-size:12px">Pagou e não liberou? Aguarde 1–2 min (Pix/cartão podem atrasar) e clique em “Verificar de novo”. Se persistir, fale com <b>ncmine75@gmail.com</b> informando o e-mail da compra.</p>
-<p style="text-align:center"><button class="btn-ghost" id="retry">Verificar de novo</button></p>
+<div id="box" class="status" hidden style="margin-top:14px"></div>
+<p style="font-size:13px;color:var(--muted)">Não achou o código? Veja spam/lixo eletrônico ou a área de membros da Kiwify. Pagou e não chegou em 10 min? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p>
+<p><a href="index.html#planos">← Ver planos</a></p>
+</div>
 </div>
 <script src="config.js"></script>
+<script src="codes.js"></script>
+<script src="pagamento.js"></script>
 <script src="sucesso.js"></script>
 </body>
 </html>

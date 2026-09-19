@@ -2,75 +2,17 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="refresh" content="0;url=index.html#planos">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Minha conta — ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
-<style>
-.hist { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 10px; }
-.hist th, .hist td { text-align: left; padding: 9px 8px; border-top: 1px solid var(--line); }
-.hist th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-top: 0; }
-.hist td.mono { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
-.danger { border: 1.5px solid #eba3a3; background: #fff; color: var(--red); border-radius: 10px; padding: 11px 14px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
-.danger:hover { background: var(--red-soft); }
-.row2 { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-.row2 > * { flex: 1; min-width: 200px; }
-.kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; font-size: 14px; margin: 12px 0; }
-.kv dt { color: var(--muted); }
-.kv dd { margin: 0; font-weight: 600; }
-</style>
 </head>
 <body>
-<div class="topbar"><div class="topbar-in">
-<a class="brand" href="index.html"><svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#ea580c"/></svg><span>ReativaConquistas</span></a>
-<nav class="nav"><a href="index.html">Voltar ao conversor</a></nav>
-</div></div>
-<div class="page" style="max-width:680px">
-  <div class="card" style="margin-top:26px" id="needLogin" hidden>
-    <h2>Entre na sua conta</h2>
-    <p class="sub">Esta página é para quem tem conta.</p>
-    <p><a class="btn-ghost" style="text-decoration:none;display:inline-block" href="index.html">Ir para o início e entrar</a></p>
-  </div>
-  <div class="card" style="margin-top:26px" id="account" hidden>
-    <h2>Minha conta</h2>
-    <p class="sub" id="accEmail"></p>
-    <dl class="kv">
-      <dt>Plano</dt><dd id="accPlan">…</dd>
-      <dt>Cota grátis</dt><dd id="accQuota">…</dd>
-    </dl>
-    <div class="row2">
-      <a class="btn-ghost" style="text-decoration:none;text-align:center" href="index.html#planos" id="planBtn">Ver planos</a>
-      <button class="btn-ghost" id="logoutAll" type="button">Encerrar outros aparelhos</button>
-    </div>
-  </div>
-  <div class="card" style="margin-top:16px" id="histCard" hidden>
-    <h2>Últimas conversões</h2>
-    <p class="sub">Só os dados básicos. Os arquivos dos mundos nunca ficam salvos.</p>
-    <div id="histBody"><p class="sub">Carregando…</p></div>
-  </div>
-  <div class="card" style="margin-top:16px" id="dangerCard" hidden>
-    <h2>Zona de risco</h2>
-    <p class="sub">Excluir a conta apaga nome, login, Premium restante e histórico, na hora. É irreversível e vale como pedido de eliminação (LGPD, art. 18).</p>
-    <div id="delStep1"><button class="danger" id="delGo1" type="button">Excluir minha conta</button></div>
-    <div id="delStep2" hidden>
-      <label for="delPass" style="display:block;font-size:13px;font-weight:700;margin:0 0 5px">Confirme com sua senha</label>
-      <input id="delPass" type="password" maxlength="128" autocomplete="current-password"
-        style="width:100%;border:1.5px solid #eba3a3;border-radius:10px;padding:11px 12px;font-size:14px">
-      <div class="row2">
-        <button class="btn-ghost" id="delBack" type="button">Voltar</button>
-        <button class="danger" id="delGo2" type="button">Confirmar exclusão</button>
-      </div>
-    </div>
-    <div id="delMsg" class="status" role="status" hidden style="margin-top:12px"></div>
-  </div>
-  <footer class="foot">
-    <nav>
-      <a href="termos.html">Termos de Uso</a>
-      <a href="privacidade.html">Privacidade (LGPD)</a>
-      <a href="reembolso.html">Reembolso</a>
-    </nav>
-  </footer>
+<div class="page" style="max-width:640px">
+<div class="card" style="margin-top:26px">
+<h2>Conta em breve</h2>
+<p class="sub">Estamos ligando o login (Firebase) e o pagamento (AbacatePay). Por enquanto, use o <a href="index.html#converter">conversor</a> ou <a href="index.html#planos">ver planos</a>.</p>
 </div>
-<script src="config.js"></script>
-<script src="conta.js"></script>
+</div>
 </body>
 </html>

@@ -1,0 +1,24 @@
+name = "reativa-pay"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# KV com pendentes + premium por e-mail (crie 1x: wrangler kv namespace create PREMIUM_KV).
+# Depois cole o id retornado abaixo (preview_id p/ dev, id p/ produção).
+[[kv_namespaces]]
+binding = "PREMIUM_KV"
+id = "acfc4981776e4dd0b8513722597f8f01"
+preview_id = "acfc4981776e4dd0b8513722597f8f01"
+
+[vars]
+# ID do produto "Premium 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
+ABACATEPAY_PRODUCT_ID = "prod_uYDYTFzC02DWmsXsbT2wYdcL"
+# Site público (volta do checkout). Troque pelo seu domínio em produção.
+PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
+# Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
+#   https://<seu-worker>/api/abacate/webhook?secret=VALOR — cadastre no AbacatePay.
+# Origens liberadas p/ o site chamar o Worker (CSV). "*" = qualquer (só teste).
+ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev"
+
+# SEGREDO (nunca neste arquivo!):
+#   wrangler secret put ABACATEPAY_API_KEY
+# e cole a chave abc_dev_... (dev) ou abc_... (produção).

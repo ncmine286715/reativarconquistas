@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ReativaConquistas — conquistas de volta no seu mundo Minecraft Bedrock</title>
-<meta name="description" content="Envie seu mundo .mcworld e baixe de volta com as conquistas reativadas. Uma conversão grátis por semana. Premium com modo Criativo, remoção de behavior packs e troca de imagem.">
+<meta name="description" content="Corrija seu mundo .mcworld no próprio navegador e reative as conquistas. Uma conversão grátis por semana. Premium via código Kiwify. Arquivo nunca sai do seu PC.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ea580c'/%3E%3Cpath d='M16 6l9 5v10l-9 5-9-5V11z' fill='%23fff' opacity='.95'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -20,8 +20,8 @@
       <a class="hide-m" href="#como-funciona">Como funciona</a>
       <a class="hide-m" href="#planos">Planos</a>
       <a class="hide-m" href="#faq">Dúvidas</a>
-      <a href="#" id="navPremium">Premium</a>
-      <span id="authArea"><a href="#" id="authBtn">Entrar</a></span>
+      <a href="#" id="navLic">Tenho código</a>
+      <a href="#" id="navAuth" hidden>Entrar</a>
       <a class="btn-nav" href="#converter">Converter grátis</a>
     </nav>
   </div>
@@ -33,10 +33,10 @@
   <header class="hero">
     <p class="kicker">Projeto independente — sem vínculo com Mojang ou Microsoft</p>
     <h1>Reative as conquistas<br>do seu mundo Bedrock</h1>
-    <p class="tagline">Envie o arquivo <b>.mcworld</b> e baixe de volta corrigido, pronto para jogar. Uma conversão grátis por semana. O Premium libera o resto.</p>
+    <p class="tagline">Corrija o arquivo <b>.mcworld</b> <b>no seu navegador</b> e baixe de volta pronto para jogar. Uma conversão grátis por semana. O Premium libera o resto via código.</p>
     <div class="trust">
-      <span>Arquivo apagado após a entrega</span>
-      <span>Pix ou cartão via AbacatePay</span>
+      <span>Arquivo nunca sai do seu PC</span>
+      <span>Pix ou cartão via Kiwify</span>
       <span>Termos e reembolso publicados</span>
     </div>
   </header>
@@ -52,12 +52,12 @@
 
     <form id="form" novalidate>
       <label id="drop" class="drop" for="file" tabindex="0">
-        <input id="file" type="file" name="mcworld" accept=".mcworld,.zip" hidden>
+        <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
-        <span class="drop-title">Solte o arquivo .mcworld aqui</span>
-        <span class="drop-sub">ou clique para escolher (até 100 MB)</span>
+        <span class="drop-title">Solte o(s) arquivo(s) aqui (.mcworld ou level.dat)</span>
+        <span class="drop-sub">ou clique para escolher (até 100 MB cada · vários arquivos = Premium)</span>
         <span id="fileName" class="file-name" hidden></span>
       </label>
 
@@ -67,7 +67,7 @@
           <label><input type="radio" name="gamemode" value="survival" checked>
             <span>Sobrevivência<small>O modo das conquistas. Incluído no grátis.</small></span></label>
           <label id="creativeLabel"><input type="radio" name="gamemode" value="creative" id="gameCreative">
-            <span>Criativo <span class="lock">Premium</span><small>Disponível no Premium. <a href="#" class="unlock" data-pay>Assinar</a></small></span></label>
+            <span>Criativo <span class="lock">Premium</span><small>Disponível no Premium. <a href="#planos" class="unlock">Ver planos</a></small></span></label>
         </div>
       </div>
 
@@ -75,7 +75,7 @@
         <input type="checkbox" id="strip">
         <span>
           <b>Remover behavior packs <span class="lock">Premium</span></b>
-          <em>Behavior pack ativo bloqueia as conquistas de novo ao abrir o mundo. <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+          <em>Behavior pack ativo bloqueia as conquistas de novo ao abrir o mundo. <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
         </span>
       </label>
 
@@ -83,7 +83,7 @@
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
           <b>Trocar a imagem do mundo <span class="lock">Premium</span></b>
-          <em>Usa a imagem que você enviar como ícone do mundo (PNG ou JPG). <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+          <em>Usa a imagem que você enviar como ícone do mundo (PNG ou JPG). <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
           <span class="icon-row" style="margin-top:10px">
             <input type="file" id="iconFile" accept=".png,.jpg,.jpeg,.webp" hidden>
             <button type="button" class="btn-ghost" id="iconBtn">Escolher imagem</button>
@@ -97,7 +97,7 @@
         <input type="checkbox" id="wantRename">
         <span style="flex:1">
           <b>Renomear o mundo <span class="lock">Premium</span></b>
-          <em>O nome que aparece na lista de mundos do jogo. <a href="#" class="unlock" data-pay>Desbloquear no Premium</a></em>
+          <em>O nome que aparece na lista de mundos do jogo. <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
           <span class="icon-row" style="margin-top:10px">
             <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
               style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -111,6 +111,7 @@
       </label>
 
       <button id="submit" class="primary" type="submit" disabled>Corrigir e baixar</button>
+      <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Só diagnosticar (não altera nada)</button>
     </form>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
@@ -133,9 +134,22 @@
         </ul>
         <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
       </div>
+      <div class="plan">
+        <h3>Avulsa</h3>
+        <div class="price" id="price-single">R$ 9,90<small> · 1 conversão</small></div>
+        <ul>
+          <li class="yes"><b>1 conversão</b> completa</li>
+          <li class="yes"><b>Sobrevivência ou Criativo</b></li>
+          <li class="yes"><b>Remoção de behavior packs</b></li>
+          <li class="yes"><b>Troca da imagem</b> + renomear</li>
+          <li class="yes">Código entregue pela Kiwify</li>
+        </ul>
+        <a class="btn-plan btn-pay" data-buy="single" href="sucesso.html">Comprar avulsa</a>
+      </div>
       <div class="plan hot">
-        <h3>Premium</h3>
-        <div class="price" id="premiumPrice">R$ 6,99<small> · 30 dias</small></div>
+        <div class="flag">Mais escolhido</div>
+        <h3>Premium 30 dias</h3>
+        <div class="price" id="price-monthly">R$ 19,90<small> · 30 dias</small></div>
         <ul>
           <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
           <li class="yes"><b>Sobrevivência ou Criativo</b></li>
@@ -144,10 +158,22 @@
           <li class="yes"><b>Renomear</b> o mundo</li>
           <li class="yes">Suporte por e-mail</li>
         </ul>
-        <a class="btn-plan btn-pay" href="#" data-pay>Assinar o Premium</a>
+        <a class="btn-plan btn-pay" data-buy="monthly" href="sucesso.html">Comprar 30 dias</a>
+        <a class="btn-plan btn-pay" data-pay="monthly" href="#" hidden>Pagar com Pix</a>
+      </div>
+      <div class="plan">
+        <h3>Vitalício</h3>
+        <div class="price" id="price-lifetime">R$ 39,90<small> · uma vez</small></div>
+        <ul>
+          <li class="yes"><b>Ilimitado para sempre</b></li>
+          <li class="yes">Tudo do Premium</li>
+          <li class="yes">Sem mensalidade</li>
+          <li class="yes">Suporte por e-mail</li>
+        </ul>
+        <a class="btn-plan btn-pay" data-buy="lifetime" href="sucesso.html">Comprar vitalício</a>
       </div>
     </div>
-    <p class="pay-note">Pagamento processado pela <b>AbacatePay</b> (Pix ou cartão). Pré-pago, sem renovação automática.</p>
+    <p class="pay-note">Pagamento pela <b>Kiwify</b> (Pix ou cartão). Você recebe um <b>código</b> e ativa neste navegador. Sem conta, sem assinatura. <a href="#" data-lic><b>Já tenho código</b></a></p>
   </section>
 
   <section class="section" id="como-funciona">
@@ -164,8 +190,9 @@
     <h2>Perguntas frequentes</h2>
     <details class="faq" open><summary>Vou perder meu mundo ou minhas construções?</summary><p>Não. O original nunca é alterado: geramos um <b>novo arquivo</b> com sufixo <code>-conquistas.mcworld</code>. Mesmo assim, <b>guarde uma cópia do original</b> antes de jogar — é o básico de qualquer edição de save.</p></details>
     <details class="faq"><summary>Isso é permitido? Posso ser banido?</summary><p>Editar um <b>save local seu</b>, para uso pessoal, não é invasão nem pirataria. Mas as regras de conquistas são da <b>Mojang/Microsoft</b> e podem mudar. Não copiamos nem distribuímos nada do jogo. Use só em mundos seus ou com autorização.</p></details>
-    <details class="faq"><summary>Por que “1 por semana” no grátis?</summary><p>Para cobrir o servidor e evitar abuso. A cota é de <b>1 conversão a cada 7 dias</b> por dispositivo/rede. Precisou de mais, o Premium de 30 dias é ilimitado.</p></details>
-    <details class="faq"><summary>Meus arquivos ficam salvos no servidor?</summary><p><b>Não.</b> O arquivo é processado e <b>apagado logo após a entrega</b>. Guardamos só registros técnicos mínimos de segurança e os dados do pagamento na AbacatePay. Detalhes na <a href="privacidade.html">Política de Privacidade</a>.</p></details>
+    <details class="faq"><summary>Por que “1 por semana” no grátis?</summary><p>Para evitar abuso. A cota é de <b>1 conversão a cada 7 dias</b> por navegador. Precisou de mais, a avulsa ou o Premium com código Kiwify liberam na hora.</p></details>
+    <details class="faq"><summary>Meus arquivos vão para algum servidor?</summary><p><b>Não.</b> A conversão roda <b>no seu navegador</b> — o arquivo nunca é enviado. Não guardamos seu mundo. O pagamento fica só na Kiwify. Detalhes na <a href="privacidade.html">Política de Privacidade</a>.</p></details>
+    <details class="faq"><summary>Como recebo o código?</summary><p>Após pagar na Kiwify você recebe o código no e-mail da compra e na área de membros. Clique em <b>Tenho código</b> no topo, digite (ex.: RC-XXXX-XXXX-XXXX) e pronto — vale neste navegador. Comprou e não achou? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Confira: mundo em <b>Sobrevivência</b>, cheats <b>desligados</b>, sem behavior pack ativo, jogo atualizado. Se o arquivo voltou com defeito técnico nosso, vale o arrependimento de <b>7 dias</b> — peça pelo e-mail de suporte com o comprovante (<a href="reembolso.html">política</a>).</p></details>
     <details class="faq"><summary>Como cancelo o Premium?</summary><p>Não precisa: o Premium é <b>pré-pago, sem renovação automática</b> — expira sozinho em 30 dias.</p></details>
   </section>
@@ -175,7 +202,7 @@
       <a href="termos.html">Termos de Uso</a>
       <a href="privacidade.html">Privacidade (LGPD)</a>
       <a href="reembolso.html">Reembolso</a>
-      <a href="sucesso.html">Verificar pagamento</a>
+      <a href="sucesso.html">Ativar código</a>
       <a href="mailto:ncmine75@gmail.com">Contato</a>
     </nav>
     <p><b>ReativaConquistas</b> é um utilitário independente. <b>Não afiliado, endossado ou patrocinado por Mojang Studios, Microsoft ou Minecraft.</b> MINECRAFT é marca registrada da Mojang Synergies AB.<br>
@@ -186,83 +213,31 @@
   </div><!-- /inner -->
 </div>
 
-<!-- MODAL PAGAMENTO -->
-<div class="modal-bg" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+<!-- MODAL LICENÇA KIWIFY -->
+<div class="modal-bg" id="licModal" role="dialog" aria-modal="true" aria-labelledby="licTitle">
   <div class="modal">
-    <h3 id="payTitle">Premium — 30 dias</h3>
-    <p>Pagamento pela <b>AbacatePay</b> (Pix ou cartão). O Premium entra na sua conta assim que o pagamento confirma.</p>
-    <div id="payNoAccount">
-      <div class="warn" style="margin:0 0 14px"><b>Primeiro sua conta:</b> entre ou crie sua conta para continuar. O Premium fica vinculado a ela.</div>
-      <div class="row">
-        <button class="cancel" id="payToAuth" type="button">Criar conta / Entrar</button>
-      </div>
+    <h3 id="licTitle">Ativar código</h3>
+    <p>Comprou na <b>Kiwify</b>? Digite o código que chegou no seu e-mail (ex.: RC-XXXX-XXXX-XXXX). Vale neste navegador.</p>
+    <div class="warn" style="margin:0 0 14px" id="licState">Nenhum código ativo neste navegador.</div>
+    <label for="licInput">Código</label>
+    <input id="licInput" type="text" maxlength="20" placeholder="RC-XXXX-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase">
+    <div class="row">
+      <button class="cancel" id="licCancel" type="button">Voltar</button>
+      <button class="pay" id="licGo" type="button">Ativar</button>
     </div>
-    <div id="payHasAccount" hidden>
-      <div class="warn" style="margin:0 0 14px">Conta: <b id="payAccountEmail"></b><br><span style="font-size:12px">O Premium será ativado neste e-mail.</span></div>
-      <div id="payVerifyWarn" class="warn" style="margin:0 0 14px" hidden>Falta <b>confirmar seu e-mail</b> com o código de 6 dígitos. <a href="#" id="payGoVerify"><b>Verificar agora</b></a>.</div>
-      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:500;color:var(--muted)">
-        <input type="checkbox" id="payAccept" style="width:17px;margin-top:2px"> <span>Aceito <a href="termos.html" target="_blank">Termos</a>, <a href="privacidade.html" target="_blank">Privacidade</a> e <a href="reembolso.html" target="_blank">Reembolso</a>.</span>
-      </label>
-      <div class="row">
-        <button class="cancel" id="payCancel" type="button">Voltar</button>
-        <button class="pay" id="payGo" type="button">Pagar <span id="payPrice">R$ 6,99</span></button>
-      </div>
-    </div>
-    <div class="secure">Checkout hospedado na AbacatePay. Não recebemos dados do seu cartão.</div>
+    <div class="secure">Ainda não tem? <a href="#planos" onclick="document.getElementById('licModal').classList.remove('open')">Ver planos Kiwify</a> · Suporte: <span id="licSup">ncmine75@gmail.com</span></div>
   </div>
 </div>
 
-<!-- MODAL CONTA -->
-<div class="modal-bg" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-  <div class="modal">
-    <h3 id="authTitle">Sua conta</h3>
-    <p id="authNotice">Entre ou crie sua conta. É grátis; o Premium é ativado nela.</p>
-    <div class="seg" style="margin-bottom:6px">
-      <label style="justify-content:center"><input type="radio" name="authtab" value="login" checked> <span><b>Entrar</b></span></label>
-      <label style="justify-content:center"><input type="radio" name="authtab" value="register"> <span><b>Criar conta</b></span></label>
-    </div>
-    <div id="authLogin">
-      <label for="loginEmail">E-mail</label>
-      <input id="loginEmail" type="email" maxlength="120" placeholder="voce@email.com" autocomplete="email">
-      <label for="loginPass">Senha</label>
-      <input id="loginPass" type="password" maxlength="128" placeholder="Sua senha" autocomplete="current-password">
-      <div class="row">
-        <button class="cancel" id="authCancel" type="button">Voltar</button>
-        <button class="pay" id="loginGo" type="button">Entrar</button>
-      </div>
-    </div>
-    <div id="authRegister" hidden>
-      <label for="regName">Seu nome</label>
-      <input id="regName" type="text" maxlength="80" placeholder="Ex.: Maria Silva" autocomplete="name">
-      <label for="regEmail">Seu e-mail</label>
-      <input id="regEmail" type="email" maxlength="120" placeholder="voce@email.com" autocomplete="email">
-      <label for="regEmail2">Confirme o e-mail</label>
-      <input id="regEmail2" type="email" maxlength="120" placeholder="Repita o e-mail" autocomplete="email">
-      <label for="regPass">Crie uma senha (mínimo 8 caracteres)</label>
-      <input id="regPass" type="password" maxlength="128" placeholder="Senha" autocomplete="new-password">
-      <div class="warn" style="margin:12px 0 0"><b>Confira o e-mail:</b> é nele que o Premium é ativado. Guardamos só o hash da senha, nunca a senha.</div>
-      <label for="regCaptcha">Verificação: quanto é <b id="captchaQ">…</b></label>
-      <input id="regCaptcha" type="text" inputmode="numeric" maxlength="3" placeholder="Resposta" autocomplete="off">
-      <input id="regWebsite" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;height:0" aria-hidden="true">
-      <div class="row">
-        <button class="cancel" id="authCancel2" type="button">Voltar</button>
-        <button class="pay" id="registerGo" type="button">Criar conta</button>
-      </div>
-    </div>
-    <div id="authVerify" hidden>
-      <div class="warn" style="margin:0 0 10px">Enviamos um <b>código de 6 dígitos</b> para <b id="verifyEmail"></b>. Vale 10 minutos.</div>
-      <label for="verifyCode">Código</label>
-      <input id="verifyCode" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
-      <div class="row">
-        <button class="cancel" id="resendCode" type="button">Reenviar</button>
-        <button class="pay" id="verifyGo" type="button">Confirmar</button>
-      </div>
-    </div>
-    <div class="secure">Senha armazenada como hash. Sessão de 30 dias neste aparelho.</div>
-  </div>
-</div>
-
+<script src="vendor/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="config.js"></script>
+<script src="codes.js"></script>
+<script src="converter.js"></script>
+<script src="ferramentas-local.js"></script>
 <script src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script src="auth.js"></script>
+<script src="pagamento.js"></script>
 </body>
 </html>

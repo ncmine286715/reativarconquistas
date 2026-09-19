@@ -1,6 +1,12 @@
 data/
 .env
+node_modules/
+.wrangler/
 __pycache__/
 *.pyc
 *.bak
 sem-bp/
+codigos_*.txt
+# Chave privada do Firebase Admin SDK — NUNCA commite (acesso total ao projeto).
+*-firebase-adminsdk-*.json
+serviceAccount*.json
