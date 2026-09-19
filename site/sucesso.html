@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ativar código — ReativaConquistas</title>
+<title>Pagamento — ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,22 +13,18 @@
 </div></div>
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
-<h2>Ativar seu código Kiwify</h2>
-<p class="sub">Pagou na Kiwify? O código chega no <b>e-mail da compra</b> e na área de membros. Digite abaixo — vale neste navegador.</p>
-<label for="code" style="display:block;font-size:13px;font-weight:700;margin:0 0 5px">Código</label>
-<input id="code" type="text" maxlength="20" placeholder="RC-XXXX-XXXX-XXXX" autocomplete="off"
-  style="width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:11px 12px;font-size:15px;text-transform:uppercase">
-<div class="row2" style="display:flex;gap:10px;margin-top:12px">
-  <button class="btn-ghost" id="back" type="button" style="flex:1">Voltar</button>
-  <button class="btn-ghost" id="go" type="button" style="flex:2;background:var(--orange);border-color:var(--orange);color:#fff">Ativar e converter</button>
-</div>
+<h2>Pagamento Premium</h2>
+<p class="sub">Você pagou no checkout seguro? O Premium libera <b>na hora na sua conta</b>. Se caiu aqui sem pagar, <a href="index.html#planos"><b>ver planos</b></a>.</p>
 <div id="box" class="status" hidden style="margin-top:14px"></div>
-<p style="font-size:13px;color:var(--muted)">Não achou o código? Veja spam/lixo eletrônico ou a área de membros da Kiwify. Pagou e não chegou em 10 min? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p>
-<p><a href="index.html#planos">← Ver planos</a></p>
+<div class="row2" style="display:flex;gap:10px;margin-top:12px">
+<button class="btn-ghost" id="back" type="button" style="flex:1">Voltar</button>
+<a class="btn-ghost" href="index.html#converter" style="flex:2;text-align:center;text-decoration:none;background:var(--orange);border-color:var(--orange);color:#fff">Ir converter</a>
+</div>
+<p style="font-size:13px;color:var(--muted)">Pagou e não liberou em 2 min? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p>
+<p><a href="minha-conta.html">Minha conta</a> · <a href="index.html#planos">Ver planos</a></p>
 </div>
 </div>
 <script src="config.js"></script>
-<script src="codes.js"></script>
 <script src="pagamento.js"></script>
 <script src="sucesso.js"></script>
 </body>

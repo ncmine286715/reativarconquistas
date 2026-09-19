@@ -1,12 +1,11 @@
-/* ReativaConquistas — frontend ESTÁTICO (sem servidor, sem AbacatePay)
-   Conversão 100% local (converter.js) + licença Kiwify (codes.js).
-   Cota grátis: 1/semana por navegador (localStorage). Premium via código.
+/* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
+   Grátis: 1 conversão/semana por navegador (localStorage). Premium: conta
+   com pagamento via AbacatePay (Worker). Sem servidor próprio, sem Kiwify.
 */
 (function () {
   "use strict";
 
   var CFG = window.RC_CONFIG || {};
-  var PRODUCTS = CFG.PRODUCTS || {};
   var FREE_PER_WEEK = CFG.FREE_PER_WEEK || 1;
   var WEEK_MS = 7 * 24 * 3600 * 1000;
 
@@ -26,26 +25,11 @@
       iconPreview = $("iconPreview"), iconName = $("iconName"),
       wantRename = $("wantRename"), renameInput = $("renameInput");
 
-  var licModal = $("licModal");
   var selected = null, selectedIcon = null, selectedList = [];
   var diagBtn = $("diagnose");
 
-  /* ---------- preços / links Kiwify ---------- */
-  function paintProducts() {
-    ["single", "monthly", "lifetime"].forEach(function (k) {
-      var p = PRODUCTS[k];
-      if (!p) return;
-      var priceEl = document.getElementById("price-" + k);
-      if (priceEl && p.price) priceEl.textContent = p.price;
-      var btns = document.querySelectorAll('[data-buy="' + k + '"]');
-      btns.forEach(function (b) {
-        if (p.url) { b.href = p.url; b.classList.remove("disabled"); }
-        else {
-          b.href = "sucesso.html";
-          b.setAttribute("data-noconfig", "1");
-        }
-      });
-    });
+  /* ---------- contato / operador (rodapé) ---------- */
+  function paintContact() {
     if (CFG.SUPPORT_EMAIL) {
       document.querySelectorAll('a[href^="mailto:"]').forEach(function (a) {
         if (a.id !== "supEmail") a.href = "mailto:" + CFG.SUPPORT_EMAIL;
@@ -56,18 +40,7 @@
     if (CFG.OPERATOR_CITY_UF) { var oc = $("opCity"); if (oc) oc.textContent = CFG.OPERATOR_CITY_UF; }
   }
 
-  document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest('[data-buy]');
-    if (b && b.getAttribute("data-noconfig")) {
-      e.preventDefault();
-      setStatus("", "Os links da Kiwify ainda não foram configurados neste site. Fale com <b>" + escapeHtml(CFG.SUPPORT_EMAIL || "o suporte") + "</b> ou veja o <b>KIWIFY_SETUP.md</b>.");
-      document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
-    }
-  });
-
-  /* ---------- licença ---------- */
-  function lic() { try { return window.RC_codes.getLicense(); } catch (e) { return null; } }
-  function isPremium() { try { return window.RC_codes.isPremium(); } catch (e) { return false; } }
+  /* ---------- Premium = conta (AbacatePay) ---------- */
   // Premium da conta (pagamento Abacate) — soma ao código local.
   function remotePremUntil() {
     try {
@@ -76,7 +49,7 @@
     } catch (e) { return 0; }
   }
   function remotePremOk() { return remotePremUntil() > Date.now(); }
-  function isPremiumAny() { return isPremium() || remotePremOk(); }
+  function isPremiumAny() { return remotePremOk(); }
   function refreshRemotePrem() {
     try {
       var u = (window.RC_auth && window.RC_auth.user()) || null;
@@ -107,22 +80,9 @@
   function freeLeft() { return Math.max(0, FREE_PER_WEEK - quotaUses().length); }
 
   function paintQuota() {
-    var l = lic();
-    if (remotePremOk() && !(l && (l.type === "M" || l.type === "V"))) {
+    if (remotePremOk()) {
       quotaBar.classList.add("premium");
       quotaText.innerHTML = "<strong>Premium ativo</strong> na sua conta até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — ilimitado. <a href='minha-conta.html'>Minha conta</a>";
-      updateSubmit();
-      return;
-    }
-    if (l && (l.type === "M" || l.type === "V")) {
-      quotaBar.classList.add("premium");
-      var txt = l.type === "V"
-        ? "<strong>Vitalício ativo</strong> — conversões ilimitadas neste navegador."
-        : "<strong>Premium ativo</strong> até <strong>" + new Date(l.expiresAt).toLocaleDateString("pt-BR") + "</strong> — ilimitado.";
-      quotaText.innerHTML = txt + ' <a href="#" id="licManage">Gerenciar código</a>';
-    } else if (l && l.type === "A") {
-      quotaBar.classList.remove("premium");
-      quotaText.innerHTML = "Você tem <strong>1 conversão avulsa</strong> liberada neste navegador. <a href='#planos'>Ver planos</a>";
     } else {
       quotaBar.classList.remove("premium");
       var left = freeLeft();
@@ -131,11 +91,9 @@
       } else {
         var arr = quotaUses();
         var next = arr.length ? new Date(arr[0] + WEEK_MS).toLocaleDateString("pt-BR") : "";
-        quotaText.innerHTML = "Sua <strong>cota grátis acabou</strong>" + (next ? " (renova em <strong>" + next + "</strong>)" : "") + ". <a href='#planos'>Liberar com código Kiwify</a>";
+        quotaText.innerHTML = "Sua <strong>cota grátis acabou</strong>" + (next ? " (renova em <strong>" + next + "</strong>)" : "") + ". <a href='#planos'><b>Assinar o Premium</b></a>";
       }
     }
-    var m = $("licManage");
-    if (m) m.addEventListener("click", function (e) { e.preventDefault(); openLic(); });
     updateSubmit();
   }
 
@@ -147,7 +105,7 @@
     status.innerHTML = html;
   }
   function lockedHint(msg) {
-    setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos Kiwify</b></a> · <a href="#" data-lic><b>Tenho código</b></a>');
+    setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
   }
 
   /* ---------- arquivo ---------- */
@@ -210,24 +168,24 @@
   accept.addEventListener("change", updateSubmit);
 
   if (strip) strip.addEventListener("change", function () {
-    if (strip.checked && !lic()) { strip.checked = false; lockedHint("Remover behavior packs é Premium (código Kiwify)."); }
+    if (strip.checked && !remotePremOk()) { strip.checked = false; lockedHint("Remover behavior packs é Premium."); }
   });
   if (creativeLabel) creativeLabel.addEventListener("click", function () {
-    if (!lic()) {
+    if (!remotePremOk()) {
       var r = document.querySelector('input[name="gamemode"][value="survival"]');
       setTimeout(function () { if (r) r.checked = true; }, 0);
-      lockedHint("Modo Criativo é Premium (código Kiwify).");
+      lockedHint("Modo Criativo é Premium.");
     }
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
-    if (wantIcon.checked && !lic()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
+    if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
   });
   if (wantRename) wantRename.addEventListener("change", function () {
-    if (wantRename.checked && !lic()) { wantRename.checked = false; lockedHint("Renomear o mundo é Premium."); return; }
+    if (wantRename.checked && !remotePremOk()) { wantRename.checked = false; lockedHint("Renomear o mundo é Premium."); return; }
     if (wantRename.checked) renameInput.focus();
   });
   if (iconBtn) iconBtn.addEventListener("click", function () {
-    if (!lic()) { lockedHint("Trocar a foto do mundo é Premium."); return; }
+    if (!remotePremOk()) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     iconFile.click();
   });
   if (iconFile) iconFile.addEventListener("change", function () {
@@ -243,85 +201,24 @@
     setStatus(null);
   });
 
-  /* ---------- modal licença ---------- */
-  function openLic() { if (licModal) { licModal.classList.add("open"); paintLicState(); } }
-  function closeLic() { if (licModal) licModal.classList.remove("open"); }
-  function paintLicState() {
-    var l = lic();
-    var box = $("licState");
-    if (!box) return;
-    if (l && (l.type === "M" || l.type === "V")) {
-      var info = window.RC_codes.typeInfo(l.type);
-      box.innerHTML = "Código ativo: <b>" + escapeHtml(l.code) + "</b> (" + info.label + ")" +
-        (l.type === "M" ? " até <b>" + new Date(l.expiresAt).toLocaleDateString("pt-BR") + "</b>." : " (sem validade).") +
-        ' <a href="#" id="licClear">Remover</a>';
-      var c = $("licClear");
-      if (c) c.addEventListener("click", function (e) {
-        e.preventDefault();
-        try { localStorage.removeItem("rc_license_v1"); } catch (err) {}
-        paintQuota(); paintLicState();
-      });
-    } else if (l && l.type === "A") {
-      box.innerHTML = "Código avulso pronto: <b>" + escapeHtml(l.code) + "</b> (vale 1 conversão).";
-    } else {
-      box.innerHTML = "Nenhum código ativo neste navegador.";
-    }
-  }
-
-  document.addEventListener("click", function (e) {
-    var t = e.target.closest && e.target.closest("[data-lic]");
-    if (t) { e.preventDefault(); openLic(); }
-  });
-  var navLic = $("navLic");
-  if (navLic) navLic.addEventListener("click", function (e) { e.preventDefault(); openLic(); });
-  if (licModal) {
-    licModal.addEventListener("click", function (e) { if (e.target === licModal) closeLic(); });
-    var cx = $("licCancel");
-    if (cx) cx.addEventListener("click", closeLic);
-  }
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeLic(); });
-
-  var licGo = $("licGo");
-  if (licGo) licGo.addEventListener("click", function () {
-    var raw = ($("licInput").value || "").trim();
-    if (!raw) { $("licInput").focus(); return; }
-    licGo.disabled = true; licGo.textContent = "Verificando…";
-    window.RC_codes.activateCode(raw).then(function (r) {
-      licGo.disabled = false; licGo.textContent = "Ativar";
-      if (!r.valid) {
-        setStatus("err", "Código inválido: " + escapeHtml(r.reason || "confira e tente de novo."));
-        closeLic();
-        document.getElementById("converter").scrollIntoView({ behavior: "smooth" });
-        return;
-      }
-      closeLic(); paintQuota();
-      setStatus("ok", "Código <b>" + escapeHtml(r.label) + "</b> ativo neste navegador. Pode converter.");
-    }).catch(function () {
-      licGo.disabled = false; licGo.textContent = "Ativar";
-      setStatus("err", "Não deu para validar o código. Tente de novo.");
-    });
-  });
-
   /* ---------- conversão local ---------- */
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
 
-    var l = lic();
-    var prem = !!(l && (l.type === "M" || l.type === "V" || l.type === "A"));
-    if (remotePremOk()) prem = true;
-    var premUnlimited = isPremiumAny(); // código M/V ou Premium da conta
+    var prem = remotePremOk();
+    var premUnlimited = isPremiumAny(); // Premium da conta (AbacatePay)
     var mode = (document.querySelector('input[name="gamemode"]:checked') || {}).value || "survival";
     if (mode === "creative" && !prem) { lockedHint("Modo Criativo é Premium."); return; }
     if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     if ((wantRename && wantRename.checked && !prem) || (newName && !prem)) { lockedHint("Renomear o mundo é Premium."); return; }
-    if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#planos'><b>Ver planos Kiwify</b></a> ou <a href='#' data-lic><b>ativar código</b></a>"); return; }
+    if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#planos'><b>Assinar o Premium</b></a> ou <a href='minha-conta.html'><b>entrar na conta</b></a>"); return; }
 
     var batch = selectedList.length > 1;
-    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é Premium (código Kiwify). No grátis/avulso, converta um por vez."); return; }
+    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é Premium. No grátis, converta um por vez."); return; }
     if (typeof window.RC_convert === "undefined" || ((batch || /\.dat$/i.test(selected.name || "")) && typeof window.RC_local === "undefined")) {
       setStatus("err", "Conversor ainda carregando (JSZip). Aguarde 5s e tente de novo.");
       return;
@@ -348,8 +245,7 @@
 
     function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
-      if (l && l.type === "A") { try { window.RC_codes.consumeSingleUse(); } catch (err) {} }
-      else if (!isPremiumAny()) { quotaAdd(); }
+      if (!isPremiumAny()) { quotaAdd(); }
       paintQuota();
       var det = (res.changes || []).slice(0, 6).map(escapeHtml).join("<br>· ");
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
@@ -437,17 +333,7 @@
     });
   });
 
-  // ?codigo= na URL (volta da Kiwify / e-mail) ativa sozinho
-  try {
-    var q = new URLSearchParams(location.search).get("codigo");
-    if (q) {
-      var inp = $("licInput");
-      if (inp) inp.value = q;
-      openLic();
-    }
-  } catch (e) {}
-
-  paintProducts();
+  paintContact();
   paintQuota();
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
   document.addEventListener("rc-auth", function () { setTimeout(refreshRemotePrem, 150); });

@@ -137,7 +137,7 @@
     });
   }
 
-  // Premium remoto (conta) — soma ao código local (codes.js).
+  // Premium remoto (conta) — é o que libera o Premium no site.
   function remotePremiumMs(email) {
     if (!enabled() || !email) return Promise.resolve(0);
     return req("/api/premium?email=" + encodeURIComponent(email)).then(function (r) {
