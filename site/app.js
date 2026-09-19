@@ -30,6 +30,25 @@
   });
   applyThemeBtn();
 
+  /* ---------- barra fixa: aparece depois do conversor, some nos planos ---------- */
+  (function sticky() {
+    var bar = $("stickyCta"), x = $("stickyX");
+    if (!bar) return;
+    var dead = false;
+    if (x) x.addEventListener("click", function () { dead = true; bar.hidden = true; });
+    function tick() {
+      if (dead) return;
+      var conv = $("converter"), plans = $("planos");
+      var c = conv ? conv.getBoundingClientRect() : null;
+      var p = plans ? plans.getBoundingClientRect() : null;
+      var pastConv = !!c && c.bottom < 0;
+      var atPlans = !!p && p.top < window.innerHeight * 0.7 && p.bottom > window.innerHeight * 0.3;
+      bar.hidden = !(pastConv && !atPlans);
+    }
+    window.addEventListener("scroll", tick, { passive: true });
+    tick();
+  })();
+
   function $(id) { return document.getElementById(id); }
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -291,7 +310,8 @@
       selected = null; selectedList = [];
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
       if (!remotePremOk()) {
-        setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(big[0].name) + "). Mundos gigantes exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>.");
+        // gatilho contextual: mundo gigante bloqueado abre a oferta VIP na hora
+        lockedHint("Esse mundo passa de 10 MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
       } else {
         setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
       }
@@ -459,7 +479,7 @@
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
-      if (!remotePremOk()) setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(tooBig[0].name) + "). Mundos gigantes exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>.");
+      if (!remotePremOk()) lockedHint("Esse mundo passa de 10 MB (" + tooBig[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
       else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }
@@ -514,9 +534,11 @@
   function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
       paintQuota();
+      // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
+      var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
         "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
-        ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>.");
+        ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + nudge);
       submit.disabled = false;
     }
 
@@ -599,12 +621,15 @@
       }).filter(Boolean).join(" · ");
       var lockedTxt = rep.locked && ((rep.locked.hasLockedBehaviorPack || []).indexOf(1) >= 0 || (rep.locked.hasLockedResourcePack || []).indexOf(1) >= 0)
         ? "<br>Trava de pack: <b>ativa</b> — remova os behavior packs <b>dentro do jogo</b> antes de exportar o mundo" : "";
+      // gatilho contextual: mundo em Criativo/Aventura + usuário grátis
+      var vipMode = (!isPremiumAny() && (rep.gameType || []).filter(function (g) { return +g !== 0 && String(g).indexOf("tag") !== 0; }).length)
+        ? "<br>Quer <b>manter o Criativo/Aventura</b> em vez de ir para Sobrevivência? Só o <a href='#planos'><b>VIP</b></a> permite." : "";
       setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
         ((rep.worldName && rep.worldName[0]) ? "<br>Nome no level.dat: <b>" + escapeHtml(rep.worldName[0]) + "</b>" : "") +
         ((rep.seed && rep.seed[0]) ? "<br>Seed: <b>" + escapeHtml(rep.seed[0]) + "</b>" : "") +
         (rep.gameType.length ? "<br>Modo atual (GameType): <b>" + rep.gameType.join(", ") + "</b> (0 = Sobrevivência, 1 = Criativo)" : "") +
         (rep.difficulty && rep.difficulty.length ? "<br>Dificuldade atual: <b>" + diffName(rep.difficulty[0]) + "</b>" : "") +
-        (grTxt ? "<br>Regras: " + grTxt : "") + lockedTxt +
+        (grTxt ? "<br>Regras: " + grTxt : "") + lockedTxt + vipMode +
         "<br><br>Aperte <b>Corrigir meu mundo</b> para aplicar.");
     }).catch(function (err) {
       diagBtn.disabled = false;
