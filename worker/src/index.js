@@ -1,19 +1,20 @@
-/* ReativaConquistas — Worker Cloudflare do AbacatePay (código separado).
+/* ReativaConquistas — Worker Cloudflare (API: AbacatePay + contas).
    A chave abc_* mora SÓ aqui (wrangler secret), NUNCA no site.
-   Endpoints (chamados por site/pagamento.js):
-     POST /api/abacate/create   {email, name} -> {url, id} (checkout 30 dias)
+   Endpoints (chamados por site/pagamento.js e site/auth.js):
+     POST /api/auth/register {email,name,password} -> {token,email,name}
+     POST /api/auth/login    {email,password} -> {token,email,name}
+     GET  /api/auth/me      (Bearer) -> {email,name,premium_until_ms}
+     POST /api/auth/logout  (Bearer) -> {ok:true}
+     POST /api/abacate/create   {email, name} -> {url, id} (checkout 30 dias;
+                                se logado, o e-mail da conta vale)
      GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, premium_until_ms?}
      POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
      GET  /api/premium?email=X -> {premium_until_ms}
      GET  /api/config -> flags públicas
-   Secrets (wrangler secret put NOME):
-     ABACATEPAY_API_KEY      (obrigatório, abc_dev_... ou produção)
-   Vars (wrangler.toml):
-     ABACATEPAY_PRODUCT_ID   (obrigatório p/ chaves v2: prod_... do dashboard)
-     PUBLIC_BASE_URL         (ex.: https://seudominio.com.br)
-     WEBHOOK_SECRET          (opcional, mas recomendado)
-     ALLOWED_ORIGINS         (CSV; "*" = qualquer origem — só p/ teste)
-   KV: PREMIUM_KV (pendentes + premium por e-mail).
+   Secrets (via API: nunca neste arquivo nem no git):
+     ABACATEPAY_API_KEY, WEBHOOK_SECRET
+   Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, PUBLIC_BASE_URL, ALLOWED_ORIGINS.
+   KV: PREMIUM_KV (contas, sessões, pendentes, premium).
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "ACTIVE", "PAYMENT_CONFIRMED", "CONFIRMED"]);
@@ -35,8 +36,51 @@ function corsHeaders(req, env) {
 }
 
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120));
+const validPw = (p) => typeof p === "string" && p.length >= 8 && p.length <= 128;
 const premKey = (email) => "prem:" + email.trim().toLowerCase();
 const pendKey = (id) => "pend:" + id;
+const acctKey = (email) => "acct:" + email.trim().toLowerCase();
+const sessKey = (t) => "sess:" + t;
+const SESS_TTL = 30 * 86400;
+
+function b64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function unb64(s) {
+  const bin = atob(s);
+  const o = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
+  return o;
+}
+async function hashPw(pw, saltB64) {
+  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, key, 256);
+  return { salt: b64(salt), hash: b64(new Uint8Array(bits)) };
+}
+function newToken() {
+  return [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+async function sessionEmail(req, env) {
+  const h = req.headers.get("Authorization") || "";
+  const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+  if (!t || t.length > 128) return "";
+  const s = await env.PREMIUM_KV.get(sessKey(t), "json").catch(() => null);
+  if (!s || s.exp < Date.now()) return "";
+  return s.email || "";
+}
+async function rlTake(env, key, limit, ttl) {
+  const n = parseInt((await env.PREMIUM_KV.get(key).catch(() => null)) || "0", 10);
+  if (n >= limit) return false;
+  await env.PREMIUM_KV.put(key, String(n + 1), { expirationTtl: ttl }).catch(() => {});
+  return true;
+}
+async function premiumUntil(env, email) {
+  const rec = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
+  return rec && rec.until > Date.now() ? rec.until : 0;
+}
 
 async function abacateCreate(env, email, name, origin) {
   const base = (origin || String(env.PUBLIC_BASE_URL || "")).replace(/\/+$/, "");
@@ -108,7 +152,60 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, premium_days: 30 }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, premium_days: 30, accounts: true }, 200, cors);
+      }
+
+      // ---------- contas: registro ----------
+      if (url.pathname === "/api/auth/register" && req.method === "POST") {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-reg:" + ip, 10, 3600))) return json({ error: "Muitas contas criadas. Aguarde 1 hora." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const email = String(body.email || "").trim().toLowerCase();
+        const name = String(body.name || "").trim().slice(0, 80);
+        if (name.length < 2) return json({ error: "Informe seu nome." }, 400, cors);
+        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
+        if (!validPw(body.password)) return json({ error: "A senha precisa de 8 a 128 caracteres." }, 400, cors);
+        if (await env.PREMIUM_KV.get(acctKey(email)).catch(() => null)) {
+          return json({ error: "Este e-mail já tem conta. Faça login.", code: "EXISTS" }, 409, cors);
+        }
+        const { salt, hash } = await hashPw(body.password);
+        await env.PREMIUM_KV.put(acctKey(email), JSON.stringify({ name, salt, hash, created: Date.now() }));
+        const token = newToken();
+        await env.PREMIUM_KV.put(sessKey(token), JSON.stringify({ email, exp: Date.now() + SESS_TTL * 1000 }), { expirationTtl: SESS_TTL });
+        return json({ token, email, name }, 200, cors);
+      }
+
+      // ---------- contas: login ----------
+      if (url.pathname === "/api/auth/login" && req.method === "POST") {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-login:" + ip, 20, 3600))) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const email = String(body.email || "").trim().toLowerCase();
+        const acct = await env.PREMIUM_KV.get(acctKey(email), "json").catch(() => null);
+        if (!acct) return json({ error: "E-mail ou senha incorretos." }, 401, cors);
+        const { hash } = await hashPw(String(body.password || ""), acct.salt);
+        if (hash !== acct.hash) return json({ error: "E-mail ou senha incorretos." }, 401, cors);
+        const token = newToken();
+        await env.PREMIUM_KV.put(sessKey(token), JSON.stringify({ email, exp: Date.now() + SESS_TTL * 1000 }), { expirationTtl: SESS_TTL });
+        return json({ token, email, name: acct.name || "" }, 200, cors);
+      }
+
+      // ---------- contas: quem sou ----------
+      if (url.pathname === "/api/auth/me" && req.method === "GET") {
+        const email = await sessionEmail(req, env);
+        if (!email) return json({ error: "Sessão inválida. Entre de novo." }, 401, cors);
+        const acct = await env.PREMIUM_KV.get(acctKey(email), "json").catch(() => null);
+        return json({ email, name: (acct && acct.name) || "", premium_until_ms: await premiumUntil(env, email) }, 200, cors);
+      }
+
+      // ---------- contas: sair ----------
+      if (url.pathname === "/api/auth/logout" && req.method === "POST") {
+        const h = req.headers.get("Authorization") || "";
+        const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+        if (t) await env.PREMIUM_KV.delete(sessKey(t)).catch(() => {});
+        return json({ ok: true }, 200, cors);
       }
 
       // ---------- criar checkout ----------
@@ -117,9 +214,9 @@ export default {
         if (!env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
-        const email = String(body.email || "").trim().toLowerCase();
+        const email = (await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase();
         const name = String(body.name || "").trim().slice(0, 80);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
+        if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
         // rate-limit simples: 10 criações/hora por IP
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
         const rlKey = "rl:" + ip;
@@ -178,9 +275,7 @@ export default {
       if (url.pathname === "/api/premium" && req.method === "GET") {
         const email = (url.searchParams.get("email") || "").trim().toLowerCase();
         if (!validEmail(email)) return json({ premium_until_ms: 0 }, 200, cors);
-        const rec = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
-        const until = rec && rec.until > Date.now() ? rec.until : 0;
-        return json({ premium_until_ms: until }, 200, cors);
+        return json({ premium_until_ms: await premiumUntil(env, email) }, 200, cors);
       }
 
       return json({ error: "rota desconhecida" }, 404, cors);

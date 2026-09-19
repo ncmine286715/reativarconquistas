@@ -2,17 +2,86 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0;url=index.html#planos">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Minha conta — ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="topbar"><div class="topbar-in">
+<a class="brand" href="index.html"><svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#f97316"/></svg><span>ReativaConquistas<small>minha conta</small></span></a>
+<nav class="nav"><a href="index.html#converter">Converter</a><a href="index.html#planos">Planos</a></nav>
+</div></div>
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
-<h2>Conta em breve</h2>
-<p class="sub">Estamos ligando o login (Firebase) e o pagamento (AbacatePay). Por enquanto, use o <a href="index.html#converter">conversor</a> ou <a href="index.html#planos">ver planos</a>.</p>
+<h2>Minha conta</h2>
+<div id="box"><p class="sub">Carregando…</p></div>
+<div class="row2" id="actions" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap" hidden>
+<a class="btn-ghost" href="index.html#converter" style="flex:1;text-align:center;text-decoration:none">Converter</a>
+<a class="btn-ghost" href="index.html#planos" style="flex:1;text-align:center;text-decoration:none">Ver planos</a>
+<button class="btn-ghost" id="logout" type="button" style="flex:1" hidden>Sair</button>
 </div>
 </div>
+</div>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+(function () {
+  "use strict";
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function show(html) { document.getElementById("box").innerHTML = html; }
+  function render() {
+    if (!window.RC_auth || !window.RC_auth.enabled) {
+      show("<p class='sub'>Conta indisponível agora. Volte ao <a href='index.html#converter'>conversor</a>.</p>");
+      return;
+    }
+    var u = window.RC_auth.user();
+    document.getElementById("actions").hidden = false;
+    if (!u) {
+      document.getElementById("logout").hidden = true;
+      show("<p class='sub'>Você não está logado.</p>" +
+        "<div style='display:flex;gap:10px;flex-wrap:wrap'>" +
+        "<button class='btn-ghost' id='goLogin' type='button' style='flex:1'>Entrar</button>" +
+        "<button class='btn-ghost' id='goReg' type='button' style='flex:1;background:var(--orange);border-color:var(--orange);color:#fff'>Criar conta grátis</button></div>");
+      document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal("login"); });
+      document.getElementById("goReg").addEventListener("click", function () { window.RC_auth.openModal("register"); });
+      return;
+    }
+    var t = "";
+    try { t = localStorage.getItem("rc_token") || ""; } catch (e) {}
+    show("<p class='sub'>Carregando seus dados…</p>");
+    fetch(window.RC_CONFIG.WORKER_URL + "/api/auth/me", {
+      headers: { Authorization: "Bearer " + t }
+    }).then(function (res) {
+      return res.text().then(function (txt) {
+        var j = {};
+        try { j = txt ? JSON.parse(txt) : {}; } catch (e) {}
+        if (!res.ok) throw new Error((j && j.error) || ("Erro " + res.status));
+        return j;
+      });
+    }).then(function (me) {
+      var prem = (+me.premium_until_ms || 0) > Date.now();
+      document.getElementById("logout").hidden = false;
+      show("<p><b>" + esc(me.name || "") + "</b> · " + esc(me.email || "") + "</p>" +
+        "<p><b>Plano:</b> " + (prem
+          ? "Premium até <b>" + new Date(+me.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
+          : "Grátis (1 conversão por semana)") + "</p>" +
+        (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o Premium</b></a> para conversões ilimitadas.</p>"));
+    }).catch(function () {
+      try { localStorage.removeItem("rc_token"); localStorage.removeItem("rc_user"); } catch (e) {}
+      render();
+    });
+  }
+  document.getElementById("logout").addEventListener("click", function () {
+    if (!window.confirm("Sair da conta?")) return;
+    window.RC_auth.signOut().then(render);
+  });
+  if (window.RC_auth) window.RC_auth.onChange(render);
+  render();
+})();
+</script>
 </body>
 </html>

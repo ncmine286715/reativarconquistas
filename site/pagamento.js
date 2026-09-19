@@ -1,7 +1,7 @@
 /* ReativaConquistas — pagamento AbacatePay 100% em JS, SEM segredo no navegador.
    A chave abc_* fica SÓ no Cloudflare Worker (worker/): o site chama o Worker,
-   o Worker chama o AbacatePay. Ativação: preencha WORKER_URL em config.js.
-   Fluxo: [data-pay] -> login (se houver) -> POST /api/abacate/create ->
+   o Worker chama o AbacatePay. Ativação: WORKER_URL em config.js.
+   Fluxo: [data-pay] -> modal (e-mail + status visível) -> POST /api/abacate/create ->
    redireciona p/ checkout -> volta em sucesso.html?id=BILLING_ID ->
    checkReturn() consulta /api/abacate/status e mostra o resultado.
 */
@@ -15,6 +15,12 @@
   function enabled() { return !!base(); }
 
   function req(path, opts) {
+    opts = opts || {};
+    opts.headers = opts.headers || {};
+    try {
+      var t = localStorage.getItem("rc_token") || "";
+      if (t) opts.headers.Authorization = "Bearer " + t;
+    } catch (e) {}
     return fetch(base() + path, opts).then(function (res) {
       return res.text().then(function (txt) {
         var j = {};
@@ -33,35 +39,71 @@
     return "";
   }
 
-  function checkoutEmail() {
-    var email = currentEmail();
-    if (!email) {
-      email = (window.prompt("Qual seu e-mail? (o Premium é liberado nele após pagar)") || "").trim();
-    }
-    if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) throw new Error("Informe um e-mail válido.");
-    return email;
+  /* ---------- modal de pagamento (tudo visível, sem prompt) ---------- */
+  function closePay() {
+    var m = document.getElementById("payModal");
+    if (m) m.remove();
+  }
+  function payStatus(t, kind) {
+    var m = document.getElementById("payMsg");
+    if (!m) return;
+    if (!t) { m.hidden = true; m.className = "status"; m.textContent = ""; return; }
+    m.hidden = false;
+    m.className = "status " + (kind || "");
+    m.textContent = t;
   }
 
-  // Chamado pelos botões [data-pay] nos planos. Se o Worker não estiver
-  // configurado, os botões ficam escondidos (HTML) e nada acontece.
-  function startCheckout() {
-    if (!enabled()) return Promise.reject(new Error("Pagamento online ainda não configurado."));
-    var email, name = "";
-    try {
-      email = checkoutEmail();
-      var u = window.RC_auth && window.RC_auth.user();
-      if (u && u.name) name = u.name;
-    } catch (e) {
-      return Promise.reject(e);
-    }
-    return req("/api/abacate/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email, name: name })
-    }).then(function (r) {
-      try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
-      location.href = r.url;
-      return r;
+  function openPayModal() {
+    if (!enabled()) return;
+    closePay();
+    var logged = currentEmail();
+    var bg = document.createElement("div");
+    bg.className = "modal-bg open";
+    bg.id = "payModal";
+    bg.innerHTML =
+      '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
+      "<h3 id='payTitle'>Premium — 30 dias</h3>" +
+      "<p class='sub'>Conversões <b>ilimitadas</b> por 30 dias + Criativo + sem behavior pack + foto e nome do mundo. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
+      "<div class='status' id='payMsg' hidden></div>" +
+      "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o Premium é liberado nele)</label>" +
+      "<input id='payEmail' type='email' maxlength='120' autocomplete='email' value='" + logged.replace(/\"/g, "&quot;") + "'" + (logged ? " readonly" : "") + " style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
+      "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
+      "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
+      "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'>Ir pagar</button></div>" +
+      (logged
+        ? "<div class='secure' style='margin-top:10px;font-size:13px'>Pagando como <b>" + logged.replace(/[<>&\"']/g, "") + "</b></div>"
+        : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu Premium</div>") + "</div>";
+    document.body.appendChild(bg);
+    bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
+    document.getElementById("payBack").addEventListener("click", closePay);
+    var pl = document.getElementById("payLogin");
+    if (pl) pl.addEventListener("click", function (e) {
+      e.preventDefault(); closePay();
+      if (window.RC_auth) window.RC_auth.openModal("login", "Entre para pagar com sua conta (ou pague só com o e-mail).");
+    });
+    document.getElementById("payGo").addEventListener("click", function () {
+      var email = (document.getElementById("payEmail").value || "").trim();
+      if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
+      var go = document.getElementById("payGo");
+      go.disabled = true; go.textContent = "Gerando cobrança…";
+      payStatus("Falando com o pagamento seguro…");
+      var name = "";
+      try {
+        var u = window.RC_auth && window.RC_auth.user();
+        if (u && u.name) name = u.name;
+      } catch (e) {}
+      req("/api/abacate/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, name: name })
+      }).then(function (r) {
+        try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
+        payStatus("Abrindo o checkout…");
+        location.href = r.url;
+      }).catch(function (err) {
+        go.disabled = false; go.textContent = "Ir pagar";
+        payStatus("Não deu: " + err.message, "err");
+      });
     });
   }
 
@@ -78,6 +120,7 @@
     return req("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
       if (box) {
         if (r.paid) {
+          try { localStorage.removeItem("rc_pending_billing"); } catch (e) {}
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
             ". Premium liberado por 30 dias. <a href='index.html#converter'><b>Ir converter</b></a>";
@@ -86,6 +129,7 @@
           box.textContent = "Pagamento ainda não confirmado (" + (r.status || "?") + "). Se já pagou, aguarde 1 min e recarregue.";
         }
       }
+      try { document.dispatchEvent(new Event("rc-auth")); } catch (e) {}
       return r;
     }).catch(function (err) {
       if (box) { box.className = "status err"; box.textContent = "Não deu para confirmar agora: " + err.message; }
@@ -93,7 +137,7 @@
     });
   }
 
-  // Premium remoto (KV do Worker) — soma ao código local (codes.js).
+  // Premium remoto (conta) — soma ao código local (codes.js).
   function remotePremiumMs(email) {
     if (!enabled() || !email) return Promise.resolve(0);
     return req("/api/premium?email=" + encodeURIComponent(email)).then(function (r) {
@@ -102,55 +146,22 @@
   }
 
   function wire() {
-    // mostra botões Abacate só quando o Worker está configurado
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
-      if (enabled()) {
-        b.hidden = false;
-        b.addEventListener("click", function (e) {
-          e.preventDefault();
-          b.textContent = "Gerando cobrança…";
-          startCheckout().catch(function (err) {
-            b.textContent = "Pagar com Pix";
-            window.alert(err.message);
-          });
-        });
-      } else {
-        b.hidden = true;
-      }
-    });
-    // botão Entrar/Sair (Firebase) — some se login não configurado
-    var nav = document.getElementById("navAuth");
-    if (nav && window.RC_auth) {
-      window.RC_auth.onChange(function (u) {
-        if (!window.RC_auth.enabled) { nav.hidden = true; return; }
-        nav.hidden = false;
-        nav.textContent = u ? ("Sair (" + (u.email || "").split("@")[0] + ")") : "Entrar";
-      });
-      nav.addEventListener("click", function (e) {
+      if (!enabled()) { b.hidden = true; return; }
+      b.hidden = false;
+      b.addEventListener("click", function (e) {
         e.preventDefault();
-        var u = window.RC_auth.user();
-        if (u) {
-          if (window.confirm("Sair da conta " + u.email + "?")) window.RC_auth.signOut();
-          return;
-        }
-        window.RC_auth.signInGoogle().catch(function () {
-          var email = (window.prompt("E-mail:") || "").trim();
-          if (!email) return;
-          var pw = window.prompt("Senha:") || "";
-          if (!pw) return;
-          window.RC_auth.signInEmail(email, pw).catch(function (err) {
-            if (window.confirm("Não entrou (" + err.message + "). Criar conta com este e-mail?")) {
-              window.RC_auth.signUpEmail(email, pw).catch(function (e2) { window.alert(e2.message); });
-            }
-          });
-        });
+        openPayModal();
       });
-    }
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closePay();
+    });
   }
 
   window.RC_pay = {
     enabled: enabled,
-    startCheckout: startCheckout,
+    openPayModal: openPayModal,
     checkReturn: checkReturn,
     remotePremiumMs: remotePremiumMs
   };

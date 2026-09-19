@@ -68,6 +68,28 @@
   /* ---------- licença ---------- */
   function lic() { try { return window.RC_codes.getLicense(); } catch (e) { return null; } }
   function isPremium() { try { return window.RC_codes.isPremium(); } catch (e) { return false; } }
+  // Premium da conta (pagamento Abacate) — soma ao código local.
+  function remotePremUntil() {
+    try {
+      var r = JSON.parse(localStorage.getItem("rc_prem_remote") || "null");
+      return (r && +r.until) || 0;
+    } catch (e) { return 0; }
+  }
+  function remotePremOk() { return remotePremUntil() > Date.now(); }
+  function isPremiumAny() { return isPremium() || remotePremOk(); }
+  function refreshRemotePrem() {
+    try {
+      var u = (window.RC_auth && window.RC_auth.user()) || null;
+      if (!u || !u.email || !window.RC_pay || !window.RC_pay.enabled()) return;
+      window.RC_pay.remotePremiumMs(u.email).then(function (ms) {
+        try {
+          if (ms > Date.now()) localStorage.setItem("rc_prem_remote", JSON.stringify({ until: ms }));
+          else localStorage.removeItem("rc_prem_remote");
+        } catch (e) {}
+        paintQuota();
+      });
+    } catch (e) {}
+  }
 
   function quotaUses() {
     try {
@@ -86,6 +108,12 @@
 
   function paintQuota() {
     var l = lic();
+    if (remotePremOk() && !(l && (l.type === "M" || l.type === "V"))) {
+      quotaBar.classList.add("premium");
+      quotaText.innerHTML = "<strong>Premium ativo</strong> na sua conta até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — ilimitado. <a href='minha-conta.html'>Minha conta</a>";
+      updateSubmit();
+      return;
+    }
     if (l && (l.type === "M" || l.type === "V")) {
       quotaBar.classList.add("premium");
       var txt = l.type === "V"
@@ -282,7 +310,8 @@
 
     var l = lic();
     var prem = !!(l && (l.type === "M" || l.type === "V" || l.type === "A"));
-    var premUnlimited = isPremium(); // M ou V
+    if (remotePremOk()) prem = true;
+    var premUnlimited = isPremiumAny(); // código M/V ou Premium da conta
     var mode = (document.querySelector('input[name="gamemode"]:checked') || {}).value || "survival";
     if (mode === "creative" && !prem) { lockedHint("Modo Criativo é Premium."); return; }
     if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
@@ -320,7 +349,7 @@
     function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
       if (l && l.type === "A") { try { window.RC_codes.consumeSingleUse(); } catch (err) {} }
-      else if (!isPremium()) { quotaAdd(); }
+      else if (!isPremiumAny()) { quotaAdd(); }
       paintQuota();
       var det = (res.changes || []).slice(0, 6).map(escapeHtml).join("<br>· ");
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
@@ -420,4 +449,6 @@
 
   paintProducts();
   paintQuota();
+  refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
+  document.addEventListener("rc-auth", function () { setTimeout(refreshRemotePrem, 150); });
 })();
