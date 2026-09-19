@@ -316,7 +316,7 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
 }
 
 /* logo do hero (some sozinho se o arquivo ainda não foi enviado) */
-.hero-logo { width: min(560px, 100%); height: auto; display: block; margin: 0 auto 10px; border-radius: 18px; box-shadow: var(--shadow); background: #111; }
+.hero-logo { width: min(560px, 100%); height: auto; display: block; margin: 0 auto 10px; filter: drop-shadow(0 10px 24px rgba(194, 65, 12, .18)); }
 
 /* mobile universal: tudo empilha, toque grande, sem zoom forçado */
 img { max-width: 100%; }
