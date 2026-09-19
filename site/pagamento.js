@@ -164,7 +164,13 @@
     return req("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
       if (box) {
         if (r.paid) {
-          try { localStorage.removeItem("rc_pending_billing"); } catch (e) {}
+          // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
+          try {
+            if (+r.premium_until_ms > Date.now()) {
+              localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms, email: r.email || "" }));
+            }
+            localStorage.removeItem("rc_pending_billing");
+          } catch (e) {}
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
             ". Premium liberado por 30 dias. <a href='index.html#converter'><b>Ir converter</b></a>";
