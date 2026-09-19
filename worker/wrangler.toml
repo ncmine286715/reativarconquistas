@@ -17,7 +17,8 @@ PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 # Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
 #   https://<seu-worker>/api/abacate/webhook?secret=VALOR — cadastre no AbacatePay.
 # Origens liberadas p/ o site chamar o Worker (CSV; "*.dominio" cobre previews).
-ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev"
+# Inclui o workers.dev da sua conta (caso acesse o site por lá) — o oficial é o pages.dev.
+ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 
 # SEGREDO (nunca neste arquivo!):
 #   wrangler secret put ABACATEPAY_API_KEY
