@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Minha conta — ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light"){t=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
 <a class="brand" href="index.html"><svg viewBox="0 0 48 48" width="28" height="28"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#f97316"/></svg><span>ReativaConquistas<small>minha conta</small></span></a>
-<nav class="nav"><a href="index.html#converter">Converter</a><a href="index.html#planos">Planos</a></nav>
+<nav class="nav"><a href="index.html#converter">Converter</a><a href="index.html#planos">Planos</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro"><svg class="ic ic-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2a6 6 0 0 0 3 8 6 6 0 0 1-8-3 6 6 0 0 1 5-5z" fill="currentColor"/></svg><svg class="ic ic-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 6h4v4H6z M7 1h2v2H7z M7 13h2v2H7z M1 7h2v2H1z M13 7h2v2h-2z" fill="currentColor"/></svg></button></nav>
 </div></div>
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
@@ -22,10 +23,29 @@
 </div>
 </div>
 </div>
-<script src="config.js?v=11"></script>
-<script src="firebase-config.js?v=11"></script>
-<script src="auth.js?v=11"></script>
-<script src="pagamento.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="firebase-config.js?v=12"></script>
+<script src="auth.js?v=12"></script>
+<script src="pagamento.js?v=12"></script>
+<script>
+(function () {
+  try {
+    var root = document.documentElement;
+    var btns = document.querySelectorAll(".theme-btn");
+    var dark = root.getAttribute("data-theme") === "dark";
+    btns.forEach(function (b) { b.setAttribute("aria-pressed", dark ? "true" : "false"); });
+    document.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".theme-btn") : null;
+      if (!b) return;
+      e.preventDefault();
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("rc_theme", next); } catch (err) {}
+      btns.forEach(function (x) { x.setAttribute("aria-pressed", next === "dark" ? "true" : "false"); });
+    });
+  } catch (e) {}
+})();
+</script>
 <script>
 (function () {
   "use strict";
@@ -44,20 +64,20 @@
     document.getElementById("actions").hidden = false;
     if (!u) {
       document.getElementById("logout").hidden = true;
-      show("<p class='sub'>Você ainda não entrou. É rapidinho: um clique com sua conta Google e seu Premium fica guardado nela.</p>" +
+      show("<p class='sub'>Você ainda não entrou. É rapidinho: um clique com sua conta Google e seu VIP fica guardado nela.</p>" +
         "<button class='btn-ghost' id='goLogin' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>");
       document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal(); });
       return;
     }
     document.getElementById("logout").hidden = false;
-    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando Premium…</p>");
+    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando VIP…</p>");
     window.RC_pay.remotePremiumMs(u.email).then(function (ms) {
       var prem = ms > Date.now();
       show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
         "<p><b>Plano:</b> " + (prem
-          ? "Premium até <b>" + new Date(ms).toLocaleDateString("pt-BR") + "</b>"
-          : "Grátis (1 conversão por semana)") + "</p>" +
-        (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o Premium</b></a> para conversões ilimitadas.</p>"));
+          ? "VIP até <b>" + new Date(ms).toLocaleDateString("pt-BR") + "</b>"
+          : "Grátis (mundos até 10 MB, ilimitado)") + "</p>" +
+        (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>"));
     });
   }
   document.getElementById("logout").addEventListener("click", function () {

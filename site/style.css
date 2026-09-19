@@ -100,8 +100,6 @@ a:hover { color: var(--orange); }
   display: flex; gap: 10px; align-items: center; box-shadow: var(--shadow-sm);
 }
 .quota strong { color: var(--ink); }
-.quota .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex: none; }
-.quota.premium .dot { background: var(--orange); }
 .quota a { font-weight: 700; }
 
 /* card */
@@ -268,6 +266,75 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
   .card { padding: 18px; }
   .page { padding-bottom: 50px; }
 }
+/* ---------- modo escuro ---------- */
+[data-theme="dark"] {
+  --bg: #161210;
+  --bg-2: #1e1813;
+  --card: #221b14;
+  --line: #3a3025;
+  --line-strong: #5a4a38;
+  --ink: #f4ede1;
+  --muted: #bfae97;
+  --faint: #8d7d68;
+  --orange-dark: #fb923c;
+  --orange-soft: #33200f;
+  --green: #4ade80;
+  --green-soft: #0f2e1c;
+  --red: #f87171;
+  --red-soft: #3a1414;
+  --shadow: 0 12px 40px rgba(0, 0, 0, .45);
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, .35);
+}
+[data-theme="dark"] body {
+  background:
+    radial-gradient(900px 340px at 50% -120px, #3a2412 0%, transparent 65%),
+    linear-gradient(180deg, var(--bg), #100d0b);
+}
+[data-theme="dark"] a { color: var(--orange-2); }
+[data-theme="dark"] a:hover { color: #fdba74; }
+[data-theme="dark"] .topbar { background: rgba(22, 18, 16, .9); }
+[data-theme="dark"] .trust span,
+[data-theme="dark"] .quota,
+[data-theme="dark"] .file-name,
+[data-theme="dark"] .opt,
+[data-theme="dark"] .btn-ghost,
+[data-theme="dark"] .plan,
+[data-theme="dark"] .plan .btn-free,
+[data-theme="dark"] .step,
+[data-theme="dark"] details.faq,
+[data-theme="dark"] .drawer,
+[data-theme="dark"] .hamb,
+[data-theme="dark"] .drawer-x,
+[data-theme="dark"] .acc,
+[data-theme="dark"] .theme-btn { background: var(--card); }
+[data-theme="dark"] .accept,
+[data-theme="dark"] .status,
+[data-theme="dark"] .worldinfo,
+[data-theme="dark"] .acc-badge { background: #282017; }
+[data-theme="dark"] .modal,
+[data-theme="dark"] .modal .cancel { background: var(--card); color: var(--ink); }
+[data-theme="dark"] .modal input,
+[data-theme="dark"] .modal-bg .warn { background: #161210; color: var(--ink); }
+[data-theme="dark"] .lock { background: #33200f; }
+[data-theme="dark"] .drop:hover,
+[data-theme="dark"] .drop:focus-visible { background: #2b1c0e; }
+[data-theme="dark"] .drop.over { background: #33200f; }
+[data-theme="dark"] .acc > summary:hover { background: #2b1c0e; }
+[data-theme="dark"] .drawer a:hover { background: #2b1c0e; }
+[data-theme="dark"] .warn { background: #2b2111; border-color: #8a6a2f; color: #e8c877; }
+[data-theme="dark"] .plan li,
+[data-theme="dark"] .step,
+[data-theme="dark"] details.faq p,
+[data-theme="dark"] .legal p,
+[data-theme="dark"] .legal li { color: #d8c9b4; }
+[data-theme="dark"] .legal { background: var(--card); }
+[data-theme="dark"] .legal h1 { color: var(--ink); }
+[data-theme="dark"] .status.ok { color: #bbf7d0; }
+[data-theme="dark"] .status.err { color: #fecaca; }
+[data-theme="dark"] .hero-logo { filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .5)); }
+[data-theme="dark"] .opt select,
+[data-theme="dark"] .opt input[type="text"] { color-scheme: dark; }
+
 @media (max-width: 720px) {
   .hamb { display: flex; }
   .nav a.hide-m, .nav #navAuth { display: none; }
@@ -277,7 +344,6 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
 /* refino: demo ANTES→DEPOIS + confiança + CTA (micro-interações CSS, sem libs) */
 .demo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 20px; }
 .demo-step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 10px; display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; box-shadow: var(--shadow-sm); }
-.demo-step b { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
 .demo-step span { min-width: 0; }
 .cta-sub { text-align: center; color: var(--muted); font-size: 13px; margin: 8px 0 0; }
 .plan-note { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.55; }
@@ -292,6 +358,57 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
 
 .file-x { display: block; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .file-x[hidden] { display: none; }
+
+/* ---------- ícones próprios (sprite SVG pixel) ---------- */
+.ic { width: 1.15em; height: 1.15em; flex: none; vertical-align: -0.2em; }
+.opt b .ic, .acc > summary .ic, .plan h3 .ic, .drawer a .ic,
+.quota .ic, .demo-step > .ic, .primary .ic, #diagnose .ic, .plan-note .ic {
+  color: var(--orange-dark);
+}
+.plan-vip .ic, .vip-flag .ic, .btn-pay .ic { color: #fff; }
+.drawer a .ic { font-size: 15px; }
+
+/* ---------- botão de tema ---------- */
+.theme-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0; flex: none;
+  background: var(--card); border: 1.5px solid var(--line-strong);
+  border-radius: 10px; cursor: pointer; color: var(--ink); font-size: 17px;
+}
+.theme-btn:hover { border-color: var(--orange); color: var(--orange-dark); }
+.theme-btn .ic-sun { display: none; }
+[data-theme="dark"] .theme-btn .ic-moon { display: none; }
+[data-theme="dark"] .theme-btn .ic-sun { display: block; }
+
+/* ---------- vitrine de planos ---------- */
+.plans-sub { text-align: center; color: var(--muted); font-size: 14.5px; margin: 6px 0 0; }
+.plan h3 { display: flex; align-items: center; gap: 8px; }
+.plan-vip {
+  border: 2px solid var(--orange);
+  box-shadow: 0 14px 44px rgba(249, 115, 22, .22);
+}
+.vip-flag {
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  background: var(--orange); color: #fff;
+  font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+  border-radius: 999px; padding: 5px 14px;
+  box-shadow: 0 6px 18px rgba(249, 115, 22, .4);
+}
+.plan-note .ic { font-size: 13px; }
+
+/* ---------- controles de formulário (tema) ---------- */
+.opt select, .opt input[type="text"] {
+  background: var(--card); color: var(--ink);
+}
+
+/* ---------- quota sem bolinha ---------- */
+.quota .ic { font-size: 18px; color: var(--green); }
+.quota.premium .ic { color: var(--orange); }
+
+/* ---------- demo com ícones ---------- */
+.demo-step > .ic { font-size: 22px; margin-top: 1px; }
+.demo-step span b { color: var(--ink); }
 
 /* ---------- menu hambúrguer + drawer ---------- */
 .hamb {

@@ -1,13 +1,34 @@
 /* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
-   Grátis: 1 conversão/semana por navegador (localStorage). Premium: conta
-   com pagamento via AbacatePay (Worker). Sem servidor próprio, sem Kiwify.
+   Grátis e ilimitado p/ mundos de até 10 MB. Acima disso (mundos gigantes,
+   mais processamento) é VIP na conta via AbacatePay (Worker).
 */
 (function () {
   "use strict";
 
   var CFG = window.RC_CONFIG || {};
-  var FREE_PER_WEEK = CFG.FREE_PER_WEEK || 1;
-  var WEEK_MS = 7 * 24 * 3600 * 1000;
+  var FREE_MAX_MB = CFG.FREE_MAX_MB || 10;
+  var PRE_MAX_MB = CFG.PRE_MAX_MB || 500;
+
+  /* ---------- tema claro/escuro (sem flash: <head> já aplicou) ---------- */
+  function applyThemeBtn() {
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    document.querySelectorAll(".theme-btn").forEach(function (b) {
+      b.setAttribute("aria-pressed", dark ? "true" : "false");
+      b.title = dark ? "Mudar para modo claro" : "Mudar para modo escuro";
+    });
+  }
+  function cycleTheme() {
+    var root = document.documentElement;
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("rc_theme", next); } catch (e) {}
+    applyThemeBtn();
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest(".theme-btn") : null;
+    if (b) { e.preventDefault(); cycleTheme(); }
+  });
+  applyThemeBtn();
 
   function $(id) { return document.getElementById(id); }
   function escapeHtml(s) {
@@ -17,7 +38,7 @@
   }
 
   var form = $("form"), input = $("file"), drop = $("drop"),
-      fileName = $("fileName"), submit = $("submit"), strip = $("strip"),
+      fileName = $("fileName"), submit = $("submit"),
       accept = $("accept"), status = $("status"),
       quotaBar = $("quotaBar"), quotaText = $("quotaText"),
       wantIcon = $("wantIcon"), iconFile = $("iconFile"), iconBtn = $("iconBtn"),
@@ -26,8 +47,6 @@
       keepSel = $("keepinv"), coordSel = $("showcoords"),
       daySel = $("daycycle"), weatherSel = $("weather"),
       badgeFile = $("badgeFile");
-
-  var FREE_MAX_MB = 10, PRE_MAX_MB = 500;
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
 
@@ -77,7 +96,7 @@
         lb.textContent = it.name;
         b.appendChild(lb);
         b.addEventListener("click", function () {
-          if (!needPremium("Ícones prontos são Premium.")) return;
+          if (!needPremium("Ícones prontos são VIP.")) return;
           iconPreset = it.id;
           presetBytes = null;
           selectedIconBytes = null;
@@ -136,35 +155,13 @@
     } catch (e) {}
   }
 
-  function quotaUses() {
-    try {
-      var arr = JSON.parse(localStorage.getItem("rc_quota") || "[]");
-      var now = Date.now();
-      arr = arr.filter(function (t) { return now - t < WEEK_MS; });
-      localStorage.setItem("rc_quota", JSON.stringify(arr));
-      return arr;
-    } catch (e) { return []; }
-  }
-  function quotaAdd() {
-    var arr = quotaUses(); arr.push(Date.now());
-    try { localStorage.setItem("rc_quota", JSON.stringify(arr)); } catch (e) {}
-  }
-  function freeLeft() { return Math.max(0, FREE_PER_WEEK - quotaUses().length); }
-
   function paintQuota() {
     if (remotePremOk()) {
       quotaBar.classList.add("premium");
-      quotaText.innerHTML = "<strong>Premium ativo</strong> na sua conta até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — ilimitado. <a href='minha-conta.html'>Minha conta</a>";
+      quotaText.innerHTML = "<strong>VIP ativo</strong> na sua conta até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — mundos gigantes liberados. <a href='minha-conta.html'>Minha conta</a>";
     } else {
       quotaBar.classList.remove("premium");
-      var left = freeLeft();
-      if (left > 0) {
-        quotaText.innerHTML = "Você tem <strong>" + left + " conversão grátis</strong> esta semana. <a href='#planos'>Ver o Premium</a>";
-      } else {
-        var arr = quotaUses();
-        var next = arr.length ? new Date(arr[0] + WEEK_MS).toLocaleDateString("pt-BR") : "";
-        quotaText.innerHTML = "Sua <strong>cota grátis acabou</strong>" + (next ? " (renova em <strong>" + next + "</strong>)" : "") + ". <a href='#planos'><b>Assinar o Premium</b></a>";
-      }
+      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis e ilimitado</strong>. Mundos gigantes (acima de 10 MB) exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>";
     }
     updateSubmit();
   }
@@ -294,7 +291,7 @@
       selected = null; selectedList = [];
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
       if (!remotePremOk()) {
-        setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(big[0].name) + "). No grátis o limite é 10 MB — <a href='#planos'><b>o Premium aceita mundos gigantes</b></a>.");
+        setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(big[0].name) + "). Mundos gigantes exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>.");
       } else {
         setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
       }
@@ -303,7 +300,7 @@
     selectedList = files;
     selected = files[0];
     if (files.length > 1) {
-      fileName.textContent = files.length + " arquivos selecionados (lote = Premium)";
+      fileName.textContent = files.length + " arquivos selecionados (lote = VIP)";
       fileName.hidden = false;
       setStatus(null);
     } else if (selected) {
@@ -335,13 +332,10 @@
 
   var gameSel = $("gamemode");
   if (gameSel) gameSel.addEventListener("change", function () {
-    if (gameSel.value !== "keep" && !needPremium("Mudar o modo de jogo é Premium.")) gameSel.value = "keep";
-  });
-  if (strip) strip.addEventListener("change", function () {
-    if (strip.checked && !needPremium("Remover behavior packs é Premium.")) { strip.checked = false; }
+    if (gameSel.value !== "keep" && !needPremium("Mudar o modo de jogo é VIP.")) gameSel.value = "keep";
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
-    if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
+    if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é VIP."); }
   });
   if (wantRename) wantRename.addEventListener("change", function () {
     if (wantRename.checked) renameInput.focus();
@@ -384,7 +378,7 @@
     });
   }
   if (iconBtn) iconBtn.addEventListener("click", function () {
-    if (!needPremium("Trocar a foto do mundo é Premium.")) return;
+    if (!needPremium("Trocar a foto do mundo é VIP.")) return;
     iconFile.click();
   });
   if (iconFile) iconFile.addEventListener("change", function () {
@@ -407,7 +401,7 @@
   });
 
   // Travas premium nos selects novos (dia/noite + clima).
-  [["daycycle", "Travar o ciclo dia/noite é Premium."], ["weather", "Travar o clima é Premium."]].forEach(function (pair) {
+  [["daycycle", "Travar o ciclo dia/noite é VIP."], ["weather", "Travar o clima é VIP."]].forEach(function (pair) {
     var el = $(pair[0]);
     if (!el) return;
     el.addEventListener("change", function () {
@@ -447,27 +441,25 @@
     if (wv !== null) rules.doweathercycle = wv === 0 ? 0 : 1;
     var wantsTime = rules.dodaylightcycle !== null || rules.doweathercycle !== null;
     var iconBytes = (wantIcon.checked && (selectedIconBytes || presetBytes)) || null;
-    var wantsPrem = strip.checked || !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime;
+    var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime;
     if (wantsPrem && !loggedIn()) {
-      setStatus("err", "Essa função é Premium. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine.");
+      setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine.");
       try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e3) {}
       return;
     }
     var diffSel = $("difficulty");
     var difficulty = diffSel ? parseInt(diffSel.value, 10) : -1;
     if (!(difficulty >= 0 && difficulty <= 3)) difficulty = null; // conquistas exigem Sobrevivência
-    if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
-    if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é Premium."); return; }
-    if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é Premium."); return; }
+    if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é VIP."); return; }
+    if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é VIP."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
-    if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#planos'><b>Assinar o Premium</b></a> ou <a href='minha-conta.html'><b>entrar na conta</b></a>"); return; }
 
-    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é Premium. No grátis, converta um por vez."); return; }
-    // tamanho vale na hora do clique (o Premium pode ter expirado depois da seleção)
+    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é VIP. No grátis, converta um por vez."); return; }
+    // tamanho vale na hora do clique (o VIP pode ter expirado depois da seleção)
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
-      if (!remotePremOk()) setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(tooBig[0].name) + "). No grátis o limite é 10 MB — <a href='#planos'><b>o Premium aceita mundos gigantes</b></a>.");
+      if (!remotePremOk()) setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(tooBig[0].name) + "). Mundos gigantes exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>.");
       else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }
@@ -512,10 +504,6 @@
       if (dm) { out.push("dificuldade " + diffName(+dm[1])); return; }
       var rl = /\((keepinventory|showcoordinates|dodaylightcycle|doweathercycle)\) = \d+ -> (\d)/.exec(c);
       if (rl) { out.push((RULE_TXT[rl[1]] || rl[1]) + (rl[2] === "1" ? " ligado" : " desligado")); return; }
-      if (/hasLockedBehaviorPack|hasLockedResourcePack/.test(c)) { out.push("trava de pack liberada"); return; }
-      if (/nada a remover/.test(c)) { out.push("nenhum behavior pack no mundo"); return; }
-      if (/pasta behavior_packs\/ removida/.test(c)) { out.push("pasta behavior_packs removida"); return; }
-      if (/removido world_behavior/.test(c)) { out.push("behavior packs removidos"); return; }
       if (/foto do mundo|world_icon/.test(c)) { out.push("foto do mundo atualizada"); return; }
       if (/nome alterado/.test(c)) { out.push("mundo renomeado"); return; }
       if (/levelname\.txt/.test(c)) { out.push("nome em levelname.txt"); return; }
@@ -525,7 +513,6 @@
 
   function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
-      if (!isPremiumAny()) { quotaAdd(); }
       paintQuota();
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
         "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
@@ -533,11 +520,11 @@
       submit.disabled = false;
     }
 
-    // level.dat direto (1 arquivo): foto e pasta behavior não existem avulsos,
-    // mas nome, regras e destrava de pack ficam dentro do NBT e aplicam.
+    // level.dat direto (1 arquivo): foto não existe avulsa,
+    // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, strip: strip.checked });
+        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName });
       }).then(function (res) {
         finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
@@ -547,14 +534,14 @@
       return;
     }
 
-    // lote premium: vale modo + behavior pack + regras (foto/nome: um por vez)
+    // lote VIP: vale modo + regras (foto/nome: um por vez)
     if (batch) {
       if ((wantIcon.checked && iconBytes) || newName) {
         setStatus("err", "No lote, <b>foto e nome único</b> não se aplicam — um por vez para usá-los.");
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, strip: strip.checked, difficulty: difficulty, rules: rules }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -572,7 +559,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, strip: strip.checked, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
@@ -611,7 +598,7 @@
         return gr[k] === null || gr[k] === undefined ? null : RULE_LBL[k] + " = <b>" + (gr[k] ? "ligado" : "desligado") + "</b>";
       }).filter(Boolean).join(" · ");
       var lockedTxt = rep.locked && ((rep.locked.hasLockedBehaviorPack || []).indexOf(1) >= 0 || (rep.locked.hasLockedResourcePack || []).indexOf(1) >= 0)
-        ? "<br>Trava de pack: <b>ativa</b> (marque “Remover behavior packs” — Premium)" : "";
+        ? "<br>Trava de pack: <b>ativa</b> — remova os behavior packs <b>dentro do jogo</b> antes de exportar o mundo" : "";
       setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
         ((rep.worldName && rep.worldName[0]) ? "<br>Nome no level.dat: <b>" + escapeHtml(rep.worldName[0]) + "</b>" : "") +
         ((rep.seed && rep.seed[0]) ? "<br>Seed: <b>" + escapeHtml(rep.seed[0]) + "</b>" : "") +

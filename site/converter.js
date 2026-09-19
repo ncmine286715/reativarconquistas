@@ -11,8 +11,7 @@
   var TAG_FLOAT = 5, TAG_DOUBLE = 6, TAG_BYTE_ARRAY = 7, TAG_STRING = 8;
   var TAG_LIST = 9, TAG_COMPOUND = 10, TAG_INT_ARRAY = 11, TAG_LONG_ARRAY = 12;
   var FLAGS = ["commandsEnabled", "cheatsEnabled", "hasBeenLoadedInCreative"];
-  // Flags de trava de pack: com behavior pack travado o jogo pode recusar
-  // conquistas mesmo sem o .json — por isso o strip também zera estes bytes.
+  // Leitura informativa p/ diagnóstico (o site não altera travas de pack).
   var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
   // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
   var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle"];
@@ -184,7 +183,6 @@
   function patchBody(body, gameMode, difficulty, extra) {
     extra = extra || {};
     var rules = extra.rules || null;
-    var strip = !!extra.strip;
     var hits = {};
     walkCollect(body, hits);
     var buf = new Uint8Array(body); // cópia
@@ -197,15 +195,6 @@
         changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
       });
     });
-    if (strip) {
-      LOCK_FLAGS.forEach(function (name) {
-        (hits[name] || []).forEach(function (h) {
-          if (h.tag !== TAG_BYTE || h.val === 0) return;
-          buf[h.off] = 0;
-          changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
-        });
-      });
-    }
     if (gameMode !== "keep") {
       var want = gameMode === "creative" ? 1 : (gameMode === "adventure" ? 2 : 0);
       (hits["GameType"] || []).forEach(function (h) {
@@ -338,7 +327,6 @@
   async function convertMcworld(arrayBuffer, opts) {
     opts = opts || {};
     var gameMode = opts.gameMode || "survival";
-    var strip = !!opts.strip;
     var iconBytes = opts.iconBytes || null; // Uint8Array em JPEG (world_icon.jpeg)
     var worldName = (opts.worldName || "").replace(/\s+/g, " ").trim().slice(0, 60);
     var difficultyOpt = (opts.difficulty >= 0 && opts.difficulty <= 3) ? opts.difficulty : null;
@@ -358,7 +346,7 @@
     var split = splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
 
-    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, strip: strip });
+    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt });
     var changes = patched.changes.slice();
 
     // Nome de verdade: dentro do level.dat (LevelName) + levelname.txt espelho.
@@ -377,22 +365,9 @@
 
     var out = new JSZip();
     var jobs = [];
-    var sawBehavior = false, sawBehaviorDir = false;
     zip.forEach(function (rel, entry) {
       if (entry.dir) return;
-      var low = rel.toLowerCase();
       var base = baseNameOf(rel);
-      var inBehaviorDir = (low === "behavior_packs" || low.indexOf("behavior_packs/") === 0 || low.indexOf("/behavior_packs/") >= 0);
-      if (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json")) sawBehavior = true;
-      if (inBehaviorDir) sawBehaviorDir = true;
-      // Strip completo: json + pasta behavior_packs/ + travas já zeradas no NBT.
-      if (strip && (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json"))) {
-        changes.push("removido world_behavior_packs.json");
-        return;
-      }
-      if (strip && inBehaviorDir) {
-        return; // pasta behavior_packs/ inteira fora (log único abaixo)
-      }
       // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
       if (iconBytes && (base === "world_icon.jpeg" || base === "world_icon.jpg" || base === "world_icon.png" || base === "pack_icon.png")) {
         return;
@@ -408,8 +383,6 @@
       jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
     });
     await Promise.all(jobs);
-    if (strip && sawBehaviorDir) changes.push("pasta behavior_packs/ removida");
-    if (strip && !sawBehavior && !sawBehaviorDir) changes.push("sem behavior packs no mundo (nada a remover)");
     if (iconBytes) {
       out.file("world_icon.jpeg", iconBytes);
       changes.push("foto do mundo atualizada (world_icon.jpeg)");

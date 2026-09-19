@@ -2,7 +2,10 @@
    Conversão 100% no navegador. Premium via conta + AbacatePay (Worker).
    Chave abc_* fica SÓ no Worker Cloudflare. */
 window.RC_CONFIG = {
-  FREE_PER_WEEK: 1,
+  // Modelo: mundos de até FREE_MAX_MB são grátis e ilimitados.
+  // Acima disso (mundos gigantes, mais processamento) é VIP.
+  FREE_MAX_MB: 10,
+  PRE_MAX_MB: 500,
   SUPPORT_EMAIL: "ncmine75@gmail.com",
   OPERATOR_NAME: "ReativaConquistas",
   OPERATOR_DOC: "",

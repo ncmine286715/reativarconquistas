@@ -134,8 +134,8 @@
   }
 
   // ---------- level.dat direto (patch_level_dat_file) ----------
-  // opts: { rules, worldName, strip } — level.dat avulso não tem .zip p/
-  // foto/behavior, mas trava de pack e nome ficam dentro do NBT e aplicam.
+  // opts: { rules, worldName } — level.dat avulso não tem .zip p/ foto,
+  // mas nome e regras ficam dentro do NBT e aplicam.
   async function patchLevelDat(arrayBuffer, gameMode, difficulty, opts) {
     var NBT = needNbt();
     gameMode = gameMode || "survival";
@@ -145,7 +145,7 @@
     if (wasGzip) raw = await NBT.gunzipAsync(raw);
     var split = NBT.splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
-    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null, strip: !!opts.strip });
+    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null });
     var changes = patched.changes.slice();
     if (opts.worldName && NBT.patchLevelName) {
       var renamed = NBT.patchLevelName(patched.buf, opts.worldName);

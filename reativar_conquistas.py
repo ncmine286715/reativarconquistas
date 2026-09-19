@@ -660,7 +660,7 @@ def abacate_create_billing(name, email, base_url):
             "products": [{
                 "externalId": "premium30",
                 "name": PREMIUM_PRODUCT_NAME,
-                "description": "Premium 30 dias: ilimitado + Criativo + sem behavior pack + troca de icone.",
+                "description": "VIP 30 dias: mundos gigantes + modo de jogo + foto + tempo e clima.",
                 "quantity": 1,
                 "price": PREMIUM_PRICE_CENTS,
             }],

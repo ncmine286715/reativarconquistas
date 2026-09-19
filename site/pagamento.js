@@ -85,11 +85,11 @@
     bg.id = "payModal";
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
-      "<h3 id='payTitle'>Premium — 30 dias</h3>" +
+      "<h3 id='payTitle'>VIP — 30 dias</h3>" +
       (notice ? "<div class='warn' style='margin:0 0 12px;font-size:13px'>" + escH(notice) + "</div>" : "") +
-      "<p class='sub'>Conversões <b>ilimitadas</b> por 30 dias + mundos gigantes + sem behavior pack + foto e nome do mundo. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
+      "<p class='sub'>Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
       "<div class='status' id='payMsg' hidden></div>" +
-      "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o Premium é liberado nele)</label>" +
+      "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o VIP é liberado nele)</label>" +
       "<input id='payEmail' type='email' maxlength='120' autocomplete='email' value='" + logged.replace(/\"/g, "&quot;") + "'" + (logged ? " readonly" : "") + " style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
       "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
       "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
@@ -97,7 +97,7 @@
       "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Testando conexão…</div>" +
       (logged
         ? "<div class='secure' style='margin-top:10px;font-size:13px'>Pagando como <b>" + logged.replace(/[<>&\"']/g, "") + "</b></div>"
-        : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu Premium</div>") + "</div>";
+        : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu VIP</div>") + "</div>";
     document.body.appendChild(bg);
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
     // self-test: mostra na hora se o servidor de pagamento responde
@@ -173,7 +173,7 @@
           } catch (e) {}
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
-            ". Premium liberado por 30 dias. <a href='index.html#converter'><b>Ir converter</b></a>";
+            ". VIP liberado por 30 dias. <a href='index.html#converter'><b>Ir converter</b></a>";
         } else {
           box.className = "status";
           box.textContent = "Pagamento ainda não confirmado (" + (r.status || "?") + "). Se já pagou, aguarde 1 min e recarregue.";

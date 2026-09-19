@@ -58,7 +58,7 @@
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">' +
       "<h3 id='authTitle'>Entrar</h3>" +
-      "<p class='sub'>Um clique com sua conta Google — sem senha pra decorar, sem cadastro chato. É grátis e seu Premium fica guardado nela.</p>" +
+      "<p class='sub'>Um clique com sua conta Google — sem senha pra decorar, sem cadastro chato. É grátis e seu VIP fica guardado nela.</p>" +
       "<div class='status err' id='authMsg' hidden></div>" +
       "<button class='btn-ghost' id='authGoogle' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>" +
       "<div class='row2' style='margin-top:10px'><button class='btn-ghost' id='authBack' type='button' style='width:100%'>Voltar</button></div></div>";
