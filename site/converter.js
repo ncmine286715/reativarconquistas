@@ -11,6 +11,11 @@
   var TAG_FLOAT = 5, TAG_DOUBLE = 6, TAG_BYTE_ARRAY = 7, TAG_STRING = 8;
   var TAG_LIST = 9, TAG_COMPOUND = 10, TAG_INT_ARRAY = 11, TAG_LONG_ARRAY = 12;
   var FLAGS = ["commandsEnabled", "cheatsEnabled", "hasBeenLoadedInCreative"];
+  // Flags de trava de pack: com behavior pack travado o jogo pode recusar
+  // conquistas mesmo sem o .json — por isso o strip também zera estes bytes.
+  var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
+  // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
+  var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle"];
 
   function Reader(buf) {
     this.view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -86,8 +91,11 @@
           var vl = r.longVal();
           (hits[name] = hits[name] || []).push({ path: path, off: off, val: vl.toString(), tag: t });
         } else if (t === TAG_SHORT || t === TAG_FLOAT || t === TAG_DOUBLE ||
-                 t === TAG_BYTE_ARRAY || t === TAG_INT_ARRAY || t === TAG_LONG_ARRAY || t === TAG_STRING) {
+                 t === TAG_BYTE_ARRAY || t === TAG_INT_ARRAY || t === TAG_LONG_ARRAY) {
           skipPayload(r, t);
+        } else if (t === TAG_STRING) {
+          var vs = r.string();
+          (hits[name] = hits[name] || []).push({ path: path, off: off, val: vs, tag: t });
         } else if (t === TAG_LIST) {
           var elem = r.byte(), n = r.int32(), i;
           for (i = 0; i < n; i++) {
@@ -173,7 +181,10 @@
   }
 
   var DIFF_NAMES = ["Pacífico", "Fácil", "Normal", "Difícil"];
-  function patchBody(body, gameMode, difficulty) {
+  function patchBody(body, gameMode, difficulty, extra) {
+    extra = extra || {};
+    var rules = extra.rules || null;
+    var strip = !!extra.strip;
     var hits = {};
     walkCollect(body, hits);
     var buf = new Uint8Array(body); // cópia
@@ -186,6 +197,15 @@
         changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
       });
     });
+    if (strip) {
+      LOCK_FLAGS.forEach(function (name) {
+        (hits[name] || []).forEach(function (h) {
+          if (h.tag !== TAG_BYTE || h.val === 0) return;
+          buf[h.off] = 0;
+          changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
+        });
+      });
+    }
     if (gameMode !== "keep") {
       var want = gameMode === "creative" ? 1 : (gameMode === "adventure" ? 2 : 0);
       (hits["GameType"] || []).forEach(function (h) {
@@ -205,7 +225,74 @@
         }
       });
     }
+    if (rules) {
+      RULES.forEach(function (name) {
+        var want = rules[name];
+        if (want !== 0 && want !== 1) return; // null/undefined = manter
+        (hits[name] || []).forEach(function (h) {
+          if (h.tag !== TAG_BYTE) return;
+          if (h.val !== want) {
+            buf[h.off] = want;
+            changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> " + want);
+          }
+        });
+      });
+    }
     return { buf: buf, changes: changes };
+  }
+
+  // Renomeia o mundo de verdade: altera a TAG_String "LevelName" na raiz
+  // do NBT. Como o nome novo pode ter outro tamanho em bytes, o corpo é
+  // reconstruído (splice) em vez de patch in-place. levelname.txt sozinho
+  // NÃO muda o nome na lista de mundos — por isso o rename "não funcionava".
+  function patchLevelName(body, newName) {
+    var want = String(newName || "").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (!want) return { buf: body, changes: [], oldName: null };
+    if (body.length < 3 || body[0] !== TAG_COMPOUND) throw new Error("level.dat inválido (não é NBT Bedrock).");
+    var dv = new DataView(body.buffer, body.byteOffset, body.byteLength);
+    var p = 1;
+    var rootLen = dv.getUint16(p, true); p += 2 + rootLen;
+    var strPos = -1, strLen = -1, oldName = null;
+    for (;;) {
+      if (p >= body.length) throw new Error("LevelName não encontrado no level.dat.");
+      var t = body[p]; p += 1;
+      if (t === TAG_END) break;
+      if (p + 2 > body.length) throw new Error("level.dat inválido (não é NBT Bedrock).");
+      var nLen = dv.getUint16(p, true); p += 2;
+      var nm = "";
+      try { nm = new TextDecoder("utf-8").decode(body.subarray(p, p + nLen)); } catch (e) { nm = ""; }
+      p += nLen;
+      if (t === TAG_STRING && nm === "LevelName") {
+        strPos = p; // offset do u16 de tamanho da string
+        strLen = dv.getUint16(p, true);
+        try { oldName = new TextDecoder("utf-8").decode(body.subarray(p + 2, p + 2 + strLen)); } catch (e) { oldName = ""; }
+        break;
+      }
+      // pula o payload desta tag (só nível raiz; listas/compounds via skip)
+      var r = Object.create(Reader.prototype);
+      r.buf = body; r.view = dv; r.p = p;
+      skipPayload(r, t);
+      p = r.p;
+    }
+    if (strPos < 0) return { buf: body, changes: [], oldName: null };
+    var enc = new TextEncoder().encode(want);
+    if (enc.length > 512) enc = enc.subarray(0, 512);
+    var out = new Uint8Array(body.length - (2 + strLen) + (2 + enc.length));
+    out.set(body.subarray(0, strPos), 0);
+    var odv = new DataView(out.buffer);
+    odv.setUint16(strPos, enc.length, true);
+    out.set(enc, strPos + 2);
+    out.set(body.subarray(strPos + 2 + strLen), strPos + 2 + enc.length);
+    return { buf: out, changes: ["nome alterado (LevelName): " + oldName + " -> " + want], oldName: oldName };
+  }
+
+  function isJpeg(u8) {
+    return u8 && u8.length > 3 && u8[0] === 0xFF && u8[1] === 0xD8 && u8[2] === 0xFF;
+  }
+
+  function baseNameOf(rel) {
+    var i = Math.max(rel.lastIndexOf("/"), rel.lastIndexOf("\\"));
+    return (i >= 0 ? rel.slice(i + 1) : rel).toLowerCase();
   }
 
   function validateBody(body) {
@@ -252,8 +339,10 @@
     opts = opts || {};
     var gameMode = opts.gameMode || "survival";
     var strip = !!opts.strip;
-    var iconBytes = opts.iconBytes || null; // Uint8Array
-    var worldName = (opts.worldName || "").trim().slice(0, 60);
+    var iconBytes = opts.iconBytes || null; // Uint8Array em JPEG (world_icon.jpeg)
+    var worldName = (opts.worldName || "").replace(/\s+/g, " ").trim().slice(0, 60);
+    var difficultyOpt = (opts.difficulty >= 0 && opts.difficulty <= 3) ? opts.difficulty : null;
+    var rulesOpt = opts.rules || null;
 
     if (typeof JSZip === "undefined") throw new Error("JSZip não carregou. Recarregue a página.");
     var zip = await JSZip.loadAsync(arrayBuffer);
@@ -269,43 +358,67 @@
     var split = splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
 
-    var patched = patchBody(split.body, gameMode, (opts.difficulty >= 0 && opts.difficulty <= 3) ? opts.difficulty : null);
+    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, strip: strip });
+    var changes = patched.changes.slice();
+
+    // Nome de verdade: dentro do level.dat (LevelName) + levelname.txt espelho.
+    var renamed = patchLevelName(patched.buf, worldName);
+    patched.buf = renamed.buf;
+    renamed.changes.forEach(function (c) { changes.push(c); });
     validateBody(patched.buf);
     var packed = await packBody(patched.buf, split.meta);
-    var changes = patched.changes.slice();
+
+    // Ícone do MUNDO Bedrock = world_icon.jpeg em JPEG na raiz.
+    // (pack_icon.png é de packs de recursos/comportamento — o jogo ignora
+    // na lista de mundos, por isso a "foto" nunca aparecia.)
+    if (iconBytes && !isJpeg(iconBytes)) {
+      throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Converta a imagem e tente de novo.");
+    }
 
     var out = new JSZip();
     var jobs = [];
-    var sawBehavior = false;
+    var sawBehavior = false, sawBehaviorDir = false;
     zip.forEach(function (rel, entry) {
       if (entry.dir) return;
       var low = rel.toLowerCase();
+      var base = baseNameOf(rel);
+      var inBehaviorDir = (low === "behavior_packs" || low.indexOf("behavior_packs/") === 0 || low.indexOf("/behavior_packs/") >= 0);
       if (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json")) sawBehavior = true;
+      if (inBehaviorDir) sawBehaviorDir = true;
+      // Strip completo: json + pasta behavior_packs/ + travas já zeradas no NBT.
       if (strip && (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json"))) {
         changes.push("removido world_behavior_packs.json");
+        return;
+      }
+      if (strip && inBehaviorDir) {
+        return; // pasta behavior_packs/ inteira fora (log único abaixo)
+      }
+      // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
+      if (iconBytes && (base === "world_icon.jpeg" || base === "world_icon.jpg" || base === "world_icon.png" || base === "pack_icon.png")) {
         return;
       }
       if (rel === levelName) {
         out.file(rel, packed);
         return;
       }
-      if (worldName && rel.toLowerCase() === "levelname.txt") {
+      if (worldName && base === "levelname.txt") {
         out.file(rel, worldName);
         return;
       }
       jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
     });
     await Promise.all(jobs);
-    if (strip && !sawBehavior) changes.push("sem behavior packs no mundo (nada a remover)");
+    if (strip && sawBehaviorDir) changes.push("pasta behavior_packs/ removida");
+    if (strip && !sawBehavior && !sawBehaviorDir) changes.push("sem behavior packs no mundo (nada a remover)");
     if (iconBytes) {
-      out.file("pack_icon.png", iconBytes);
-      changes.push("ícone substituído (pack_icon.png)");
+      out.file("world_icon.jpeg", iconBytes);
+      changes.push("foto do mundo atualizada (world_icon.jpeg)");
     }
     if (worldName) {
       var hasLevelName = false;
-      out.forEach(function (rel) { if (rel.toLowerCase() === "levelname.txt") hasLevelName = true; });
+      out.forEach(function (rel) { if (baseNameOf(rel) === "levelname.txt") hasLevelName = true; });
       if (!hasLevelName) out.file("levelname.txt", worldName);
-      changes.push("nome alterado");
+      if (!renamed.oldName && !renamed.changes.length) changes.push("nome em levelname.txt (LevelName não estava na raiz)");
     }
     var blob = await out.generateAsync({ type: "blob", compression: "STORE" });
     return { blob: blob, changes: changes };
@@ -313,5 +426,5 @@
 
   window.RC_convert = convertMcworld;
   // Internos p/ ferramentas-local.js (diagnóstico --check, level.dat direto, lote). Mesma implementação, sem duplicar.
-  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS, DIFF_NAMES: DIFF_NAMES };
+  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, patchLevelName: patchLevelName, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS, LOCK_FLAGS: LOCK_FLAGS, RULES: RULES, DIFF_NAMES: DIFF_NAMES, isJpeg: isJpeg };
 })();

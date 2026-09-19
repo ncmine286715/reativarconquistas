@@ -12,6 +12,9 @@
 
 <div class="topbar">
   <div class="topbar-in">
+    <button class="hamb" id="hamb" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="drawer">
+      <span></span><span></span><span></span>
+    </button>
     <a class="brand" href="index.html">
       <svg viewBox="0 0 48 48" width="30" height="30" aria-hidden="true"><path d="M24 4l17 9.5v21L24 44 7 34.5v-21z" fill="#ea580c"/><path d="M7 13.5L24 23v21L7 34.5z" fill="#c2410c"/><path d="M41 13.5L24 23v21l17-9.5z" fill="#9a3412"/></svg>
       <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
@@ -25,6 +28,20 @@
     </nav>
   </div>
 </div>
+
+<div class="drawer-bg" id="drawerBg" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Menu do site" aria-hidden="true">
+  <div class="drawer-head">
+    <b>Menu</b>
+    <button class="drawer-x" id="drawerClose" type="button" aria-label="Fechar menu">×</button>
+  </div>
+  <a href="#converter">Converter mundo</a>
+  <a href="#planos">Planos</a>
+  <a href="#como-funciona">Como funciona</a>
+  <a href="#faq">Dúvidas</a>
+  <a href="minha-conta.html">Minha conta</a>
+  <a href="mailto:ncmine75@gmail.com">Contato</a>
+</aside>
 
 <div class="page page-wide">
   <div class="page" style="padding-left:0;padding-right:0;max-width:760px">
@@ -57,6 +74,9 @@
     <p class="sub">Você baixa um arquivo novo; o original fica intacto.</p>
 
     <form id="form" novalidate>
+      <details class="acc" id="accFile" open>
+        <summary><span class="acc-n">1</span> Arquivo do mundo <span class="acc-badge" id="badgeFile">aguardando arquivo</span></summary>
+        <div class="acc-body">
       <label id="drop" class="drop" for="file" tabindex="0">
         <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
         <span class="drop-icon" aria-hidden="true">
@@ -67,6 +87,24 @@
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
       </label>
+
+      <div id="worldInfo" class="worldinfo" hidden>
+        <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — nada foi alterado</span></div>
+        <div class="wi-grid">
+          <div class="wi-row"><span>Nome</span><b id="wiName">—</b></div>
+          <div class="wi-row"><span>Seed</span><span class="wi-seed"><code id="wiSeed">—</code><button type="button" class="btn-ghost btn-mini" id="seedCopy" hidden>Copiar</button></span></div>
+          <div class="wi-row"><span>Modo atual</span><b id="wiMode">—</b></div>
+          <div class="wi-row"><span>Dificuldade</span><b id="wiDiff">—</b></div>
+          <div class="wi-row"><span>Spawn</span><b id="wiSpawn">—</b></div>
+          <div class="wi-row"><span>Conquistas</span><b id="wiStatus">—</b></div>
+        </div>
+      </div>
+        </div>
+      </details>
+
+      <details class="acc" id="accFree" open>
+        <summary><span class="acc-n">2</span> Ajustes grátis <span class="acc-badge">incluídos</span></summary>
+        <div class="acc-body">
 
       <label class="opt" id="diffOpt">
         <span style="flex:1">
@@ -84,6 +122,53 @@
         </span>
       </label>
 
+      <label class="opt" id="keepOpt">
+        <span style="flex:1">
+          <b>Manter inventário ao morrer</b>
+          <em>Regra keepinventory. Não afeta conquistas. Grátis.</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff">
+              <option value="-1">Manter como está</option>
+              <option value="1">Ligar (não perde os itens)</option>
+              <option value="0">Desligar (perde os itens)</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt" id="coordOpt">
+        <span style="flex:1">
+          <b>Mostrar coordenadas na tela</b>
+          <em>Regra showcoordinates. Não afeta conquistas. Grátis.</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="showcoords" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff">
+              <option value="-1">Manter como está</option>
+              <option value="1">Mostrar</option>
+              <option value="0">Ocultar</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt" id="renameOpt">
+        <input type="checkbox" id="wantRename">
+        <span style="flex:1">
+          <b>Renomear o mundo</b>
+          <em>Muda o nome dentro do level.dat e na lista de mundos. Grátis. Dica: use § e uma letra pra colorir (ex.: §aMeu Mundo).</em>
+          <span class="icon-row" style="margin-top:10px">
+            <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
+              style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+          </span>
+        </span>
+      </label>
+
+        </div>
+      </details>
+
+      <details class="acc" id="accPrem">
+        <summary><span class="acc-n">3</span> Ajustes Premium <span class="lock">Premium</span></summary>
+        <div class="acc-body">
+
       <label class="opt locked" id="modeOpt">
         <span style="flex:1">
           <b>Modo de jogo <span class="lock">Premium</span></b>
@@ -99,19 +184,38 @@
         </span>
       </label>
 
+      <label class="opt locked" id="timeOpt">
+        <span style="flex:1">
+          <b>Ciclo dia/noite e clima <span class="lock">Premium</span></b>
+          <em>Trava o tempo e o clima do mundo onde estão. <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="daycycle" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff">
+              <option value="-1">Dia/noite: manter</option>
+              <option value="0">Travar dia/noite (congela o horário)</option>
+              <option value="1">Destravar dia/noite</option>
+            </select>
+            <select id="weather" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff">
+              <option value="-1">Clima: manter</option>
+              <option value="0">Travar clima (sem chuva/neve)</option>
+              <option value="1">Destravar clima</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
       <label class="opt locked" id="stripOpt">
         <input type="checkbox" id="strip">
         <span>
           <b>Remover behavior packs <span class="lock">Premium</span></b>
-          <em>Behavior pack ativo bloqueia as conquistas de novo ao abrir o mundo. <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
+          <em>Remove a pasta behavior_packs/ e destrava o mundo (hasLockedBehaviorPack). Behavior pack ativo bloqueia as conquistas de novo ao abrir o mundo. <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
         </span>
       </label>
 
       <label class="opt locked" id="iconOpt">
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
-          <b>Trocar a imagem do mundo <span class="lock">Premium</span></b>
-          <em>Envie uma imagem ou use um ícone pronto abaixo (PNG).</em>
+          <b>Trocar a foto do mundo <span class="lock">Premium</span></b>
+          <em>Grava como world_icon.jpeg (o formato que o jogo usa). Envie uma imagem ou use um ícone pronto abaixo.</em>
           <span class="icon-row" id="presetRow" style="margin-top:10px"></span>
           <span class="icon-row" style="margin-top:10px">
             <input type="file" id="iconFile" accept=".png,.jpg,.jpeg,.webp" hidden>
@@ -122,17 +226,8 @@
         </span>
       </label>
 
-      <label class="opt" id="renameOpt">
-        <input type="checkbox" id="wantRename">
-        <span style="flex:1">
-          <b>Renomear o mundo</b>
-          <em>O nome na lista de mundos. Grátis. Dica: use § e uma letra pra colorir (ex.: §aMeu Mundo).</em>
-          <span class="icon-row" style="margin-top:10px">
-            <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
-              style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
-          </span>
-        </span>
-      </label>
+        </div>
+      </details>
 
       <label class="accept">
         <input type="checkbox" id="accept">
@@ -157,8 +252,10 @@
         <ul>
           <li class="yes"><b>1 conversão a cada 7 dias</b></li>
           <li class="yes">Mundos de até <b>10 MB</b></li>
-          <li class="yes"><b>Renomear</b> o mundo</li>
+          <li class="yes"><b>Renomear</b> o mundo (de verdade, no level.dat)</li>
           <li class="yes">Mudar a <b>dificuldade</b></li>
+          <li class="yes"><b>Manter inventário</b> e <b>mostrar coordenadas</b></li>
+          <li class="yes"><b>Resumo do mundo</b> com seed copiável</li>
         </ul>
         <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
       </div>
@@ -169,8 +266,9 @@
           <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
           <li class="yes">Mundos de <b>qualquer tamanho</b></li>
           <li class="yes">Mudar o <b>modo de jogo</b> (Criativo/Aventura)</li>
-          <li class="yes"><b>Remoção de behavior packs</b></li>
-          <li class="yes"><b>Troca da imagem</b> do mundo (+ ícones prontos)</li>
+          <li class="yes"><b>Remoção de behavior packs</b> (pasta + destrava)</li>
+          <li class="yes"><b>Foto do mundo</b> em JPEG (+ ícones prontos)</li>
+          <li class="yes">Travar <b>dia/noite e clima</b></li>
           <li class="yes">Vários mundos de uma vez (lote)</li>
           <li class="yes">Suporte por e-mail</li>
         </ul>

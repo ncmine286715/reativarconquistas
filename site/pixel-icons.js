@@ -1,5 +1,6 @@
 /* ReativaConquistas — icones pixel-art 100% locais (sem upload).
-   Trofeu, espada e bloco de grama desenhados via canvas -> PNG (pack_icon.png).
+   Trofeu, espada e bloco de grama desenhados via canvas -> JPEG
+   (world_icon.jpeg do mundo Bedrock — o jogo ignora pack_icon.png).
    Expõe window.RC_icons: { list, make(id)->Promise<Uint8Array>, preview(canvas,id) }.
 */
 (function () {
@@ -101,16 +102,29 @@
   function make(id) {
     return new Promise(function (resolve, reject) {
       try {
+        var S = 256; // world_icon.jpeg quadrado 256px
         var c = document.createElement("canvas");
-        c.width = 64;
-        c.height = 64;
+        c.width = S;
+        c.height = S;
         var ctx = c.getContext("2d");
         ctx.imageSmoothingEnabled = false;
-        draw(ctx, id, 4, 0, 0);
+        // JPEG não tem transparência: fundo terra escura + vinheta simples.
+        ctx.fillStyle = "#241a10";
+        ctx.fillRect(0, 0, S, S);
+        ctx.fillStyle = "#3a2a18";
+        ctx.fillRect(0, 0, S, S / 2);
+        draw(ctx, id, S / 16, 0, 0);
         c.toBlob(function (blob) {
-          if (!blob) { reject(new Error("Falha ao gerar PNG.")); return; }
-          blob.arrayBuffer().then(function (ab) { resolve(new Uint8Array(ab)); }, reject);
-        }, "image/png");
+          if (!blob) { reject(new Error("Falha ao gerar JPEG.")); return; }
+          blob.arrayBuffer().then(function (ab) {
+            var u8 = new Uint8Array(ab);
+            if (!(u8.length > 3 && u8[0] === 0xFF && u8[1] === 0xD8)) {
+              reject(new Error("Falha ao gerar JPEG."));
+              return;
+            }
+            resolve(u8);
+          }, reject);
+        }, "image/jpeg", 0.92);
       } catch (e) { reject(e); }
     });
   }

@@ -10,3 +10,5 @@ codigos_*.txt
 # Chave privada do Firebase Admin SDK — NUNCA commite (acesso total ao projeto).
 *-firebase-adminsdk-*.json
 serviceAccount*.json
+# Mundo de exemplo p/ analise local — NUNCA commite (arquivo do usuario).
+site/nao manda para o github mundo para ia analizar a estrutura.zip

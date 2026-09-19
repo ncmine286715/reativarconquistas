@@ -268,6 +268,11 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
   .card { padding: 18px; }
   .page { padding-bottom: 50px; }
 }
+@media (max-width: 720px) {
+  .hamb { display: flex; }
+  .nav a.hide-m, .nav #navAuth { display: none; }
+  .wi-row > span:first-child { flex-basis: 96px; }
+}
 
 /* refino: demo ANTES→DEPOIS + confiança + CTA (micro-interações CSS, sem libs) */
 .demo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 20px; }
@@ -287,6 +292,89 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
 
 .file-x { display: block; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
 .file-x[hidden] { display: none; }
+
+/* ---------- menu hambúrguer + drawer ---------- */
+.hamb {
+  display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 42px; height: 42px; padding: 10px; margin-right: 2px;
+  background: #fff; border: 1.5px solid var(--line-strong); border-radius: 10px; cursor: pointer;
+}
+.hamb span { display: block; height: 2.5px; border-radius: 2px; background: var(--ink); }
+.hamb:hover { border-color: var(--orange); }
+.drawer-bg {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(35, 32, 27, .45);
+}
+.drawer-bg[hidden] { display: none; }
+.drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
+  width: min(300px, 84vw); background: #fff; box-shadow: 0 0 60px rgba(0,0,0,.25);
+  transform: translateX(-105%); transition: transform .22s ease;
+  display: flex; flex-direction: column; padding: 10px;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; font-size: 16px; border-bottom: 1px solid var(--line);
+}
+.drawer-x {
+  width: 36px; height: 36px; font-size: 22px; line-height: 1;
+  border: 1.5px solid var(--line-strong); background: #fff; border-radius: 10px; cursor: pointer;
+}
+.drawer a {
+  padding: 13px 12px; border-radius: 10px; text-decoration: none;
+  color: var(--ink); font-weight: 700; font-size: 15px;
+}
+.drawer a:hover { background: var(--orange-soft); color: var(--orange-dark); }
+
+/* ---------- acordeão de etapas (anti painel-de-avião) ---------- */
+.acc {
+  border: 1px solid var(--line); border-radius: 12px; background: #fff;
+  margin-top: 12px; overflow: hidden;
+}
+.acc > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; font-weight: 800; font-size: 15px;
+}
+.acc > summary::-webkit-details-marker { display: none; }
+.acc > summary::after {
+  content: "▾"; margin-left: auto; color: var(--orange-dark); font-size: 16px;
+  transition: transform .18s ease;
+}
+.acc:not([open]) > summary::after { transform: rotate(-90deg); }
+.acc > summary:hover { background: var(--orange-soft); }
+.acc-n {
+  flex: 0 0 26px; height: 26px; border-radius: 50%;
+  background: var(--orange); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.acc-badge {
+  font-size: 11.5px; font-weight: 700; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: #fffdf8;
+}
+.acc-body { padding: 4px 14px 16px; }
+.acc-body .opt:first-child { margin-top: 8px; }
+
+/* ---------- resumo do mundo ---------- */
+.worldinfo {
+  margin-top: 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: #fffdf8; padding: 14px 16px; font-size: 13.5px;
+}
+.worldinfo[hidden] { display: none; }
+.wi-title { font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--orange-dark); margin-bottom: 10px; }
+.wi-sub { display: block; text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 500; font-size: 12px; margin-top: 2px; }
+.wi-grid { display: grid; gap: 6px; }
+.wi-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0; border-top: 1px dashed var(--line);
+}
+.wi-row:first-child { border-top: 0; }
+.wi-row > span:first-child { color: var(--muted); font-weight: 600; flex: 0 0 110px; }
+.wi-row b, .wi-row code { color: var(--ink); }
+.wi-row code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+.wi-seed { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.btn-mini { padding: 6px 10px !important; font-size: 12px !important; flex: none; }
+.btn-mini[hidden] { display: none; }
 /* mobile universal: tudo empilha, toque grande, sem zoom forçado */
 img { max-width: 100%; }
 .topbar-in { flex-wrap: wrap; row-gap: 4px; }
