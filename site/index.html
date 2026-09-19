@@ -84,6 +84,21 @@
         </span>
       </label>
 
+      <label class="opt locked" id="modeOpt">
+        <span style="flex:1">
+          <b>Modo de jogo <span class="lock">Premium</span></b>
+          <em>Conquistas valem no Sobrevivência. Grátis sempre converte pra Sobrevivência.</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="gamemode" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff">
+              <option value="keep">Manter o do mundo</option>
+              <option value="survival">Sobrevivência</option>
+              <option value="creative">Criativo</option>
+              <option value="adventure">Aventura</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
       <label class="opt locked" id="stripOpt">
         <input type="checkbox" id="strip">
         <span>
@@ -96,7 +111,8 @@
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
           <b>Trocar a imagem do mundo <span class="lock">Premium</span></b>
-          <em>Usa a imagem que você enviar como ícone do mundo (PNG ou JPG). <a href="#planos" class="unlock">Desbloquear no Premium</a></em>
+          <em>Envie uma imagem ou use um ícone pronto abaixo (PNG).</em>
+          <span class="icon-row" id="presetRow" style="margin-top:10px"></span>
           <span class="icon-row" style="margin-top:10px">
             <input type="file" id="iconFile" accept=".png,.jpg,.jpeg,.webp" hidden>
             <button type="button" class="btn-ghost" id="iconBtn">Escolher imagem</button>
@@ -110,7 +126,7 @@
         <input type="checkbox" id="wantRename">
         <span style="flex:1">
           <b>Renomear o mundo</b>
-          <em>O nome na lista de mundos. Grátis.</em>
+          <em>O nome na lista de mundos. Grátis. Dica: use § e uma letra pra colorir (ex.: §aMeu Mundo).</em>
           <span class="icon-row" style="margin-top:10px">
             <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
               style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -152,8 +168,9 @@
         <ul>
           <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
           <li class="yes">Mundos de <b>qualquer tamanho</b></li>
+          <li class="yes">Mudar o <b>modo de jogo</b> (Criativo/Aventura)</li>
           <li class="yes"><b>Remoção de behavior packs</b></li>
-          <li class="yes"><b>Troca da imagem</b> do mundo</li>
+          <li class="yes"><b>Troca da imagem</b> do mundo (+ ícones prontos)</li>
           <li class="yes">Vários mundos de uma vez (lote)</li>
           <li class="yes">Suporte por e-mail</li>
         </ul>
@@ -202,14 +219,15 @@
   </div><!-- /inner -->
 </div>
 
-<script src="vendor/jszip.min.js?v=10"></script>
+<script src="vendor/jszip.min.js?v=11"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="config.js?v=10"></script>
-<script src="converter.js?v=10"></script>
-<script src="ferramentas-local.js?v=10"></script>
-<script src="app.js?v=10"></script>
-<script src="firebase-config.js?v=10"></script>
-<script src="auth.js?v=10"></script>
-<script src="pagamento.js?v=10"></script>
+<script src="config.js?v=11"></script>
+<script src="converter.js?v=11"></script>
+<script src="pixel-icons.js?v=11"></script>
+<script src="ferramentas-local.js?v=11"></script>
+<script src="app.js?v=11"></script>
+<script src="firebase-config.js?v=11"></script>
+<script src="auth.js?v=11"></script>
+<script src="pagamento.js?v=11"></script>
 </body>
 </html>

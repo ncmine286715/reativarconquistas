@@ -46,6 +46,11 @@
     });
     var gt = (hits.GameType || []).map(function (h) { return h.tag === 3 ? h.val : ("tag" + h.tag); });
     var df = (hits.Difficulty || []).map(function (h) { return h.tag === 3 ? h.val : ("tag" + h.tag); });
+    var seed = (hits.LevelSeed || []).filter(function (h) { return h.tag === 4; }).map(function (h) { return h.val; });
+    var spawn = ["SpawnX", "SpawnY", "SpawnZ"].map(function (n) {
+      var l = (hits[n] || []).filter(function (h) { return h.tag === 3; });
+      return l.length ? l[0].val : null;
+    });
     var would = [];
     NBT.FLAGS.forEach(function (name) {
       (hits[name] || []).forEach(function (h) {
@@ -55,7 +60,7 @@
     (hits.GameType || []).forEach(function (h) {
       if (h.tag === 3 && h.val !== 0) would.push("int " + h.path + " (GameType) = " + h.val + " -> 0");
     });
-    return { flags: flags, gameType: gt, difficulty: df, wouldChange: would };
+    return { flags: flags, gameType: gt, difficulty: df, seed: seed, spawn: spawn, wouldChange: would };
   }
 
   // Dry-run do --check: NÃO altera nada, só relata o que mudaria.
@@ -79,6 +84,8 @@
       flags: s.flags,
       gameType: s.gameType,
       difficulty: s.difficulty,
+      seed: s.seed,
+      spawn: s.spawn,
       wouldChange: s.wouldChange,
       alreadyClean: s.wouldChange.length === 0
     };
@@ -104,6 +111,7 @@
         ok: true, levelName: filename, wasGzip: wasGzip,
         header: !!split.meta.header,
         flags: s.flags, gameType: s.gameType, difficulty: s.difficulty,
+        seed: s.seed, spawn: s.spawn,
         wouldChange: s.wouldChange, alreadyClean: s.wouldChange.length === 0
       };
     }

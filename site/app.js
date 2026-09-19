@@ -26,7 +26,39 @@
 
   var FREE_MAX_MB = 10, PRE_MAX_MB = 500;
 
-  var selected = null, selectedIcon = null, selectedList = [];
+  var selected = null, selectedIcon = null, selectedList = [], iconPreset = null;
+  function paintPresets() {
+    try {
+      var row = $("presetRow");
+      if (!row || !window.RC_icons) return;
+      row.innerHTML = "";
+      window.RC_icons.list.forEach(function (it) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn-ghost";
+        b.title = it.name;
+        b.style.padding = "6px";
+        var cv = document.createElement("canvas");
+        cv.style.width = "48px"; cv.style.height = "48px";
+        cv.style.imageRendering = "pixelated";
+        window.RC_icons.preview(cv, it.id);
+        b.appendChild(cv);
+        var lb = document.createElement("div");
+        lb.style.fontSize = "11px";
+        lb.textContent = it.name;
+        b.appendChild(lb);
+        b.addEventListener("click", function () {
+          if (!needPremium("Ícones prontos são Premium.")) return;
+          iconPreset = it.id;
+          selectedIcon = null;
+          wantIcon.checked = true;
+          iconName.textContent = "Ícone pronto: " + it.name;
+          setStatus(null);
+        });
+        row.appendChild(b);
+      });
+    } catch (e) {}
+  }
   var diagBtn = $("diagnose");
 
   /* ---------- contato / operador (rodapé) ---------- */
@@ -105,6 +137,19 @@
     status.className = "status " + kind;
     status.innerHTML = html;
   }
+  function loggedIn() {
+    try { return !!((window.RC_auth && window.RC_auth.user()) || null); } catch (e) { return false; }
+  }
+  // Recurso pago: sem login -> entra primeiro; logado sem Premium -> assinar.
+  function needPremium(msg) {
+    if (!loggedIn()) {
+      setStatus("", escapeHtml(msg) + ' <a href="minha-conta.html"><b>Entre com Google</b></a> para continuar.');
+      try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e) {}
+      return false;
+    }
+    if (!remotePremOk()) { lockedHint(msg); return false; }
+    return true;
+  }
   function lockedHint(msg) {
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
     // upsell direto: recurso Premium abre o popup de assinatura na hora
@@ -145,6 +190,8 @@
       var df = (rep.difficulty && rep.difficulty.length === 1) ? diffName(rep.difficulty[0]) : null;
       var t = "Raio-X: " + (rep.alreadyClean ? "j\u00e1 limpo" : (rep.wouldChange.length + " ajustes pendentes"));
       if (df) t += " \u00b7 dificuldade " + df;
+      if (rep.seed && rep.seed.length) t += " \u00b7 seed " + rep.seed[0];
+      if (rep.spawn && rep.spawn[0] !== null && rep.spawn[0] !== undefined) t += " \u00b7 spawn (" + rep.spawn.join(", ") + ")";
       if (selectedList.length > 1) t += " (1\u00ba de " + selectedList.length + ")";
       box.textContent = t;
     }).catch(function () { if (my === raioXSeq) box.hidden = true; });
@@ -213,8 +260,12 @@
   });
   accept.addEventListener("change", updateSubmit);
 
+  var gameSel = $("gamemode");
+  if (gameSel) gameSel.addEventListener("change", function () {
+    if (gameSel.value !== "keep" && !needPremium("Mudar o modo de jogo é Premium.")) gameSel.value = "keep";
+  });
   if (strip) strip.addEventListener("change", function () {
-    if (strip.checked && !remotePremOk()) { strip.checked = false; lockedHint("Remover behavior packs é Premium."); }
+    if (strip.checked && !needPremium("Remover behavior packs é Premium.")) { strip.checked = false; }
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
     if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
@@ -223,7 +274,7 @@
     if (wantRename.checked) renameInput.focus();
   });
   if (iconBtn) iconBtn.addEventListener("click", function () {
-    if (!remotePremOk()) { lockedHint("Trocar a foto do mundo é Premium."); return; }
+    if (!needPremium("Trocar a foto do mundo é Premium.")) return;
     iconFile.click();
   });
   if (iconFile) iconFile.addEventListener("change", function () {
@@ -232,6 +283,7 @@
     if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { setStatus("err", "Ícone: envie <b>PNG ou JPG</b>."); return; }
     if (f.size > 5 * 1024 * 1024) { setStatus("err", "Ícone grande demais (máx. <b>5 MB</b>)."); return; }
     selectedIcon = f;
+    iconPreset = null;
     wantIcon.checked = true;
     iconName.textContent = f.name + " (" + fmtSize(f.size) + ")";
     var url = URL.createObjectURL(f);
@@ -248,6 +300,17 @@
     var prem = remotePremOk();
     var premUnlimited = isPremiumAny(); // Premium da conta (AbacatePay)
     var mode = "survival";
+    try {
+      var gs = $("gamemode");
+      if (gs && premUnlimited && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
+      if (mode === "keep" && !premUnlimited) mode = "survival";
+    } catch (e) { mode = "survival"; }
+    var wantsPrem = strip.checked || (wantIcon.checked && (selectedIcon || iconPreset)) || batch || (mode !== "survival" && mode !== "keep");
+    if (wantsPrem && !loggedIn()) {
+      setStatus("err", "Essa função é Premium. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine.");
+      try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e) {}
+      return;
+    }
     var diffSel = $("difficulty");
     var difficulty = diffSel ? parseInt(diffSel.value, 10) : -1;
     if (!(difficulty >= 0 && difficulty <= 3)) difficulty = null; // conquistas exigem Sobrevivência
@@ -277,6 +340,8 @@
     var iconPromise = Promise.resolve(null);
     if (wantIcon.checked && selectedIcon) {
       iconPromise = selectedIcon.arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
+    } else if (wantIcon.checked && iconPreset && window.RC_icons) {
+      iconPromise = window.RC_icons.make(iconPreset);
     }
 
     function downloadBlob(blob, name) {
@@ -297,11 +362,17 @@
     var out = [];
     var flags = list.filter(function (c) { return /^byte /.test(c); }).length;
     if (flags) out.push("conquistas liberadas (" + flags + " ajustes)");
-    var gt = list.some(function (c) { return /GameType/.test(c); });
-    out.push(gt ? "modo Sobrevivência aplicado" : "modo Sobrevivência confirmado");
+    var gm = null;
+    list.forEach(function (c) {
+      var g2 = /\(GameType\) = \d+ -> (\d)/.exec(c);
+      if (g2) gm = +g2[1];
+    });
+    var GMN = ["Sobrevivência", "Criativo", "Aventura"];
+    out.push(gm === null ? "modo Sobrevivência confirmado" : ("modo " + (GMN[gm] || gm) + " aplicado"));
     list.forEach(function (c) {
       var dm = /\(Difficulty\) = \d+ -> (\d)/.exec(c);
       if (dm) { out.push("dificuldade " + diffName(+dm[1])); return; }
+      if (/nada a remover/.test(c)) { out.push("nenhum behavior pack no mundo"); return; }
       if (/removido world_behavior/.test(c)) out.push("behavior packs removidos");
       else if (/ícone/.test(c)) out.push("foto do mundo atualizada");
       else if (/nome alterado/.test(c)) out.push("mundo renomeado");
@@ -398,6 +469,7 @@
   });
 
   paintContact();
+  paintPresets();
   paintQuota();
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
   document.addEventListener("rc-auth", function () {

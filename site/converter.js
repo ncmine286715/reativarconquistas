@@ -27,6 +27,12 @@
   Reader.prototype.float32 = function () { this.need(4); var v = this.view.getFloat32(this.p, true); this.p += 4; return v; };
   Reader.prototype.float64 = function () { this.need(8); var v = this.view.getFloat64(this.p, true); this.p += 8; return v; };
   Reader.prototype.long64 = function () { this.need(8); this.p += 8; return 0; }; // valor não importa p/ skip
+  Reader.prototype.longVal = function () {
+    this.need(8);
+    var v = this.view.getBigInt64(this.p, true);
+    this.p += 8;
+    return v;
+  };
   Reader.prototype.bytes = function (n) { this.need(n); var s = this.buf.subarray(this.p, this.p + n); this.p += n; return s; };
   Reader.prototype.string = function () {
     var n = this.uint16();
@@ -76,8 +82,10 @@
         } else if (t === TAG_INT) {
           var vi = r.int32();
           (hits[name] = hits[name] || []).push({ path: path, off: off, val: vi, tag: t });
-        } else if (t === TAG_LONG) { r.long64(); }
-        else if (t === TAG_SHORT || t === TAG_FLOAT || t === TAG_DOUBLE ||
+        } else if (t === TAG_LONG) {
+          var vl = r.longVal();
+          (hits[name] = hits[name] || []).push({ path: path, off: off, val: vl.toString(), tag: t });
+        } else if (t === TAG_SHORT || t === TAG_FLOAT || t === TAG_DOUBLE ||
                  t === TAG_BYTE_ARRAY || t === TAG_INT_ARRAY || t === TAG_LONG_ARRAY || t === TAG_STRING) {
           skipPayload(r, t);
         } else if (t === TAG_LIST) {
@@ -179,7 +187,7 @@
       });
     });
     if (gameMode !== "keep") {
-      var want = gameMode === "creative" ? 1 : 0;
+      var want = gameMode === "creative" ? 1 : (gameMode === "adventure" ? 2 : 0);
       (hits["GameType"] || []).forEach(function (h) {
         if (h.tag !== TAG_INT) return;
         if (h.val !== want) {
@@ -268,9 +276,12 @@
 
     var out = new JSZip();
     var jobs = [];
+    var sawBehavior = false;
     zip.forEach(function (rel, entry) {
       if (entry.dir) return;
-      if (strip && rel.toLowerCase() === "world_behavior_packs.json") {
+      var low = rel.toLowerCase();
+      if (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json")) sawBehavior = true;
+      if (strip && (low === "world_behavior_packs.json" || low.endsWith("/world_behavior_packs.json"))) {
         changes.push("removido world_behavior_packs.json");
         return;
       }
@@ -285,6 +296,7 @@
       jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
     });
     await Promise.all(jobs);
+    if (strip && !sawBehavior) changes.push("sem behavior packs no mundo (nada a remover)");
     if (iconBytes) {
       out.file("pack_icon.png", iconBytes);
       changes.push("ícone substituído (pack_icon.png)");
