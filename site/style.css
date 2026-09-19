@@ -298,3 +298,19 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
   .seg { grid-template-columns: 1fr; }
   .page { padding-bottom: 50px; }
 }
+
+/* refino: demo ANTES→DEPOIS + confiança + CTA (micro-interações CSS, sem libs) */
+.demo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 20px; }
+.demo-step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 10px; display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; box-shadow: var(--shadow-sm); }
+.demo-step b { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+.trust-badges { display: flex; flex-direction: column; gap: 6px; background: var(--green-soft); border: 1px solid #bfe6c9; border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; font-size: 13.5px; }
+.cta-sub { text-align: center; color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.plan-note { font-size: 13px; color: var(--muted); margin: 10px 0 0; line-height: 1.55; }
+.primary, .btn-plan, .btn-ghost { transition: transform .12s ease, box-shadow .2s ease, background .2s ease; }
+.primary:active, .btn-plan:active, .btn-ghost:active { transform: scale(.97); }
+.plan { transition: transform .2s ease, box-shadow .2s ease; }
+.plan:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+@media (max-width: 640px) { .demo { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) {
+  .primary:active, .btn-plan:active, .btn-ghost:active, .plan:hover { transform: none; }
+}

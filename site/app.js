@@ -20,10 +20,11 @@
       fileName = $("fileName"), submit = $("submit"), strip = $("strip"),
       accept = $("accept"), status = $("status"),
       quotaBar = $("quotaBar"), quotaText = $("quotaText"),
-      creativeLabel = $("creativeLabel"),
       wantIcon = $("wantIcon"), iconFile = $("iconFile"), iconBtn = $("iconBtn"),
       iconPreview = $("iconPreview"), iconName = $("iconName"),
       wantRename = $("wantRename"), renameInput = $("renameInput");
+
+  var FREE_MAX_MB = 10, PRE_MAX_MB = 500;
 
   var selected = null, selectedIcon = null, selectedList = [];
   var diagBtn = $("diagnose");
@@ -109,6 +110,15 @@
   }
 
   /* ---------- arquivo ---------- */
+  function friendlyFileErr(err) {
+    var m = String((err && err.message) || err || "");
+    if (/level\.dat n(o|ã)o encontrado/i.test(m)) return "Esse arquivo <b>não parece um mundo válido</b> (falta o level.dat dentro). Exporte de novo pelo jogo — veja <a href='#faq'><b>onde achar o .mcworld</b></a>.";
+    if (/NBT|truncado|inválido|root não é|bytes sobrando|não é Compound/i.test(m)) return "Não consegui ler esse mundo (arquivo <b>corrompido ou incompleto</b>). Exporte/baixe de novo e tente.";
+    if (/JSZip|central directory|corrupt|encrypted|senha/i.test(m)) return "Esse <b>.zip não abre</b> (corrompido ou com senha). Compacte de novo, sem senha.";
+    return "Não deu certo: " + escapeHtml(m);
+  }
+
+  function sizeLimitMB() { return remotePremOk() ? PRE_MAX_MB : FREE_MAX_MB; }
   function fmtSize(n) {
     if (n < 1024) return n + " B";
     if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
@@ -123,16 +133,29 @@
     var files = Array.prototype.slice.call(list || []);
     files = files.filter(function (f) { return ACCEPT.test(f.name || ""); });
     if (!files.length) {
+      var got = Array.prototype.slice.call(list || []).map(function (f) { return f.name || "?"; }).slice(0, 3).join(", ");
       selected = null; selectedList = [];
       fileName.hidden = true; updateSubmit();
-      setStatus("err", "Formato não suportado. Envie <b>.mcworld</b>, <b>.zip</b> ou <b>level.dat</b>.");
+      setStatus("err", "Formato não suportado" + (got ? " (<b>" + escapeHtml(got) + "</b>)" : "") + ". Envie <b>.mcworld</b>, <b>.zip</b> do mundo ou <b>level.dat</b> — foto, .mcpack e .mcaddon <b>não são mundo</b>. Veja <a href='#faq'><b>onde achar o .mcworld</b></a>.");
       return;
     }
-    var big = files.filter(function (f) { return f.size > 100 * 1024 * 1024; });
+    var empty = files.filter(function (f) { return !f.size; });
+    if (empty.length) {
+      selected = null; selectedList = [];
+      fileName.hidden = true; updateSubmit();
+      setStatus("err", "O arquivo <b>" + escapeHtml(empty[0].name) + "</b> está <b>vazio</b> (0 bytes). Exporte o mundo de novo.");
+      return;
+    }
+    var maxB = sizeLimitMB() * 1024 * 1024;
+    var big = files.filter(function (f) { return f.size > maxB; });
     if (big.length) {
       selected = null; selectedList = [];
       fileName.hidden = true; updateSubmit();
-      setStatus("err", "Arquivo grande demais (máx. <b>100 MB</b> cada): " + escapeHtml(big[0].name));
+      if (!remotePremOk()) {
+        setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(big[0].name) + "). No grátis o limite é 10 MB — <a href='#planos'><b>o Premium aceita mundos gigantes</b></a>.");
+      } else {
+        setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
+      }
       return;
     }
     selectedList = files;
@@ -170,13 +193,6 @@
   if (strip) strip.addEventListener("change", function () {
     if (strip.checked && !remotePremOk()) { strip.checked = false; lockedHint("Remover behavior packs é Premium."); }
   });
-  if (creativeLabel) creativeLabel.addEventListener("click", function () {
-    if (!remotePremOk()) {
-      var r = document.querySelector('input[name="gamemode"][value="survival"]');
-      setTimeout(function () { if (r) r.checked = true; }, 0);
-      lockedHint("Modo Criativo é Premium.");
-    }
-  });
   if (wantIcon) wantIcon.addEventListener("change", function () {
     if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
   });
@@ -209,8 +225,7 @@
 
     var prem = remotePremOk();
     var premUnlimited = isPremiumAny(); // Premium da conta (AbacatePay)
-    var mode = (document.querySelector('input[name="gamemode"]:checked') || {}).value || "survival";
-    if (mode === "creative" && !prem) { lockedHint("Modo Criativo é Premium."); return; }
+    var mode = "survival"; // conquistas exigem Sobrevivência
     if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
@@ -219,6 +234,14 @@
 
     var batch = selectedList.length > 1;
     if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é Premium. No grátis, converta um por vez."); return; }
+    // tamanho vale na hora do clique (o Premium pode ter expirado depois da seleção)
+    var maxB = sizeLimitMB() * 1024 * 1024;
+    var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
+    if (tooBig.length) {
+      if (!remotePremOk()) setStatus("err", "Esse mundo passa de <b>10 MB</b> (" + escapeHtml(tooBig[0].name) + "). No grátis o limite é 10 MB — <a href='#planos'><b>o Premium aceita mundos gigantes</b></a>.");
+      else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
+      return;
+    }
     if (typeof window.RC_convert === "undefined" || ((batch || /\.dat$/i.test(selected.name || "")) && typeof window.RC_local === "undefined")) {
       setStatus("err", "Conversor ainda carregando (JSZip). Aguarde 5s e tente de novo.");
       return;
@@ -249,9 +272,8 @@
       paintQuota();
       var det = (res.changes || []).slice(0, 6).map(escapeHtml).join("<br>· ");
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
-        "</b>. Abra em <b>" + (mode === "creative" ? "Criativo" : "Sobrevivência") + "</b>" +
-        (mode === "survival" ? " e com cheats <b>desligados</b>" : "") +
-        ". <b>Guarde o original</b>." + (det ? "<br><span style='font-size:12.5px;color:var(--muted)'>· " + det + "</span>" : ""));
+        "</b>. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>." +
+        " <b>Guarde o original</b>." + (det ? "<br><span style='font-size:12.5px;color:var(--muted)'>· " + det + "</span>" : ""));
       submit.disabled = false;
     }
 
@@ -262,7 +284,7 @@
       }).then(function (res) {
         finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
-        setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
+        setStatus("err", friendlyFileErr(err));
         submit.disabled = false;
       });
       return;
@@ -280,11 +302,10 @@
           downloadBlob(r.blob, r.outName);
         });
         paintQuota();
-        setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>" +
-          (mode === "creative" ? "Criativo" : "Sobrevivência") + "</b>. <b>Guarde os originais</b>.");
+        setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>.");
         submit.disabled = false;
       }).catch(function (err) {
-        setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
+        setStatus("err", friendlyFileErr(err));
         submit.disabled = false;
       });
       return;
@@ -297,7 +318,7 @@
     }).then(function (both) {
       finishSingle(baseName(selected.name), selected, both.res, both.iconBytes);
     }).catch(function (err) {
-      setStatus("err", "Não deu certo: " + escapeHtml((err && err.message) || err));
+      setStatus("err", friendlyFileErr(err));
       submit.disabled = false;
     });
   });
@@ -326,7 +347,7 @@
       var det = rep.wouldChange.slice(0, 8).map(escapeHtml).join("<br>· ");
       setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
         (rep.gameType.length ? "<br>Modo atual (GameType): <b>" + rep.gameType.join(", ") + "</b> (0 = Sobrevivência, 1 = Criativo)" : "") +
-        "<br><br>Aperte <b>Corrigir e baixar</b> para aplicar.");
+        "<br><br>Aperte <b>🔧 Corrigir meu mundo</b> para aplicar.");
     }).catch(function (err) {
       diagBtn.disabled = false;
       setStatus("err", "Não deu para analisar: " + escapeHtml((err && err.message) || err));

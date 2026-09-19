@@ -44,7 +44,7 @@
     document.getElementById("actions").hidden = false;
     if (!u) {
       document.getElementById("logout").hidden = true;
-      show("<p class='sub'>Você não está logado.</p>" +
+      show("<p class='sub'>Você ainda não entrou. É rapidinho: um clique com sua conta Google e seu Premium fica guardado nela.</p>" +
         "<button class='btn-ghost' id='goLogin' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>");
       document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal(); });
       return;

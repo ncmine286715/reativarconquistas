@@ -43,7 +43,7 @@
   function friendlyErr(err) {
     var m = String((err && err.message) || err || "");
     if (/failed to fetch|networkerror|load failed/i.test(m)) {
-      return "Sem conexão com o servidor de pagamento. Confira sua internet, desative bloqueador de anúncios/VPN e tente de novo.";
+      return "Não consegui falar com o servidor de pagamento. Toque em Tentar de novo — se persistir, confira sua internet ou fale no suporte.";
     }
     return "Não deu: " + m;
   }
@@ -70,18 +70,30 @@
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
       "<h3 id='payTitle'>Premium — 30 dias</h3>" +
-      "<p class='sub'>Conversões <b>ilimitadas</b> por 30 dias + Criativo + sem behavior pack + foto e nome do mundo. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
+      "<p class='sub'>Conversões <b>ilimitadas</b> por 30 dias + mundos gigantes + sem behavior pack + foto e nome do mundo. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
       "<div class='status' id='payMsg' hidden></div>" +
       "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o Premium é liberado nele)</label>" +
       "<input id='payEmail' type='email' maxlength='120' autocomplete='email' value='" + logged.replace(/\"/g, "&quot;") + "'" + (logged ? " readonly" : "") + " style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
       "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
       "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
       "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'>Ir pagar</button></div>" +
+      "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Testando conexão…</div>" +
       (logged
         ? "<div class='secure' style='margin-top:10px;font-size:13px'>Pagando como <b>" + logged.replace(/[<>&\"']/g, "") + "</b></div>"
         : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu Premium</div>") + "</div>";
     document.body.appendChild(bg);
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
+    // self-test: mostra na hora se o servidor de pagamento responde
+    try {
+      fetch(base() + "/api/config").then(function (r) {
+        if (!r.ok) throw new Error();
+        var c = document.getElementById("payConn");
+        if (c) c.textContent = "✓ Conectado ao pagamento seguro";
+      }).catch(function () {
+        var c = document.getElementById("payConn");
+        if (c) c.textContent = "⚠ Sem conexão com o pagamento agora — confira sua internet antes de continuar.";
+      });
+    } catch (e) {}
     document.getElementById("payBack").addEventListener("click", closePay);
     var pl = document.getElementById("payLogin");
     if (pl) pl.addEventListener("click", function (e) {
@@ -108,7 +120,7 @@
         payStatus("Abrindo o checkout…");
         location.href = r.url;
       }).catch(function (err) {
-        go.disabled = false; go.textContent = "Ir pagar";
+        go.disabled = false; go.textContent = "Tentar de novo";
         payStatus(friendlyErr(err), "err");
       });
     });

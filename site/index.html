@@ -31,8 +31,8 @@
 
   <header class="hero">
     <p class="kicker">Projeto independente — sem vínculo com Mojang ou Microsoft</p>
-    <h1>Reative as conquistas<br>do seu mundo Bedrock</h1>
-    <p class="tagline">Corrija o arquivo <b>.mcworld</b> <b>no seu navegador</b> e baixe de volta pronto para jogar. Uma conversão grátis por semana. O Premium libera o resto na sua conta.</p>
+    <h1>Prepare seu mundo Bedrock<br>para recuperar as conquistas</h1>
+    <p class="tagline">Corrija os dados do seu mundo <b>sem alterar</b> construções, inventário ou mapa — <b>no seu navegador</b>, sem enviar nada. Uma conversão grátis por semana.</p>
     <div class="trust">
       <span>Arquivo nunca sai do seu PC</span>
       <span>Pix ou cartão</span>
@@ -45,9 +45,21 @@
     <span id="quotaText">Verificando sua cota semanal…</span>
   </div>
 
+  <section class="demo" aria-label="Antes e depois em 4 passos">
+    <div class="demo-step"><b>1</b><span>Exporte o <b>.mcworld</b> do jogo</span></div>
+    <div class="demo-step"><b>2</b><span>Solte o arquivo aqui embaixo</span></div>
+    <div class="demo-step"><b>3</b><span>Baixe o mundo corrigido</span></div>
+    <div class="demo-step"><b>4</b><span>Jogue em Sobrevivência</span></div>
+  </section>
+
   <main class="card" id="converter">
     <h2>Converter um mundo</h2>
     <p class="sub">O original nunca é alterado — você baixa um novo arquivo <b>“-conquistas.mcworld”</b>.</p>
+
+    <div class="trust-badges" role="note">
+      <span>🔒 Seu mundo <b>não é enviado</b> para nenhum servidor</span>
+      <span>O processamento acontece <b>direto no seu navegador</b></span>
+    </div>
 
     <form id="form" novalidate>
       <label id="drop" class="drop" for="file" tabindex="0">
@@ -56,19 +68,9 @@
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
         <span class="drop-title">Solte o(s) arquivo(s) aqui (.mcworld ou level.dat)</span>
-        <span class="drop-sub">ou clique para escolher (até 100 MB cada · vários arquivos = Premium)</span>
+        <span class="drop-sub">ou clique para escolher (Grátis até <b>10 MB</b> · Premium sem limite de tamanho)</span>
         <span id="fileName" class="file-name" hidden></span>
       </label>
-
-      <div class="field">
-        <b>Modo de jogo do mundo corrigido</b>
-        <div class="seg">
-          <label><input type="radio" name="gamemode" value="survival" checked>
-            <span>Sobrevivência<small>O modo das conquistas. Incluído no grátis.</small></span></label>
-          <label id="creativeLabel"><input type="radio" name="gamemode" value="creative" id="gameCreative">
-            <span>Criativo <span class="lock">Premium</span><small>Disponível no Premium. <a href="#planos" class="unlock">Ver planos</a></small></span></label>
-        </div>
-      </div>
 
       <label class="opt locked" id="stripOpt">
         <input type="checkbox" id="strip">
@@ -109,7 +111,8 @@
         <span>Li e concordo com os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>, a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade (LGPD)</a> e a <a href="reembolso.html" target="_blank" rel="noopener">Política de Reembolso</a>. Declaro que o mundo enviado é meu (ou tenho direito de modificá-lo) e entendo que <b>não há garantia de desbloqueio de conquistas</b> — isso depende do jogo/Mojang. <b>Obrigatório.</b></span>
       </label>
 
-      <button id="submit" class="primary" type="submit" disabled>Corrigir e baixar</button>
+      <button id="submit" class="primary" type="submit" disabled>🔧 Corrigir meu mundo</button>
+      <p class="cta-sub">Grátis • sem cadastro • processamento local</p>
       <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Só diagnosticar (não altera nada)</button>
     </form>
 
@@ -124,28 +127,26 @@
         <h3>Grátis</h3>
         <div class="price">R$ 0<small> · para sempre</small></div>
         <ul>
-          <li class="yes"><b>1 conversão por semana</b>, sem cadastro</li>
+          <li class="yes"><b>1 conversão a cada 7 dias</b>, sem cadastro</li>
           <li class="yes">Modo <b>Sobrevivência</b></li>
-          <li class="no">Modo Criativo</li>
-          <li class="no">Remover behavior packs</li>
-          <li class="no">Trocar imagem do mundo</li>
-          <li class="no">Renomear o mundo</li>
+          <li class="yes">Mundos de até <b>10 MB</b></li>
+          <li class="yes">Arquivo processado <b>no seu PC</b></li>
         </ul>
         <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
       </div>
-      <div class="plan hot">
-        <div class="flag">Mais escolhido</div>
+      <div class="plan">
         <h3>Premium 30 dias</h3>
         <div class="price" id="price-monthly">R$ 19,90<small> · 30 dias</small></div>
         <ul>
           <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
-          <li class="yes"><b>Sobrevivência ou Criativo</b></li>
+          <li class="yes">Mundos de <b>qualquer tamanho</b></li>
           <li class="yes"><b>Remoção de behavior packs</b></li>
-          <li class="yes"><b>Troca da imagem</b> do mundo</li>
-          <li class="yes"><b>Renomear</b> o mundo</li>
+          <li class="yes"><b>Troca da imagem</b> + renomear</li>
+          <li class="yes">Vários mundos de uma vez (lote)</li>
           <li class="yes">Suporte por e-mail</li>
         </ul>
         <a class="btn-plan btn-pay" data-pay="monthly" href="#">Pagar com Pix</a>
+        <p class="plan-note">Tem vários mundos? Converta quantos quiser. <b>Sem assinatura</b> — paga uma vez, expira em 30 dias.</p>
       </div>
     </div>
     <p class="pay-note">Pagamento por <b>Pix ou cartão</b> (checkout seguro). O Premium é liberado na hora na sua <b>conta</b> — <a href="minha-conta.html"><b>entrar / criar conta</b></a>. Sem assinatura, sem renovação automática.</p>
@@ -154,7 +155,7 @@
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
-      <div class="step"><b>1.</b> Corrigimos o <code>level.dat</code> dentro do seu mundo: <code>cheatsEnabled</code>, <code>commandsEnabled</code> e <code>hasBeenLoadedInCreative</code> voltam a <b>0</b>, e o modo padrão vai para <b>Sobrevivência</b> (ou <b>Criativo</b>, no Premium).</div>
+      <div class="step"><b>1.</b> Corrigimos o <code>level.dat</code> dentro do seu mundo: <code>cheatsEnabled</code>, <code>commandsEnabled</code> e <code>hasBeenLoadedInCreative</code> voltam a <b>0</b>, e o modo padrão vai para <b>Sobrevivência</b> — o modo das conquistas.</div>
       <div class="step"><b>2.</b> Só esses dados mudam — mapa, construções e inventários ficam intactos. O arquivo passa por validação antes de ser devolvido.</div>
       <div class="step"><b>3.</b> Abra o mundo corrigido em <b>Sobrevivência</b>, com cheats <b>desligados</b>. As regras de conquistas são da Mojang/Microsoft e variam por versão e plataforma.</div>
     </div>
@@ -165,9 +166,10 @@
     <h2>Perguntas frequentes</h2>
     <details class="faq" open><summary>Vou perder meu mundo ou minhas construções?</summary><p>Não. O original nunca é alterado: geramos um <b>novo arquivo</b> com sufixo <code>-conquistas.mcworld</code>. Mesmo assim, <b>guarde uma cópia do original</b> antes de jogar — é o básico de qualquer edição de save.</p></details>
     <details class="faq"><summary>Isso é permitido? Posso ser banido?</summary><p>Editar um <b>save local seu</b>, para uso pessoal, não é invasão nem pirataria. Mas as regras de conquistas são da <b>Mojang/Microsoft</b> e podem mudar. Não copiamos nem distribuímos nada do jogo. Use só em mundos seus ou com autorização.</p></details>
-    <details class="faq"><summary>Por que “1 por semana” no grátis?</summary><p>Para evitar abuso. A cota é de <b>1 conversão a cada 7 dias</b> por navegador. Precisou de mais, o Premium libera ilimitado na hora.</p></details>
+    <details class="faq"><summary>Por que “1 por semana” no grátis?</summary><p>Para evitar abuso. A cota é de <b>1 conversão a cada 7 dias</b> por navegador, para mundos de até <b>10 MB</b>. Precisou de mais (ou o mundo é maior), o Premium libera ilimitado na hora.</p></details>
     <details class="faq"><summary>Meus arquivos vão para algum servidor?</summary><p><b>Não.</b> A conversão roda <b>no seu navegador</b> — o arquivo nunca é enviado. Não guardamos seu mundo. Só sua conta (e-mail/nome) e o pagamento (checkout seguro). Detalhes na <a href="privacidade.html">Política de Privacidade</a>.</p></details>
-    <details class="faq"><summary>Como assino o Premium?</summary><p>Clique em <b>Pagar com Pix</b>, informe seu e-mail e pague no checkout seguro. O Premium libera <b>na hora na sua conta</b> (vale em qualquer aparelho onde você entrar). Pagou e não liberou? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p></details>
+    <details class="faq"><summary>Como assino o Premium?</summary><p>Clique em <b>Pagar com Pix</b>, informe seu e-mail e pague no checkout seguro. O Premium libera <b>na hora na sua conta</b> (vale em qualquer aparelho onde você entrar com o Google). Pagou e não liberou? Fale com <b>ncmine75@gmail.com</b> com o comprovante.</p></details>
+    <details class="faq"><summary>Onde acho o arquivo .mcworld?</summary><p>No Minecraft Bedrock: <b>Jogar → lápis do mundo → Exportar mundo</b> (ou, no PC, copie da pasta <code>minecraftWorlds</code> e compacte em <code>.zip</code>). Aqui aceitamos <b>.mcworld</b>, <b>.zip</b> do mundo ou o <b>level.dat</b> avulso. Outro formato (foto, .mcpack, .mcaddon) <b>não é mundo</b> e será recusado.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Confira: mundo em <b>Sobrevivência</b>, cheats <b>desligados</b>, sem behavior pack ativo, jogo atualizado. Se o arquivo voltou com defeito técnico nosso, vale o arrependimento de <b>7 dias</b> — peça pelo e-mail de suporte com o comprovante (<a href="reembolso.html">política</a>).</p></details>
     <details class="faq"><summary>Como cancelo o Premium?</summary><p>Não precisa: o Premium é <b>pré-pago, sem renovação automática</b> — expira sozinho em 30 dias.</p></details>
   </section>
