@@ -1,187 +1,119 @@
-/* ReativaConquistas — conta de verdade em JS (Worker + KV, sem Firebase).
-   Cadastro/login com e-mail + senha (senha com hash PBKDF2 no servidor,
-   nunca trafega — só no cadastro/login via HTTPS — nem é guardada).
-   Expõe window.RC_auth: { enabled, ready, user, onChange, signUpEmail,
-   signInEmail, signOut, getToken, openModal }. Sessão em localStorage.
+/* ReativaConquistas — login SÓ com Google (Firebase), 100% em JS.
+   Conta/pagamento continuam no Worker (Premium vinculado ao e-mail).
+   Se window.RC_FIREBASE estiver vazio, o login fica desligado.
+   Expõe window.RC_auth: { enabled, ready, user, onChange, signInGoogle,
+   signOut, getToken, openModal }.
 */
 (function () {
   "use strict";
 
-  var TOKEN_KEY = "rc_token";
-  var USER_KEY = "rc_user";
   var listeners = [];
-  var state = { ready: false, user: null };
-
-  function base() {
-    return (((window.RC_CONFIG || {}).WORKER_URL) || "").replace(/\/+$/, "");
-  }
-  function enabled() { return !!base(); }
+  var state = { ready: false, enabled: false, user: null };
+  var auth = null;
 
   function emit() {
     listeners.forEach(function (cb) { try { cb(state.user); } catch (e) {} });
     try { document.dispatchEvent(new Event("rc-auth")); } catch (e) {}
   }
 
-  function save(token, user) {
-    try {
-      if (token) localStorage.setItem(TOKEN_KEY, token);
-      else localStorage.removeItem(TOKEN_KEY);
-      if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
-      else localStorage.removeItem(USER_KEY);
-    } catch (e) {}
-  }
-  function loadUser() {
-    try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); }
-    catch (e) { return null; }
-  }
-  function token() {
-    try { return localStorage.getItem(TOKEN_KEY) || ""; }
-    catch (e) { return ""; }
-  }
-
-  function req(path, opts) {
-    opts = opts || {};
-    opts.headers = opts.headers || {};
-    var t = token();
-    if (t) opts.headers.Authorization = "Bearer " + t;
-    return fetch(base() + path, opts).then(function (res) {
-      return res.text().then(function (txt) {
-        var j = {};
-        try { j = txt ? JSON.parse(txt) : {}; } catch (e) {}
-        if (!res.ok) throw new Error((j && j.error) || ("Erro " + res.status));
-        return j;
-      });
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error("Falha ao carregar " + src)); };
+      document.head.appendChild(s);
     });
   }
 
-  function setUser(u) {
-    state.ready = true;
-    state.user = u ? { email: u.email || "", name: u.name || "" } : null;
-    emit();
+  function boot() {
+    var cfg = window.RC_FIREBASE || {};
+    if (!cfg.apiKey) { state.ready = true; emit(); return; }
+    state.enabled = true;
+    loadScript("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js")
+      .then(function () { return loadScript("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"); })
+      .then(function () {
+        if (!firebase.apps.length) firebase.initializeApp(cfg);
+        auth = firebase.auth();
+        auth.onAuthStateChanged(function (u) {
+          state.ready = true;
+          state.user = u ? { email: u.email || "", name: u.displayName || "" } : null;
+          emit();
+        });
+      })
+      .catch(function () { state.enabled = false; state.ready = true; emit(); });
   }
 
-  /* ---------- modal Entrar / Criar conta (criado via JS) ---------- */
-  function esc(s) {
-    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-    });
+  function closeModal() {
+    var m = document.getElementById("authModal");
+    if (m) m.remove();
   }
 
-  function openModal(mode, notice) {
+  // Modal só com Google (sem campo de senha).
+  function openModal() {
     closeModal();
     var bg = document.createElement("div");
     bg.className = "modal-bg open";
     bg.id = "authModal";
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">' +
-      "<h3 id='authTitle'>" + (mode === "register" ? "Criar conta" : "Entrar") + "</h3>" +
-      (notice ? "<p class='sub'>" + esc(notice) + "</p>" : "<p class='sub'>Sua conta guarda seu Premium. É grátis.</p>") +
+      "<h3 id='authTitle'>Entrar</h3>" +
+      "<p class='sub'>Use sua conta Google. É grátis e o Premium libera nela.</p>" +
       "<div class='status err' id='authMsg' hidden></div>" +
-      (mode === "register" ? "<label class='lbl' for='authName'>Nome</label><input id='authName' type='text' maxlength='80' autocomplete='name' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" : "") +
-      "<label class='lbl' for='authEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail</label>" +
-      "<input id='authEmail' type='email' maxlength='120' autocomplete='email' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<label class='lbl' for='authPass' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>Senha (8+ caracteres)</label>" +
-      "<input id='authPass' type='password' maxlength='128' autocomplete='" + (mode === "register" ? "new-password" : "current-password") + "' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
-      "<button class='btn-ghost' id='authBack' type='button' style='flex:1'>Voltar</button>" +
-      "<button class='btn-ghost' id='authGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'>" + (mode === "register" ? "Criar conta" : "Entrar") + "</button></div>" +
-      "<div class='secure' style='margin-top:10px;font-size:13px'>" + (mode === "register"
-        ? "Já tem conta? <a href='#' id='authSwap'><b>Entrar</b></a>"
-        : "Sem conta? <a href='#' id='authSwap'><b>Criar grátis</b></a>") + "</div></div>";
+      "<button class='btn-ghost' id='authGoogle' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>" +
+      "<div class='row2' style='margin-top:10px'><button class='btn-ghost' id='authBack' type='button' style='width:100%'>Voltar</button></div></div>";
     document.body.appendChild(bg);
-    function msg(t) {
-      var m = document.getElementById("authMsg");
-      if (!m) return;
-      if (!t) { m.hidden = true; m.textContent = ""; return; }
-      m.hidden = false; m.textContent = t;
-    }
     bg.addEventListener("click", function (e) { if (e.target === bg) closeModal(); });
     document.getElementById("authBack").addEventListener("click", closeModal);
-    document.getElementById("authSwap").addEventListener("click", function (e) {
-      e.preventDefault();
-      openModal(mode === "register" ? "login" : "register", notice);
+    document.getElementById("authGoogle").addEventListener("click", function () {
+      var go = document.getElementById("authGoogle");
+      var m = document.getElementById("authMsg");
+      go.disabled = true; go.textContent = "Abrindo o Google…";
+      window.RC_auth.signInGoogle().then(function () { closeModal(); })
+        .catch(function (err) {
+          go.disabled = false; go.textContent = "Continuar com Google";
+          var msg = String((err && err.code) || "");
+          if (/popup-closed|user-cancelled|cancelled-popup-request/.test(msg)) { closeModal(); return; }
+          if (/unauthorized-domain/.test(msg)) {
+            m.hidden = false;
+            m.textContent = "Domínio não autorizado no Firebase (Authorized domains).";
+            return;
+          }
+          m.hidden = false;
+          m.textContent = "Não entrou: " + String((err && err.message) || err);
+        });
     });
-    document.getElementById("authGo").addEventListener("click", function () {
-      var email = (document.getElementById("authEmail").value || "").trim();
-      var pw = document.getElementById("authPass").value || "";
-      var nameEl = document.getElementById("authName");
-      var name = nameEl ? (nameEl.value || "").trim() : "";
-      var go = document.getElementById("authGo");
-      if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { msg("Informe um e-mail válido."); return; }
-      if (pw.length < 8) { msg("A senha precisa de ao menos 8 caracteres."); return; }
-      if (mode === "register" && name.length < 2) { msg("Informe seu nome."); return; }
-      go.disabled = true; go.textContent = "Aguarde…"; msg(null);
-      var p = mode === "register"
-        ? window.RC_auth.signUpEmail(email, name, pw)
-        : window.RC_auth.signInEmail(email, pw);
-      p.then(function () { closeModal(); })
-        .catch(function (err) { go.disabled = false; go.textContent = mode === "register" ? "Criar conta" : "Entrar"; msg(err.message); });
-    });
-  }
-  function closeModal() {
-    var m = document.getElementById("authModal");
-    if (m) m.remove();
   }
 
-  /* ---------- API ---------- */
   window.RC_auth = {
     get ready() { return state.ready; },
-    get enabled() { return enabled(); },
+    get enabled() { return state.enabled; },
     user: function () { return state.user; },
     onChange: function (cb) {
       listeners.push(cb);
       if (state.ready) { try { cb(state.user); } catch (e) {} }
     },
-    signUpEmail: function (email, name, password) {
-      return req("/api/auth/register", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email, name: name, password: password })
-      }).then(function (r) {
-        save(r.token, { email: r.email, name: r.name });
-        setUser({ email: r.email, name: r.name });
-        return state.user;
-      });
-    },
-    signInEmail: function (email, password) {
-      return req("/api/auth/login", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email, password: password })
-      }).then(function (r) {
-        save(r.token, { email: r.email, name: r.name });
-        setUser({ email: r.email, name: r.name });
-        return state.user;
-      });
-    },
     signInGoogle: function () {
-      return Promise.reject(new Error("Login com Google em breve — use e-mail e senha."));
+      if (!state.enabled || !auth) return Promise.reject(new Error("Login ainda não configurado."));
+      return auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).then(function () { return state.user; });
+    },
+    signInEmail: function () {
+      return Promise.reject(new Error("Login só com Google."));
+    },
+    signUpEmail: function () {
+      return Promise.reject(new Error("Conta só com Google — clique em Continuar com Google."));
     },
     signOut: function () {
-      var t = token();
-      save(null, null);
-      setUser(null);
-      if (t) req("/api/auth/logout", { method: "POST" }).catch(function () {});
-      return Promise.resolve();
+      var p = auth ? auth.signOut() : Promise.resolve();
+      return p.then(function () { setTimeout(function () {}, 0); });
     },
-    getToken: function () { return Promise.resolve(token()); },
+    getToken: function () {
+      var u = auth && auth.currentUser;
+      return u ? u.getIdToken() : Promise.resolve("");
+    },
     openModal: openModal
   };
 
-  function boot() {
-    if (!enabled()) { state.ready = true; emit(); return; }
-    var cached = loadUser();
-    var t = token();
-    if (!cached || !t) { state.ready = true; setUser(null); return; }
-    // valida a sessão guardada
-    req("/api/auth/me").then(function (me) {
-      save(t, { email: me.email, name: me.name });
-      setUser({ email: me.email, name: me.name });
-    }).catch(function () {
-      save(null, null);
-      setUser(null);
-    });
-  }
-
-  // nav Entrar/Sair + minha-conta usam isso
   function wireNav() {
     var nav = document.getElementById("navAuth");
     if (!nav) return;
@@ -197,7 +129,7 @@
         if (window.confirm("Sair da conta " + u.email + "?")) window.RC_auth.signOut();
         return;
       }
-      openModal("login");
+      openModal();
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeModal();

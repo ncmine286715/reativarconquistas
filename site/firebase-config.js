@@ -1,17 +1,15 @@
 /* ReativaConquistas — configuração do Firebase (PÚBLICA, sem segredo).
    A apiKey do Firebase NÃO é segredo (vai no JS mesmo): a segurança vem das
    regras + domínios autorizados no console do Firebase.
-   Passos (1x):
-   1. https://console.firebase.google.com/ -> criar projeto -> Authentication ->
-      Sign-in method -> ativar "Google" e "E-mail/senha".
-   2. Project settings -> "Seus apps" (web </>) -> copiar os valores p/ baixo.
-   3. Authentication -> Settings -> Authorized domains -> adicionar seu domínio
-      (ex.: seudominio.com.br) e localhost p/ teste.
-   Enquanto estiver vazio, o login fica desligado e o site funciona normal.
+   No console, falta só: Authentication -> Sign-in method -> Google (ativar) e
+   Authentication -> Settings -> Authorized domains -> reativarconquistas.pages.dev
 */
 window.RC_FIREBASE = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  appId: ""
+  apiKey: "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ",
+  authDomain: "reativarconquistas.firebaseapp.com",
+  projectId: "reativarconquistas",
+  storageBucket: "reativarconquistas.firebasestorage.app",
+  messagingSenderId: "970548405178",
+  appId: "1:970548405178:web:4556267bc5e68c26bf3383",
+  measurementId: "G-NK8ZN0XFJM"
 };

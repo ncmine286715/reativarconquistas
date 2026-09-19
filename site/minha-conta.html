@@ -23,7 +23,9 @@
 </div>
 </div>
 <script src="config.js"></script>
+<script src="firebase-config.js"></script>
 <script src="auth.js"></script>
+<script src="pagamento.js"></script>
 <script>
 (function () {
   "use strict";
@@ -43,36 +45,19 @@
     if (!u) {
       document.getElementById("logout").hidden = true;
       show("<p class='sub'>Você não está logado.</p>" +
-        "<div style='display:flex;gap:10px;flex-wrap:wrap'>" +
-        "<button class='btn-ghost' id='goLogin' type='button' style='flex:1'>Entrar</button>" +
-        "<button class='btn-ghost' id='goReg' type='button' style='flex:1;background:var(--orange);border-color:var(--orange);color:#fff'>Criar conta grátis</button></div>");
-      document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal("login"); });
-      document.getElementById("goReg").addEventListener("click", function () { window.RC_auth.openModal("register"); });
+        "<button class='btn-ghost' id='goLogin' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>");
+      document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal(); });
       return;
     }
-    var t = "";
-    try { t = localStorage.getItem("rc_token") || ""; } catch (e) {}
-    show("<p class='sub'>Carregando seus dados…</p>");
-    fetch(window.RC_CONFIG.WORKER_URL + "/api/auth/me", {
-      headers: { Authorization: "Bearer " + t }
-    }).then(function (res) {
-      return res.text().then(function (txt) {
-        var j = {};
-        try { j = txt ? JSON.parse(txt) : {}; } catch (e) {}
-        if (!res.ok) throw new Error((j && j.error) || ("Erro " + res.status));
-        return j;
-      });
-    }).then(function (me) {
-      var prem = (+me.premium_until_ms || 0) > Date.now();
-      document.getElementById("logout").hidden = false;
-      show("<p><b>" + esc(me.name || "") + "</b> · " + esc(me.email || "") + "</p>" +
+    document.getElementById("logout").hidden = false;
+    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando Premium…</p>");
+    window.RC_pay.remotePremiumMs(u.email).then(function (ms) {
+      var prem = ms > Date.now();
+      show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
         "<p><b>Plano:</b> " + (prem
-          ? "Premium até <b>" + new Date(+me.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
+          ? "Premium até <b>" + new Date(ms).toLocaleDateString("pt-BR") + "</b>"
           : "Grátis (1 conversão por semana)") + "</p>" +
         (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o Premium</b></a> para conversões ilimitadas.</p>"));
-    }).catch(function () {
-      try { localStorage.removeItem("rc_token"); localStorage.removeItem("rc_user"); } catch (e) {}
-      render();
     });
   }
   document.getElementById("logout").addEventListener("click", function () {
