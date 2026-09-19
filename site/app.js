@@ -107,6 +107,8 @@
   }
   function lockedHint(msg) {
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
+    // upsell direto: recurso Premium abre o popup de assinatura na hora
+    try { if (window.RC_pay && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg); } catch (e) {}
   }
 
   /* ---------- arquivo ---------- */

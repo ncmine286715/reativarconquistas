@@ -165,6 +165,31 @@ export default {
         return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, premium_days: 30, accounts: true }, 200, cors);
       }
 
+      // ---------- log de erro do navegador (diagnóstico; leitura protegida) ----------
+      if (url.pathname === "/api/client-log" && req.method === "POST") {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-log:" + ip, 20, 3600))) return json({ ok: false }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { body = {}; }
+        const entry = {
+          at: Date.now(),
+          step: String(body.step || "").slice(0, 40),
+          msg: String(body.message || "").slice(0, 300),
+          href: String(body.href || "").slice(0, 120),
+          ua: (req.headers.get("User-Agent") || "").slice(0, 120),
+        };
+        const lst = (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [];
+        lst.unshift(entry);
+        await env.PREMIUM_KV.put("clog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
+        return json({ ok: true }, 200, cors);
+      }
+      if (url.pathname === "/api/client-log" && req.method === "GET") {
+        if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
+          return json({ error: "forbidden" }, 403, cors);
+        }
+        return json({ items: (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [] }, 200, cors);
+      }
+
       // ---------- contas: registro ----------
       if (url.pathname === "/api/auth/register" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";

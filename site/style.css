@@ -314,3 +314,31 @@ details.faq p { color: var(--muted); line-height: 1.65; margin: 10px 0 0; }
 @media (prefers-reduced-motion: reduce) {
   .primary:active, .btn-plan:active, .btn-ghost:active, .plan:hover { transform: none; }
 }
+
+/* logo do hero (some sozinho se o arquivo ainda não foi enviado) */
+.hero-logo { width: min(520px, 100%); height: auto; display: block; margin: 0 auto 8px; }
+
+/* mobile universal: tudo empilha, toque grande, sem zoom forçado */
+img { max-width: 100%; }
+.topbar-in { flex-wrap: wrap; row-gap: 4px; }
+.nav { flex-wrap: wrap; row-gap: 2px; }
+@media (max-width: 640px) {
+  .page { padding-left: 16px; padding-right: 16px; }
+  .hero { padding: 26px 0 12px; }
+  .hero h1 { font-size: clamp(23px, 7vw, 30px); }
+  .tagline { font-size: 14.5px; }
+  .trust span { font-size: 11.5px; }
+  .card { padding: 18px; }
+  .drop { padding: 26px 14px; }
+  .drop-title { font-size: 15px; }
+  .modal { padding: 20px; max-height: calc(100vh - 36px); overflow-y: auto; }
+  .modal .row2, .row2 { flex-direction: column; }
+  .modal .row2 > *, .row2 > * { min-width: 0; }
+  .plan { padding: 20px; }
+  .plan .price { font-size: 28px; }
+  button.primary { font-size: 15px; padding: 14px; }
+  .foot nav { gap: 4px 14px; }
+  input[type="text"], input[type="email"], input[type="password"] { font-size: 16px; }
+  .quota { font-size: 12.5px; }
+  .file-name { font-size: 11.5px; }
+}

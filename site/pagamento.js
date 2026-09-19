@@ -39,6 +39,16 @@
     return "";
   }
 
+  // Telemetria de erro: o navegador conta o que travou (leitura só com segredo).
+  function logClient(step, message) {
+    try {
+      fetch(base() + "/api/client-log", {
+        method: "POST", headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ step: step, message: String(message || "").slice(0, 300), href: String(location.href).slice(0, 120) })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
   /* ---------- modal de pagamento (tudo visível, sem prompt) ---------- */
   function friendlyErr(err) {
     var m = String((err && err.message) || err || "");
@@ -60,7 +70,13 @@
     m.textContent = t;
   }
 
-  function openPayModal() {
+  function escH(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function openPayModal(notice) {
     if (!enabled()) return;
     closePay();
     var logged = currentEmail();
@@ -70,6 +86,7 @@
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
       "<h3 id='payTitle'>Premium — 30 dias</h3>" +
+      (notice ? "<div class='warn' style='margin:0 0 12px;font-size:13px'>" + escH(notice) + "</div>" : "") +
       "<p class='sub'>Conversões <b>ilimitadas</b> por 30 dias + mundos gigantes + sem behavior pack + foto e nome do mundo. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
       "<div class='status' id='payMsg' hidden></div>" +
       "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o Premium é liberado nele)</label>" +
@@ -89,7 +106,8 @@
         if (!r.ok) throw new Error();
         var c = document.getElementById("payConn");
         if (c) c.textContent = "✓ Conectado ao pagamento seguro";
-      }).catch(function () {
+      }).catch(function (err) {
+        logClient("selftest", (err && err.message) || err);
         var c = document.getElementById("payConn");
         if (c) c.textContent = "⚠ Sem conexão com o pagamento agora — confira sua internet antes de continuar.";
       });
@@ -104,25 +122,32 @@
       var email = (document.getElementById("payEmail").value || "").trim();
       if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
       var go = document.getElementById("payGo");
-      go.disabled = true; go.textContent = "Gerando cobrança…";
-      payStatus("Falando com o pagamento seguro…");
       var name = "";
       try {
         var u = window.RC_auth && window.RC_auth.user();
         if (u && u.name) name = u.name;
       } catch (e) {}
-      req("/api/abacate/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email, name: name })
-      }).then(function (r) {
-        try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
-        payStatus("Abrindo o checkout…");
-        location.href = r.url;
-      }).catch(function (err) {
-        go.disabled = false; go.textContent = "Tentar de novo";
-        payStatus(friendlyErr(err), "err");
-      });
+      function attempt(n) {
+        go.disabled = true; go.textContent = "Gerando cobrança…";
+        payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
+        // text/plain = request simples (sem preflight); o Worker lê o JSON do corpo
+        req("/api/abacate/create", {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ email: email, name: name })
+        }).then(function (r) {
+          if (!r.url) throw new Error("Resposta sem link de pagamento.");
+          try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
+          payStatus("Abrindo o checkout…");
+          location.href = r.url;
+        }).catch(function (err) {
+          logClient("create-" + n, (err && err.message) || err);
+          if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
+          go.disabled = false; go.textContent = "Tentar de novo";
+          payStatus(friendlyErr(err), "err");
+        });
+      }
+      attempt(1);
     });
   }
 
