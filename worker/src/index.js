@@ -29,8 +29,18 @@ function json(data, status = 200, cors = {}) {
 function corsHeaders(req, env) {
   const origin = req.headers.get("Origin") || "";
   const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (allowed.includes("*") || (origin && allowed.includes(origin))) {
-    return { "Access-Control-Allow-Origin": origin || "*", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type" };
+  const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  const ok = allowed.includes("*") || (origin && (allowed.includes(origin) ||
+    allowed.some((a) => a.startsWith("*.") && origin.endsWith(a.slice(1))) || local));
+  // file:// manda Origin "null": permitido para criar checkout (sem custo e com
+  // rate-limit; a liberação do Premium sempre reconfere no AbacatePay).
+  const o = origin || "null";
+  if (ok || o === "null") {
+    return {
+      "Access-Control-Allow-Origin": o === "null" ? "*" : o,
+      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
   }
   return {};
 }

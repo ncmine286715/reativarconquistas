@@ -40,6 +40,13 @@
   }
 
   /* ---------- modal de pagamento (tudo visível, sem prompt) ---------- */
+  function friendlyErr(err) {
+    var m = String((err && err.message) || err || "");
+    if (/failed to fetch|networkerror|load failed/i.test(m)) {
+      return "Sem conexão com o servidor de pagamento. Confira sua internet, desative bloqueador de anúncios/VPN e tente de novo.";
+    }
+    return "Não deu: " + m;
+  }
   function closePay() {
     var m = document.getElementById("payModal");
     if (m) m.remove();
@@ -102,7 +109,7 @@
         location.href = r.url;
       }).catch(function (err) {
         go.disabled = false; go.textContent = "Ir pagar";
-        payStatus("Não deu: " + err.message, "err");
+        payStatus(friendlyErr(err), "err");
       });
     });
   }
@@ -132,7 +139,7 @@
       try { document.dispatchEvent(new Event("rc-auth")); } catch (e) {}
       return r;
     }).catch(function (err) {
-      if (box) { box.className = "status err"; box.textContent = "Não deu para confirmar agora: " + err.message; }
+      if (box) { box.className = "status err"; box.textContent = friendlyErr(err); }
       return null;
     });
   }

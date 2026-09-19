@@ -16,8 +16,8 @@ ABACATEPAY_PRODUCT_ID = "prod_uYDYTFzC02DWmsXsbT2wYdcL"
 PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 # Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
 #   https://<seu-worker>/api/abacate/webhook?secret=VALOR — cadastre no AbacatePay.
-# Origens liberadas p/ o site chamar o Worker (CSV). "*" = qualquer (só teste).
-ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev"
+# Origens liberadas p/ o site chamar o Worker (CSV; "*.dominio" cobre previews).
+ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev"
 
 # SEGREDO (nunca neste arquivo!):
 #   wrangler secret put ABACATEPAY_API_KEY
