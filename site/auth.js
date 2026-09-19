@@ -104,8 +104,10 @@
       return Promise.reject(new Error("Conta só com Google — clique em Continuar com Google."));
     },
     signOut: function () {
+      // sair = sem Premium: limpa o cache local junto (senão o Premium "sobrevive" ao logout)
+      try { localStorage.removeItem("rc_prem_remote"); } catch (e) {}
       var p = auth ? auth.signOut() : Promise.resolve();
-      return p.then(function () { setTimeout(function () {}, 0); });
+      return p;
     },
     getToken: function () {
       var u = auth && auth.currentUser;

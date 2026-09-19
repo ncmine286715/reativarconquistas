@@ -268,14 +268,28 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
-    function finishSingle(outName, f, res, iconBytes) {
+    function summarizeChanges(changes) {
+    var list = changes || [];
+    var out = [];
+    var flags = list.filter(function (c) { return /^byte /.test(c); }).length;
+    if (flags) out.push("conquistas liberadas (" + flags + " ajustes)");
+    var gt = list.some(function (c) { return /GameType/.test(c); });
+    out.push(gt ? "modo Sobrevivência aplicado" : "modo Sobrevivência confirmado");
+    list.forEach(function (c) {
+      if (/removido world_behavior/.test(c)) out.push("behavior packs removidos");
+      else if (/ícone/.test(c)) out.push("foto do mundo atualizada");
+      else if (/nome alterado/.test(c)) out.push("mundo renomeado");
+    });
+    return out.join(" · ");
+  }
+
+  function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
       if (!isPremiumAny()) { quotaAdd(); }
       paintQuota();
-      var det = (res.changes || []).slice(0, 6).map(escapeHtml).join("<br>· ");
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
-        "</b>. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>." +
-        " <b>Guarde o original</b>." + (det ? "<br><span style='font-size:12.5px;color:var(--muted)'>· " + det + "</span>" : ""));
+        "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
+        ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>.");
       submit.disabled = false;
     }
 
@@ -359,5 +373,17 @@
   paintContact();
   paintQuota();
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
-  document.addEventListener("rc-auth", function () { setTimeout(refreshRemotePrem, 150); });
+  document.addEventListener("rc-auth", function () {
+    setTimeout(function () {
+      var u = null;
+      try { u = (window.RC_auth && window.RC_auth.user()) || null; } catch (e) {}
+      if (!u) {
+        // deslogou: limpa qualquer resto de Premium e volta pro grátis na hora
+        try { localStorage.removeItem("rc_prem_remote"); } catch (e) {}
+        paintQuota();
+        return;
+      }
+      refreshRemotePrem();
+    }, 150);
+  });
 })();

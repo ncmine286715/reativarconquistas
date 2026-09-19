@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minha conta — ReativaConquistas</title>
+<title>Minha conta â€” ReativaConquistas</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
 <h2>Minha conta</h2>
-<div id="box"><p class="sub">Carregando…</p></div>
+<div id="box"><p class="sub">Carregandoâ€¦</p></div>
 <div class="row2" id="actions" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap" hidden>
 <a class="btn-ghost" href="index.html#converter" style="flex:1;text-align:center;text-decoration:none">Converter</a>
 <a class="btn-ghost" href="index.html#planos" style="flex:1;text-align:center;text-decoration:none">Ver planos</a>
@@ -22,10 +22,10 @@
 </div>
 </div>
 </div>
-<script src="config.js"></script>
-<script src="firebase-config.js"></script>
-<script src="auth.js"></script>
-<script src="pagamento.js"></script>
+<script src="config.js?v=10"></script>
+<script src="firebase-config.js?v=10"></script>
+<script src="auth.js?v=10"></script>
+<script src="pagamento.js?v=10"></script>
 <script>
 (function () {
   "use strict";
@@ -37,27 +37,27 @@
   function show(html) { document.getElementById("box").innerHTML = html; }
   function render() {
     if (!window.RC_auth || !window.RC_auth.enabled) {
-      show("<p class='sub'>Conta indisponível agora. Volte ao <a href='index.html#converter'>conversor</a>.</p>");
+      show("<p class='sub'>Conta indisponÃ­vel agora. Volte ao <a href='index.html#converter'>conversor</a>.</p>");
       return;
     }
     var u = window.RC_auth.user();
     document.getElementById("actions").hidden = false;
     if (!u) {
       document.getElementById("logout").hidden = true;
-      show("<p class='sub'>Você ainda não entrou. É rapidinho: um clique com sua conta Google e seu Premium fica guardado nela.</p>" +
+      show("<p class='sub'>VocÃª ainda nÃ£o entrou. Ã‰ rapidinho: um clique com sua conta Google e seu Premium fica guardado nela.</p>" +
         "<button class='btn-ghost' id='goLogin' type='button' style='width:100%;background:#fff;font-weight:700'>Continuar com Google</button>");
       document.getElementById("goLogin").addEventListener("click", function () { window.RC_auth.openModal(); });
       return;
     }
     document.getElementById("logout").hidden = false;
-    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando Premium…</p>");
+    show("<p><b>" + esc(u.name || "") + "</b> Â· " + esc(u.email || "") + "</p><p class='sub'>Verificando Premiumâ€¦</p>");
     window.RC_pay.remotePremiumMs(u.email).then(function (ms) {
       var prem = ms > Date.now();
-      show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
+      show("<p><b>" + esc(u.name || "") + "</b> Â· " + esc(u.email || "") + "</p>" +
         "<p><b>Plano:</b> " + (prem
-          ? "Premium até <b>" + new Date(ms).toLocaleDateString("pt-BR") + "</b>"
-          : "Grátis (1 conversão por semana)") + "</p>" +
-        (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o Premium</b></a> para conversões ilimitadas.</p>"));
+          ? "Premium atÃ© <b>" + new Date(ms).toLocaleDateString("pt-BR") + "</b>"
+          : "GrÃ¡tis (1 conversÃ£o por semana)") + "</p>" +
+        (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o Premium</b></a> para conversÃµes ilimitadas.</p>"));
     });
   }
   document.getElementById("logout").addEventListener("click", function () {
