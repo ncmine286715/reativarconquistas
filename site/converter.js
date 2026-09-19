@@ -164,7 +164,8 @@
     throw new Error("level.dat inválido (não é NBT Bedrock).");
   }
 
-  function patchBody(body, gameMode) {
+  var DIFF_NAMES = ["Pacífico", "Fácil", "Normal", "Difícil"];
+  function patchBody(body, gameMode, difficulty) {
     var hits = {};
     walkCollect(body, hits);
     var buf = new Uint8Array(body); // cópia
@@ -184,6 +185,15 @@
         if (h.val !== want) {
           dv.setInt32(h.off, want, true);
           changes.push("int " + h.path + " (GameType) = " + h.val + " -> " + want);
+        }
+      });
+    }
+    if (typeof difficulty === "number" && difficulty >= 0 && difficulty <= 3) {
+      (hits["Difficulty"] || []).forEach(function (h) {
+        if (h.tag !== TAG_INT) return;
+        if (h.val !== difficulty) {
+          dv.setInt32(h.off, difficulty, true);
+          changes.push("int " + h.path + " (Difficulty) = " + h.val + " -> " + difficulty);
         }
       });
     }
@@ -251,7 +261,7 @@
     var split = splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
 
-    var patched = patchBody(split.body, gameMode);
+    var patched = patchBody(split.body, gameMode, (opts.difficulty >= 0 && opts.difficulty <= 3) ? opts.difficulty : null);
     validateBody(patched.buf);
     var packed = await packBody(patched.buf, split.meta);
     var changes = patched.changes.slice();
@@ -291,5 +301,5 @@
 
   window.RC_convert = convertMcworld;
   // Internos p/ ferramentas-local.js (diagnóstico --check, level.dat direto, lote). Mesma implementação, sem duplicar.
-  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS };
+  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS, DIFF_NAMES: DIFF_NAMES };
 })();

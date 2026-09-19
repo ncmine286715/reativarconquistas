@@ -88,7 +88,7 @@
       quotaBar.classList.remove("premium");
       var left = freeLeft();
       if (left > 0) {
-        quotaText.innerHTML = "Você tem <strong>" + left + " conversão grátis</strong> esta semana, sem cadastro. Arquivo processado <strong>no seu PC</strong>. <a href='#planos'>Ver o Premium</a>";
+        quotaText.innerHTML = "Você tem <strong>" + left + " conversão grátis</strong> esta semana. <a href='#planos'>Ver o Premium</a>";
       } else {
         var arr = quotaUses();
         var next = arr.length ? new Date(arr[0] + WEEK_MS).toLocaleDateString("pt-BR") : "";
@@ -130,8 +130,28 @@
 
   var ACCEPT = /\.(mcworld|zip|dat)$/i;
 
+  var raioXSeq = 0;
+  function raioX() {
+    var box = $("filex");
+    if (!box) return;
+    if (!selected || typeof window.RC_local === "undefined") { box.hidden = true; return; }
+    var my = ++raioXSeq;
+    var f = selectedList.length > 1 ? selectedList[0] : selected;
+    box.hidden = false;
+    box.textContent = "Lendo mundo\u2026";
+    f.arrayBuffer().then(function (ab) { return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
+      if (my !== raioXSeq) return;
+      if (!rep.ok) { box.hidden = true; return; }
+      var df = (rep.difficulty && rep.difficulty.length === 1) ? diffName(rep.difficulty[0]) : null;
+      var t = "Raio-X: " + (rep.alreadyClean ? "j\u00e1 limpo" : (rep.wouldChange.length + " ajustes pendentes"));
+      if (df) t += " \u00b7 dificuldade " + df;
+      if (selectedList.length > 1) t += " (1\u00ba de " + selectedList.length + ")";
+      box.textContent = t;
+    }).catch(function () { if (my === raioXSeq) box.hidden = true; });
+  }
   function pick(list) {
-    if (!list || !list.length) return; // usuário cancelou a janela: mantém seleção
+    if (!list || !list.length) return;
+    var bx0 = $("filex"); if (bx0) bx0.hidden = true; // usuário cancelou a janela: mantém seleção
     var files = Array.prototype.slice.call(list || []);
     files = files.filter(function (f) { return ACCEPT.test(f.name || ""); });
     if (!files.length) {
@@ -171,6 +191,7 @@
       fileName.hidden = false;
       setStatus(null);
     }
+    raioX();
     updateSubmit();
   }
 
@@ -199,7 +220,6 @@
     if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é Premium."); }
   });
   if (wantRename) wantRename.addEventListener("change", function () {
-    if (wantRename.checked && !remotePremOk()) { wantRename.checked = false; lockedHint("Renomear o mundo é Premium."); return; }
     if (wantRename.checked) renameInput.focus();
   });
   if (iconBtn) iconBtn.addEventListener("click", function () {
@@ -227,11 +247,13 @@
 
     var prem = remotePremOk();
     var premUnlimited = isPremiumAny(); // Premium da conta (AbacatePay)
-    var mode = "survival"; // conquistas exigem Sobrevivência
+    var mode = "survival";
+    var diffSel = $("difficulty");
+    var difficulty = diffSel ? parseInt(diffSel.value, 10) : -1;
+    if (!(difficulty >= 0 && difficulty <= 3)) difficulty = null; // conquistas exigem Sobrevivência
     if (strip.checked && !prem) { lockedHint("Remover behavior packs é Premium."); return; }
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é Premium."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
-    if ((wantRename && wantRename.checked && !prem) || (newName && !prem)) { lockedHint("Renomear o mundo é Premium."); return; }
     if (!prem && freeLeft() <= 0) { setStatus("err", "Sua <b>cota grátis acabou</b> esta semana. <a href='#planos'><b>Assinar o Premium</b></a> ou <a href='minha-conta.html'><b>entrar na conta</b></a>"); return; }
 
     var batch = selectedList.length > 1;
@@ -268,7 +290,9 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
-    function summarizeChanges(changes) {
+    var DIFFS = ["Pacífico", "Fácil", "Normal", "Difícil"];
+  function diffName(v) { return DIFFS[v] || ("nível " + v); }
+  function summarizeChanges(changes) {
     var list = changes || [];
     var out = [];
     var flags = list.filter(function (c) { return /^byte /.test(c); }).length;
@@ -276,6 +300,8 @@
     var gt = list.some(function (c) { return /GameType/.test(c); });
     out.push(gt ? "modo Sobrevivência aplicado" : "modo Sobrevivência confirmado");
     list.forEach(function (c) {
+      var dm = /\(Difficulty\) = \d+ -> (\d)/.exec(c);
+      if (dm) { out.push("dificuldade " + diffName(+dm[1])); return; }
       if (/removido world_behavior/.test(c)) out.push("behavior packs removidos");
       else if (/ícone/.test(c)) out.push("foto do mundo atualizada");
       else if (/nome alterado/.test(c)) out.push("mundo renomeado");
@@ -296,7 +322,7 @@
     // level.dat direto (1 arquivo): foto/nome/behavior são opções de .mcworld
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return window.RC_local.patchLevelDat(ab, mode);
+        return window.RC_local.patchLevelDat(ab, mode, difficulty);
       }).then(function (res) {
         finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
@@ -309,11 +335,11 @@
     // lote premium: vale modo + behavior pack (foto/nome: um arquivo por vez)
     if (batch) {
       if ((wantIcon.checked && selectedIcon) || newName) {
-        setStatus("err", "No lote, <b>foto e nome</b> não se aplicam — converta um arquivo por vez para usá-los.");
+        setStatus("err", "No lote, <b>foto e nome único</b> não se aplicam — um por vez para usá-los.");
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, strip: strip.checked }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, strip: strip.checked, difficulty: difficulty }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -328,7 +354,7 @@
     }
 
     Promise.all([selected.arrayBuffer(), iconPromise]).then(function (arr) {
-      return window.RC_convert(arr[0], { gameMode: mode, strip: strip.checked, iconBytes: arr[1], worldName: newName }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, strip: strip.checked, iconBytes: arr[1], worldName: newName, difficulty: difficulty }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
@@ -363,7 +389,8 @@
       var det = rep.wouldChange.slice(0, 8).map(escapeHtml).join("<br>· ");
       setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
         (rep.gameType.length ? "<br>Modo atual (GameType): <b>" + rep.gameType.join(", ") + "</b> (0 = Sobrevivência, 1 = Criativo)" : "") +
-        "<br><br>Aperte <b>🔧 Corrigir meu mundo</b> para aplicar.");
+        (rep.difficulty && rep.difficulty.length ? "<br>Dificuldade atual: <b>" + diffName(rep.difficulty[0]) + "</b>" : "") +
+        "<br><br>Aperte <b>Corrigir meu mundo</b> para aplicar.");
     }).catch(function (err) {
       diagBtn.disabled = false;
       setStatus("err", "Não deu para analisar: " + escapeHtml((err && err.message) || err));

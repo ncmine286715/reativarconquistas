@@ -45,6 +45,7 @@
       flags[name] = vals;
     });
     var gt = (hits.GameType || []).map(function (h) { return h.tag === 3 ? h.val : ("tag" + h.tag); });
+    var df = (hits.Difficulty || []).map(function (h) { return h.tag === 3 ? h.val : ("tag" + h.tag); });
     var would = [];
     NBT.FLAGS.forEach(function (name) {
       (hits[name] || []).forEach(function (h) {
@@ -54,7 +55,7 @@
     (hits.GameType || []).forEach(function (h) {
       if (h.tag === 3 && h.val !== 0) would.push("int " + h.path + " (GameType) = " + h.val + " -> 0");
     });
-    return { flags: flags, gameType: gt, wouldChange: would };
+    return { flags: flags, gameType: gt, difficulty: df, wouldChange: would };
   }
 
   // Dry-run do --check: NÃO altera nada, só relata o que mudaria.
@@ -77,6 +78,7 @@
       header: !!split.meta.header,
       flags: s.flags,
       gameType: s.gameType,
+      difficulty: s.difficulty,
       wouldChange: s.wouldChange,
       alreadyClean: s.wouldChange.length === 0
     };
@@ -101,7 +103,7 @@
       return {
         ok: true, levelName: filename, wasGzip: wasGzip,
         header: !!split.meta.header,
-        flags: s.flags, gameType: s.gameType,
+        flags: s.flags, gameType: s.gameType, difficulty: s.difficulty,
         wouldChange: s.wouldChange, alreadyClean: s.wouldChange.length === 0
       };
     }
@@ -109,7 +111,7 @@
   }
 
   // ---------- level.dat direto (patch_level_dat_file) ----------
-  async function patchLevelDat(arrayBuffer, gameMode) {
+  async function patchLevelDat(arrayBuffer, gameMode, difficulty) {
     var NBT = needNbt();
     gameMode = gameMode || "survival";
     var raw = u8(arrayBuffer);
@@ -117,7 +119,7 @@
     if (wasGzip) raw = await NBT.gunzipAsync(raw);
     var split = NBT.splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
-    var patched = NBT.patchBody(split.body, gameMode);
+    var patched = NBT.patchBody(split.body, gameMode, difficulty);
     NBT.validateBody(patched.buf);
     var packed = await NBT.packBody(patched.buf, split.meta);
     var blob = new Blob([packed], { type: "application/octet-stream" });
