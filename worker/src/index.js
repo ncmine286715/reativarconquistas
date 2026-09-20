@@ -144,7 +144,7 @@ async function premiumUntilAccount(env, uid, email) {
   return until > Date.now() ? until : 0;
 }
 
-async function abacateCreate(env, email, name, origin, plan) {
+async function abacateCreate(env, email, name, uid, origin, plan) {
   plan = plan === "vip24h" ? "vip24h" : "vip30";
   const pid = plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID;
   if (!pid) {
@@ -157,7 +157,7 @@ async function abacateCreate(env, email, name, origin, plan) {
     items: [{ id: pid, quantity: 1 }],
     returnUrl: base + "/",
     completionUrl: base + "/sucesso.html",
-    metadata: { email, name, plan },
+    metadata: { firebase_uid: uid || "", email, name, plan },
     methods: ["PIX", "CARD"],
   };
   const resp = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
@@ -574,18 +574,24 @@ export default {
         const plan = body.plan === "vip24h" ? "vip24h" : "vip30";
         if (plan === "vip24h" && !env.ABACATEPAY_PRODUCT_ID_24H) return json({ error: "Passe 24h não configurado no servidor." }, 502, cors);
         if (plan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
-        const email = (await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase();
-        const name = String(body.name || "").trim().slice(0, 80);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
-        // rate-limit simples: 10 criações/hora por IP
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        }
+        const email = fb.email;
+        const name = fb.name;
+        const uid = fb.uid;
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        const rlKey = "rl:" + ip;
-        const n = parseInt((await env.PREMIUM_KV.get(rlKey).catch(() => null)) || "0", 10);
-        if (n >= 10) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
-        await env.PREMIUM_KV.put(rlKey, String(n + 1), { expirationTtl: 3600 }).catch(() => {});
+        if (!(await rlTake(env, "rl-alt-v2:" + uid + ":" + ip, 12, 900))) {
+          return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
+        }
         const origin = req.headers.get("Origin") || "";
-        const r = await abacateCreate(env, email, name, origin.startsWith("http") ? origin : "", plan);
-        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now(), plan }), { expirationTtl: 86400 }).catch(() => {});
+        const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", plan);
+        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
+          uid, email, at: Date.now(), plan, via: "abacate",
+          terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+        }), { expirationTtl: 86400 }).catch(() => {});
         return json(r, 200, cors);
       }
 
@@ -603,8 +609,9 @@ export default {
         }
         if (info.paid && email) {
           const days = planDays(pend);
-          out.plan = days === 1 ? "vip24h" : "vip30";
-          out.premium_until_ms = await grantPremium(env, email, id, days);
+          const uid = pend && pend.uid ? String(pend.uid) : "";
+          out.plan = days === 1 ? "vip24h" : (days === 7 ? "vip7" : "vip30");
+          out.premium_until_ms = await grantPremium(env, email, id, days, uid);
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
         }
         return json(out, 200, cors);
@@ -629,7 +636,7 @@ export default {
               pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
               if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
-            if (info.paid && email) await grantPremium(env, email, bid, planDays(pend));
+            if (info.paid && email) await grantPremium(env, email, bid, planDays(pend), pend && pend.uid ? String(pend.uid) : "");
           } catch (e) { console.log("webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
