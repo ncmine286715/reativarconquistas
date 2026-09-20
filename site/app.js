@@ -1,6 +1,6 @@
 /* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
-   Grátis e ilimitado p/ mundos de até 10 MB. Acima disso (mundos gigantes,
-   mais processamento) é VIP na conta via AbacatePay (Worker).
+   Grátis p/ mundos de até 10 MB (5/dia, até 3 addons). Acima disso
+   (mundos gigantes, mais processamento) é VIP na conta via AbacatePay (Worker).
 */
 (function () {
   "use strict";
@@ -8,6 +8,25 @@
   var CFG = window.RC_CONFIG || {};
   var FREE_MAX_MB = CFG.FREE_MAX_MB || 10;
   var PRE_MAX_MB = CFG.PRE_MAX_MB || 500;
+  var FREE_DAILY = CFG.FREE_DAILY || 5;
+  var FREE_MAX_PACKS = CFG.FREE_MAX_PACKS || 3;
+
+  /* ---------- quota grátis: N conversões por dia (VIP = ilimitado) ---------- */
+  function freeDay() {
+    var d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+  function freeUsed() {
+    try {
+      var r = JSON.parse(localStorage.getItem("rc_free_used") || "null");
+      if (r && r.day === freeDay()) return +r.count || 0;
+    } catch (e) {}
+    return 0;
+  }
+  function freeLeft() { return Math.max(0, FREE_DAILY - freeUsed()); }
+  function consumeFree() {
+    try { localStorage.setItem("rc_free_used", JSON.stringify({ day: freeDay(), count: freeUsed() + 1 })); } catch (e) {}
+  }
 
   /* ---------- tema claro/escuro (sem flash: <head> já aplicou) ---------- */
   function applyThemeBtn() {
@@ -280,7 +299,10 @@
         "<a href='#' id='vipRefresh'>Verificar de novo</a>";
     } else {
       quotaBar.classList.remove("premium");
-      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis e ilimitado</strong>. Mundos gigantes (acima de 10 MB) exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a><br>" +
+      var fl = freeLeft();
+      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" +
+        (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
+          : ". Mundos gigantes (acima de 10 MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
         "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipClaim'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='vipRefresh'>Verificar de novo</a></span>";
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
@@ -620,6 +642,22 @@
       setStatus("err", "Conversor ainda carregando (JSZip). Aguarde 5s e tente de novo.");
       return;
     }
+    // Limite leve do grátis: N conversões por dia (VIP = ilimitado).
+    if (!prem && freeLeft() <= 0) {
+      lockedHint("Você usou as " + FREE_DAILY + " conversões grátis de hoje. O VIP é ilimitado, sem espera.", "vip30");
+      return;
+    }
+    function packLimitOf(err) {
+      var g = /^PACK_LIMIT\|(\d+)\|(\d+)/.exec(String((err && err.message) || err || ""));
+      return g ? { packs: +g[1], limit: +g[2] } : null;
+    }
+    function packLimitHint(err) {
+      var pl = packLimitOf(err);
+      if (!pl) return false;
+      lockedHint("Este mundo tem " + pl.packs + " addons — o grátis remove até " + pl.limit + " por mundo. O VIP remove quantos precisar, sem limite.", "vip30");
+      submit.disabled = false;
+      return true;
+    }
 
     setStatus("", '<span class="spin"></span> Corrigindo <b>no seu PC</b>, aguarde… (arquivo não é enviado)');
     submit.disabled = true;
@@ -667,6 +705,7 @@
 
     function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
+      if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
       paintQuota();
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
@@ -701,7 +740,7 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -713,6 +752,7 @@
         setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {
+        if (packLimitHint(err)) return;
         setStatus("err", friendlyFileErr(err));
         submit.disabled = false;
       });
@@ -723,12 +763,13 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
       finishSingle(baseName(selected.name), selected, both.res, both.iconBytes);
     }).catch(function (err) {
+      if (packLimitHint(err)) return;
       setStatus("err", friendlyFileErr(err));
       submit.disabled = false;
     });

@@ -363,6 +363,9 @@
     var stripPacks = !!opts.stripBehaviorPacks;
     var warnings = [];
     var packCount = packInfo.active || packInfo.folders.length;
+    if (stripPacks && (typeof opts.stripPackLimit === "number") && packCount > opts.stripPackLimit) {
+      throw new Error("PACK_LIMIT|" + packCount + "|" + opts.stripPackLimit);
+    }
     if (!stripPacks && packCount > 0) {
       warnings.push("addons: este mundo tem " + packCount + " pacote(s) de comportamento" +
         (packInfo.folders.length ? " (" + packInfo.folders.slice(0, 4).join(", ") + (packInfo.folders.length > 4 ? ", …" : "") + ")" : "") +
