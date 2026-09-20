@@ -92,14 +92,7 @@
     });
   }
 
-  var PLANS = {
-    vip24h: { title: "Passe 24h", price: "R$ 5,90", cta: "Liberar por R$ 5,90",
-      sub: "Acesso completo por <b>24 horas</b>: mundos gigantes + modo de jogo + manter inventário + foto + tempo/clima + lote." },
-    vip7: { title: "VIP — 7 dias", price: "R$ 9,90", cta: "Liberar 7 dias por R$ 9,90",
-      sub: "Acesso completo por <b>7 dias</b>. Ideal para ajustar vários mundos durante a semana." },
-    vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Liberar 30 dias por R$ 19,90",
-      sub: "Acesso completo por <b>30 dias</b>: mundos gigantes + modo de jogo + manter inventário + foto + tempo/clima + lote." }
-  };
+  var PLANS = {};
   function normalizePlan(plan) {
     return plan === "vip24h" || plan === "vip7" || plan === "vip30" ? plan : "vip30";
   }
@@ -107,8 +100,8 @@
   // Oferta comercial orientada ao problema, mantendo os ids antigos apenas
   // para compatibilidade com links e pagamentos já existentes.
   PLANS = {
-    world1: { title: "Resolver 1 mundo", price: "R$ 4,90", cta: "Resolver meu mundo por R$ 4,90", sub: "Para um mundo agora: arquivo maior, correções avançadas e 7 dias para reprocessar e baixar." },
-    vip7: { title: "Passe 7 dias", price: "R$ 9,90", cta: "Liberar 7 dias por R$ 9,90", sub: "Até 10 mundos, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
+    world1: { title: "Resolver 1 mundo", price: "R$ 4,99", cta: "Resolver meu mundo por R$ 4,99", sub: "Para um mundo agora: até 100 MB, correções avançadas e 7 dias para reprocessar e baixar." },
+    vip7: { title: "Passe 7 dias", price: "R$ 7,99", cta: "Liberar 7 dias por R$ 7,99", sub: "Até 300 MB, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
     vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Até 50 mundos, arquivos grandes, lotes e todas as ferramentas para uso recorrente." },
     creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador por R$ 39,90", sub: "Até 150 mundos, lotes maiores, addons, chunks e edição avançada para uso pesado." }
   };
@@ -194,9 +187,10 @@
       (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
       "<div class='vip-assurance'><b>VIP automático:</b> cai nesta conta Google assim que o Pix for confirmado.</div>" +
       "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'>" +
-        "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "><span class='plan-main'><strong>24h</strong><b>R$ 5,90</b><small>1 dia</small></span></label>" +
-        "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 9,90</b><small>Semana</small></span></label>" +
-        "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 19,90</b><small>Melhor valor</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 4,99</b><small>100 MB</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>300 MB</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 24,90</b><small>Sem limite comercial</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>" +
       "</div>" +
       "<p class='sub pay-sub' id='paySub'></p>" +
       "<div class='pay-form-grid'>" +
@@ -231,12 +225,11 @@
       "</div>";
     document.body.appendChild(bg);
     var planPick = bg.querySelector(".planpick");
-    var legacy = bg.querySelector("input[value='vip24h']");
-    if (legacy && legacy.closest("label")) legacy.closest("label").remove();
-    if (planPick) planPick.insertAdjacentHTML("beforeend",
-      "<label><input type='radio' name='payplan' value='world1'> Resolver 1 mundo — <b>R$ 4,90</b></label>" +
-      "<label><input type='radio' name='payplan' value='vip7'> Passe 7 dias — <b>R$ 9,90</b></label>" +
-      "<label><input type='radio' name='payplan' value='creator'> Criador — <b>R$ 39,90</b></label>");
+    if (planPick) planPick.innerHTML =
+      "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 4,99</b><small>100 MB</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>300 MB</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 24,90</b><small>Sem limite comercial</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>";
     var requested = bg.querySelector("input[value='" + plan + "']");
     if (requested) requested.checked = true;
     function selPlan() {

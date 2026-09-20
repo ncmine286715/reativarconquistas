@@ -14,7 +14,7 @@ preview_id = "acfc4981776e4dd0b8513722597f8f01"
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 # ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
-# ID do produto "Passe 24h" (R$ 5,90) no dashboard AbacatePay.
+# ID do produto de entrada "Resolver 1 mundo" (R$ 4,99) no dashboard AbacatePay.
 ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
 # IDs dos produtos na KIWIFY (só quando ligar a Kiwify): produto -> Webhooks.
 # Vazios = Kiwify desligada. Dias: _24H = 1 dia, _30D = 30 dias.

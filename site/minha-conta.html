@@ -88,7 +88,7 @@
     var pending = emails.length, best = 0, okAny = false;
     if (!pending) {
       show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
-        "<p><b>Plano:</b> Grátis (mundos até " + freeLimitLabel() + ", 2 por dia)</p>" +
+        "<p><b>Plano:</b> Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)</p>" +
         "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>");
       return;
     }
@@ -112,7 +112,7 @@
         show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
           "<p><b>Plano:</b> " + (prem
             ? "VIP até <b>" + new Date(best).toLocaleDateString("pt-BR") + "</b> · <a href='index.html#converter'><b>Ir converter</b></a>"
-            : "Grátis (mundos até " + freeLimitLabel() + ", 2 por dia)") + "</p>" +
+            : "Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)") + "</p>" +
           (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>") +
           "<p class='sub'>Pagou com <b>outro e-mail</b> (ex.: na Kiwify)? <a href='#' id='linkEmail'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='retryVip'>Verificar de novo</a></p>");
         document.getElementById("retryVip").addEventListener("click", function (e) { e.preventDefault(); render(); });

@@ -227,7 +227,7 @@
   function paidSizeLimitMB() {
     if (!remotePremOk()) return freeLimitMB();
     var p = remotePlan();
-    return p === "creator" ? PRE_MAX_MB : (p === "vip30" ? 250 : 100);
+    return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 300 : 100);
   }
   function remotePremOk() {
     if (remotePremUntil() <= Date.now()) return false;
@@ -526,7 +526,7 @@
         // (Passe 24h pré-selecionado: entrada mais barata p/ um mundo só)
         lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.", "vip24h");
       } else {
-        setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
+        setStatus("err", "Arquivo grande para a capacidade deste navegador: " + escapeHtml(big[0].name));
       }
       return;
     }
@@ -583,7 +583,7 @@
       d.id = "promoBanner";
       d.className = "promo-banner";
       var pd = promoDaysLeft();
-      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (24/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>. Depois volta a 10 MB.";
+      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (24/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>.";
       conv.insertBefore(d, conv.firstChild);
     } catch (e) {}
   })();

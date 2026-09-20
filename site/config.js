@@ -20,7 +20,7 @@ window.RC_CONFIG = {
   PROMO_UNTIL: "2099-12-31T23:59:59-03:00",
 
   // Limite técnico máximo aceito pelo sistema.
-  PRE_MAX_MB: 500,
+  PRE_MAX_MB: Infinity,
 
   // Quantidade de conversões grátis por dia.
   FREE_DAILY: 3,
@@ -61,7 +61,7 @@ window.RC_CONFIG = {
      ========================= */
 
   // Passe de 24 horas.
-  PASS_24H_PRICE_LABEL: "R$ 4,90",
+  PASS_24H_PRICE_LABEL: "R$ 4,99",
 
   // VIP de 30 dias.
   PREMIUM_PRICE_LABEL: "R$ 24,90",
@@ -69,11 +69,11 @@ window.RC_CONFIG = {
   PREMIUM_DAYS: 30,
 
   // Valores enviados para o Depix em centavos.
-  PASS_24H_CENTS: 490,
+  PASS_24H_CENTS: 499,
   PREMIUM_CENTS_30D: 2490,
 
-  PASS_7D_PRICE_LABEL: "R$ 9,90",
-  PASS_7D_CENTS: 990,
+  PASS_7D_PRICE_LABEL: "R$ 7,99",
+  PASS_7D_CENTS: 799,
   CREATOR_PRICE_LABEL: "R$ 39,90",
   CREATOR_CENTS: 3990,
 
