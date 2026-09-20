@@ -258,6 +258,8 @@
     refreshVipLock();
     document.getElementById("payBack").addEventListener("click", closePay);
     document.getElementById("payGo").addEventListener("click", function () {
+      var go = document.getElementById("payGo");
+      var email = currentEmail();
       if (!currentUser()) {
         closePay();
         if (window.RC_auth) window.RC_auth.openModal();
@@ -269,7 +271,6 @@
       }
       // já é VIP? redireciona em vez de cobrar de novo (trava final)
       if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. Se confirmar uma nova compra, o novo período será somado após a confirmação do pagamento.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
-      var go = document.getElementById("payGo");
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
       try {
@@ -309,6 +310,14 @@
           return;
         }
         // Reserva: AbacatePay (quando Depix desligado).
+        // O plano de 7 dias usa preço dinâmico no Depix; não convertemos
+        // silenciosamente para 30 dias em outro provedor.
+        if (plan === "vip7") {
+          go.disabled = false;
+          go.textContent = PLANS[plan].cta;
+          payStatus("O plano de 7 dias está disponível somente no Pix no momento. Escolha 24h ou 30 dias para usar outra forma de pagamento.", "err");
+          return;
+        }
         req("/api/abacate/create", {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
