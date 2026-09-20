@@ -9,8 +9,8 @@ window.RC_CONFIG = {
   // Limites leves do grátis (margem pro VIP sem forçar):
   // mundos até 10 MB, 1 por vez, FREE_DAILY conversões/dia e até
   // FREE_MAX_PACKS addons removidos por mundo. VIP = tudo ilimitado.
-  FREE_DAILY: 5,
-  FREE_MAX_PACKS: 3,
+  FREE_DAILY: 2,
+  FREE_MAX_PACKS: 1,
   SUPPORT_EMAIL: "ncmine75@gmail.com",
   OPERATOR_NAME: "ReativaConquistas",
   OPERATOR_DOC: "",
