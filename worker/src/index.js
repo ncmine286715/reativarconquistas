@@ -381,11 +381,21 @@ export default {
         const uid = fb.uid;
         const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
         if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        }
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-depix:" + ip, 10, 3600))) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
+        // Evita bloqueio exagerado: por conta + IP, janela curta e chave versionada.
+        // O frontend não repete automaticamente uma cobrança que falhou.
+        if (!(await rlTake(env, "rl-depix-v2:" + uid + ":" + ip, 12, 900))) {
+          return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
+        }
         try {
           const r = await depixCreate(env, email, name, uid, plan, doc, req);
-          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ uid, email, at: Date.now(), plan, via: "depix" }), { expirationTtl: 86400 }).catch(() => {});
+          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
+            uid, email, at: Date.now(), plan, via: "depix",
+            terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+          }), { expirationTtl: 86400 }).catch(() => {});
           return json(r, 200, cors);
         } catch (e) {
           return json({ error: String((e && e.message) || e) }, 502, cors);
