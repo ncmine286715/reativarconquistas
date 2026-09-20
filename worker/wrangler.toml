@@ -38,4 +38,4 @@ ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pa
 
 # continuação de [vars]
 # "1" = teste (site mostra aviso); "0"/vazio = produção.
-DEPIX_TEST_MODE = "1"
+DEPIX_TEST_MODE = "0"
