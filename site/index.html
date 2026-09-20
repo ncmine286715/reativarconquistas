@@ -170,20 +170,6 @@
         </span>
       </label>
 
-      <label class="opt" id="keepOpt">
-        <span style="flex:1">
-          <b><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>Manter inventário ao morrer</b>
-          <em>Regra keepinventory. Não afeta conquistas. Grátis.</em>
-          <span class="icon-row" style="margin-top:10px">
-            <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
-              <option value="-1">Manter como está</option>
-              <option value="1">Ligar (não perde os itens)</option>
-              <option value="0">Desligar (perde os itens)</option>
-            </select>
-          </span>
-        </span>
-      </label>
-
       <label class="opt" id="coordOpt">
         <span style="flex:1">
           <b><svg class="ic" aria-hidden="true"><use href="#i-compass"/></svg>Mostrar coordenadas na tela</b>
@@ -213,9 +199,23 @@
         </div>
       </details>
 
-      <details class="acc" id="accPrem">
+      <details class="acc" id="accPrem" open>
         <summary><span class="acc-n">3</span><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Ajustes VIP <span class="lock">VIP</span></summary>
         <div class="acc-body">
+
+      <label class="opt locked" id="keepOpt">
+        <span style="flex:1">
+          <b><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>Manter inventário ao morrer <span class="lock">VIP</span></b>
+          <em>Regra keepinventory: não perde os itens ao morrer. Não afeta conquistas. <a href="#planos" class="unlock">Desbloquear no VIP</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Manter como está</option>
+              <option value="1">Ligar (não perde os itens)</option>
+              <option value="0">Desligar (perde os itens)</option>
+            </select>
+          </span>
+        </span>
+      </label>
 
       <label class="opt locked" id="modeOpt">
         <span style="flex:1">
@@ -294,7 +294,7 @@
           <li class="yes">Mundos de até <b>10 MB, ilimitados</b></li>
           <li class="yes"><b>Renomear</b> o mundo (de verdade, no level.dat)</li>
           <li class="yes">Mudar a <b>dificuldade</b></li>
-          <li class="yes"><b>Manter inventário</b> e <b>mostrar coordenadas</b></li>
+          <li class="yes"><b>Mostrar coordenadas</b> na tela</li>
           <li class="yes"><b>Resumo do mundo</b> com seed copiável</li>
         </ul>
         <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
@@ -319,6 +319,7 @@
           <li class="yes">Mundos <b>gigantes</b> (acima de 10 MB, sem limite)</li>
           <li class="yes"><b>Conversões ilimitadas</b> por 30 dias</li>
           <li class="yes">Mudar o <b>modo de jogo</b> (Criativo/Aventura)</li>
+          <li class="yes"><b>Manter inventário</b> ao morrer</li>
           <li class="yes"><b>Foto do mundo</b> em JPEG (+ ícones prontos)</li>
           <li class="yes">Travar <b>dia/noite e clima</b></li>
           <li class="yes"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Vários mundos de uma vez (lote)</li>

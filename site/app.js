@@ -421,8 +421,8 @@
     });
   });
 
-  // Travas premium nos selects novos (dia/noite + clima).
-  [["daycycle", "Travar o ciclo dia/noite é VIP."], ["weather", "Travar o clima é VIP."]].forEach(function (pair) {
+  // Travas VIP nos selects (manter inventário, dia/noite + clima).
+  [["keepinv", "Manter inventário ao morrer é VIP."], ["daycycle", "Travar o ciclo dia/noite é VIP."], ["weather", "Travar o clima é VIP."]].forEach(function (pair) {
     var el = $(pair[0]);
     if (!el) return;
     el.addEventListener("change", function () {
@@ -461,8 +461,9 @@
     var wv = selRule(weatherSel);
     if (wv !== null) rules.doweathercycle = wv === 0 ? 0 : 1;
     var wantsTime = rules.dodaylightcycle !== null || rules.doweathercycle !== null;
+    var wantsKeep = rules.keepinventory !== null;
     var iconBytes = (wantIcon.checked && (selectedIconBytes || presetBytes)) || null;
-    var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime;
+    var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime || wantsKeep;
     if (wantsPrem && !loggedIn()) {
       setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine.");
       try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e3) {}
@@ -473,6 +474,7 @@
     if (!(difficulty >= 0 && difficulty <= 3)) difficulty = null; // conquistas exigem Sobrevivência
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é VIP."); return; }
     if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é VIP."); return; }
+    if (wantsKeep && !prem) { lockedHint("Manter inventário ao morrer é VIP."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
 
     if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é VIP. No grátis, converta um por vez."); return; }

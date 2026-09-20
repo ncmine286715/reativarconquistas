@@ -80,7 +80,7 @@
     vip24h: { title: "Passe 24h", price: "R$ 4,90", cta: "Liberar por R$ 4,90",
       sub: "VIP completo por <b>24 horas</b>: mundos gigantes + modo de jogo + foto + tempo/clima + lote. Ideal para resolver <b>aquele mundo grande</b> hoje." },
     vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Assinar por R$ 19,90",
-      sub: "Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay." }
+      sub: "Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + manter inventário + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay." }
   };
 
   function openPayModal(notice, plan) {
