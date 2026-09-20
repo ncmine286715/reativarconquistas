@@ -5,16 +5,12 @@ window.RC_CONFIG = {
   // Modelo: mundos de até FREE_MAX_MB são grátis (FREE_DAILY/dia).
   // Acima disso (mundos gigantes, mais processamento) é VIP.
   FREE_MAX_MB: 10,
-  // PROMOÇÃO: até 23/09/2026, o grátis vale 25 MB (auto-expira, sem deploy)
-  PROMO_MAX_MB: 25,
-  PROMO_UNTIL: "2026-09-23T23:59:59-03:00",
   PRE_MAX_MB: 500,
   // Limites leves do grátis (margem pro VIP sem forçar):
-  // mundos até FREE_MAX_MB (ou PROMO), 1 por vez, FREE_DAILY conversões/dia.
-  // Remover addons p/ conquistas é 100% VIP (FREE_MAX_PACKS = 0).
-  // VIP = tudo ilimitado.
+  // mundos até 10 MB, 1 por vez, FREE_DAILY conversões/dia e até
+  // FREE_MAX_PACKS addons removidos por mundo. VIP = tudo ilimitado.
   FREE_DAILY: 2,
-  FREE_MAX_PACKS: 0,
+  FREE_MAX_PACKS: 1,
   SUPPORT_EMAIL: "ncmine75@gmail.com",
   OPERATOR_NAME: "ReativaConquistas",
   OPERATOR_DOC: "",
