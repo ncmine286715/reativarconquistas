@@ -127,17 +127,60 @@
     paintPlan();
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
     // self-test: mostra na hora se o servidor de pagamento responde
+    // e desliga o Passe 24h se o produto não estiver configurado lá
     try {
       fetch(base() + "/api/config").then(function (r) {
         if (!r.ok) throw new Error();
+        return r.json();
+      }).then(function (cfg) {
         var c = document.getElementById("payConn");
         if (c) c.textContent = "✓ Conectado ao pagamento seguro";
+        if (cfg && cfg.product24h_configured === false) {
+          var radio = bg.querySelector("input[name='payplan'][value='vip24h']");
+          if (radio) {
+            radio.checked = false;
+            radio.disabled = true;
+            var lb = radio.closest("label");
+            if (lb) { lb.style.opacity = ".5"; lb.title = "Passe 24h indisponível no momento"; }
+            var r30 = bg.querySelector("input[name='payplan'][value='vip30']");
+            if (r30) r30.checked = true;
+            paintPlan();
+          }
+        }
       }).catch(function (err) {
         logClient("selftest", (err && err.message) || err);
         var c = document.getElementById("payConn");
         if (c) c.textContent = "⚠ Sem conexão com o pagamento agora — confira sua internet antes de continuar.";
       });
     } catch (e) {}
+    // trava anti-compra-dupla: e-mail que já tem VIP ativo não gera cobrança
+    var vipLockUntil = 0;
+    function showVipOwner(ms) {
+      vipLockUntil = ms;
+      var m = document.getElementById("payMsg");
+      if (m) {
+        m.hidden = false;
+        m.className = "status ok";
+        m.innerHTML = "Este e-mail já tem <b>VIP até " + new Date(ms).toLocaleDateString("pt-BR") + "</b>. Não precisa pagar de novo.";
+      }
+      var go = document.getElementById("payGo");
+      if (go) { go.disabled = false; go.textContent = "Ir converter"; }
+    }
+    function refreshVipLock() {
+      if (!document.getElementById("payModal")) return;
+      var em = (document.getElementById("payEmail").value || "").trim();
+      if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(em)) return;
+      remotePremiumMs(em).then(function (ms) {
+        if (ms > Date.now() && document.getElementById("payModal") && !vipLockUntil) showVipOwner(ms);
+      }).catch(function () {});
+    }
+    var emailTimer = null;
+    document.getElementById("payEmail").addEventListener("input", function () {
+      vipLockUntil = 0;
+      if (emailTimer) clearTimeout(emailTimer);
+      emailTimer = setTimeout(refreshVipLock, 700);
+    });
+    refreshVipLock();
     document.getElementById("payBack").addEventListener("click", closePay);
     var pl = document.getElementById("payLogin");
     if (pl) pl.addEventListener("click", function (e) {
@@ -147,13 +190,23 @@
     document.getElementById("payGo").addEventListener("click", function () {
       var email = (document.getElementById("payEmail").value || "").trim();
       if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
+      // já é VIP? redireciona em vez de cobrar de novo (trava final)
+      if (vipLockUntil > Date.now()) { location.href = "index.html#converter"; return; }
       var go = document.getElementById("payGo");
-      var name = "";
+      go.disabled = true; go.textContent = "Verificando…";
+      var buyerName = "";
       try {
-        var u = window.RC_auth && window.RC_auth.user();
-        if (u && u.name) name = u.name;
-      } catch (e) {}
+        var u0 = window.RC_auth && window.RC_auth.user();
+        if (u0 && u0.name) buyerName = u0.name;
+      } catch (e0) {}
+      remotePremiumMs(email).then(function (ms) {
+        if (ms > Date.now() && document.getElementById("payModal")) { showVipOwner(ms); return; }
+        attempt(1);
+      }).catch(function () {
+        attempt(1);
+      });
       function attempt(n) {
+        var name = buyerName;
         go.disabled = true; go.textContent = "Gerando cobrança…";
         payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
         var planEl = document.querySelector("#payModal input[name='payplan']:checked");
