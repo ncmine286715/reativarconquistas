@@ -1078,6 +1078,31 @@
     });
   });
 
+  // TESTE LOCAL: painel dev SÓ em localhost ( Renderiza nada em produção).
+  // Simula o VIP p/ testar todas as funções sem pagar de novo.
+  (function localDevTools() {
+    try {
+      if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
+      var d = document.createElement("div");
+      d.id = "localDev";
+      d.innerHTML = "<b>TESTE LOCAL</b><span id='localDevVip'></span>" +
+        "<button type='button' id='localDevOn'>VIP 7 dias</button>" +
+        "<button type='button' id='localDevOff'>sem VIP</button>";
+      document.body.appendChild(d);
+      var vipEl = document.getElementById("localDevVip");
+      if (vipEl) vipEl.textContent = remotePremOk() ? "· VIP ATIVO" : "· sem VIP";
+      document.getElementById("localDevOn").addEventListener("click", function () {
+        try { localStorage.setItem("rc_prem_remote", JSON.stringify({ until: Date.now() + 7 * 86400000, email: "teste@local" })); } catch (e) {}
+        paintQuota();
+        if (vipEl) vipEl.textContent = "· VIP ATIVO";
+      });
+      document.getElementById("localDevOff").addEventListener("click", function () {
+        try { localStorage.removeItem("rc_prem_remote"); } catch (e) {}
+        paintQuota();
+        if (vipEl) vipEl.textContent = "· sem VIP";
+      });
+    } catch (e) {}
+  })();
   paintContact();
   paintPresets();
   paintQuota();
