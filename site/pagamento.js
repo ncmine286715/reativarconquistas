@@ -294,7 +294,12 @@
   function checkout(plan, notice) {
     plan = plan === "vip24h" ? "vip24h" : "vip30";
     var kw = kiwifyUrl(plan);
-    if (kw) { location.href = kw; return true; }
+    if (kw) {
+      // volta da Kiwify: o navegador não fica sabendo sozinho — marca
+      // pendência p/ o site oferecer "vincular e-mail do pagamento" ao voltar
+      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
+      location.href = kw; return true;
+    }
     if (!enabled()) return false;
     openPayModal(notice || null, plan);
     return true;

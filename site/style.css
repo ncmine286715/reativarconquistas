@@ -818,6 +818,23 @@ body {
 .pack-x:hover { border-color: var(--red, #b91c1c); color: var(--red, #b91c1c); }
 [data-theme="dark"] .pack-x { background: var(--card); }
 
+/* Banner pós-Kiwify */
+.kw-row { display: flex; gap: 8px; margin-top: 8px; }
+.kw-row input { flex: 1; min-width: 0; border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; font-size: 16px; background: #fff; color: var(--ink); }
+.kw-row .btn-mini { min-height: 44px; }
+
+/* Mapa 2D no modo dark (não fica branco) */
+[data-theme="dark"] .mappreview { background: #282017; }
+[data-theme="dark"] .map-stats { color: var(--ink); }
+[data-theme="dark"] .map-stats code { color: var(--orange-2); }
+[data-theme="dark"] .map-dim { background: var(--card); color: var(--ink); }
+[data-theme="dark"] .map-hint, [data-theme="dark"] .map-legend { color: var(--muted); }
+[data-theme="dark"] .map-canvas-wrap { border-color: var(--line-strong); }
+[data-theme="dark"] .coord-row label { color: var(--muted); }
+[data-theme="dark"] .coord-row input { background: var(--card); color: var(--ink); }
+[data-theme="dark"] .steps-mini { color: var(--muted); }
+[data-theme="dark"] .kw-row input { background: var(--card); }
+
 /* Mobile: toque grande + mapa compacto (mantém design original) */
 @media (max-width: 640px) {
   .opt b .mc-ic { width: 28px; height: 28px; }

@@ -288,8 +288,40 @@
     claimWithEmail(em);
   }
 
+  // Volta da Kiwify: pagou lá fora, o navegador só libera vinculando o e-mail.
+  // Mostra banner com campo de e-mail (some quando VIP ativa ou após 72h).
+  function maybeKiwifyReturn() {
+    try {
+      var p = JSON.parse(localStorage.getItem("rc_pending_kiwify") || "null");
+      if (!p || !p.at) return;
+      if (Date.now() - (+p.at || 0) > 72 * 3600 * 1000) { localStorage.removeItem("rc_pending_kiwify"); return; }
+      if (remotePremOk()) { localStorage.removeItem("rc_pending_kiwify"); return; }
+      if ($("kiwifyBanner")) return;
+      var conv = $("converter");
+      if (!conv) return;
+      var d = document.createElement("div");
+      d.id = "kiwifyBanner";
+      d.className = "promo-banner";
+      d.innerHTML = "Pagou agora e continua bloqueado? <b>Digite o e-mail usado no pagamento</b> p/ liberar o VIP neste aparelho:<br>" +
+        "<span class='kw-row'><input id='kwEmail' type='email' maxlength='120' autocomplete='email' placeholder='e-mail do pagamento'>" +
+        "<button id='kwGo' class='btn-ghost btn-mini' type='button'>Liberar VIP</button></span>";
+      conv.insertBefore(d, conv.firstChild);
+      var go = $("kwGo");
+      if (go) go.addEventListener("click", function () {
+        var em = ($("kwEmail") || {}).value || "";
+        claimWithEmail(em);
+      });
+    } catch (e) {}
+  }
   function paintQuota() {
     var vip = remotePremOk();
+    try {
+      if (vip) {
+        localStorage.removeItem("rc_pending_kiwify");
+        var kb = $("kiwifyBanner");
+        if (kb) kb.remove();
+      }
+    } catch (e) {}
     if (vip) {
       quotaBar.classList.add("premium");
       quotaText.innerHTML = "<strong>VIP ativo</strong>" +
@@ -1008,6 +1040,7 @@
   paintContact();
   paintPresets();
   paintQuota();
+  maybeKiwifyReturn();
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
   document.addEventListener("rc-auth", function () {
     setTimeout(function () {
