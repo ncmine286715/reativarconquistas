@@ -253,7 +253,7 @@ async function verifyDepixSignature(rawBody, header, secret) {
     return hex === v1;
   } catch (e) { return false; }
 }
-async function depixCreate(env, email, name, uid, plan, doc, req) {
+async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req) {
   if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
   plan = normalizeDepixPlan(plan);
   var amount = depixAmount(plan);
@@ -272,7 +272,13 @@ async function depixCreate(env, email, name, uid, plan, doc, req) {
     expires_in: 1200,
     callback_url: origin + "/api/depix/webhook",
     redirect_url: siteBase + "/sucesso.html",
-    metadata: { firebase_uid: uid || "", email: email, name: name || "", plan: plan }
+    metadata: {
+      firebase_uid: uid || "",
+      email: email,
+      payer_email: String(payerEmail || "").trim().toLowerCase(),
+      name: name || "",
+      plan: plan
+    }
   };
   var resp = await fetch("https://api.depixapp.com/api/checkouts", {
     method: "POST",
@@ -380,8 +386,10 @@ export default {
         const name = fb.name;
         const uid = fb.uid;
         const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
+        const payerEmail = String(body.payer_email || "").trim().toLowerCase().slice(0, 120);
         if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
-        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+        if (!validEmail(payerEmail)) return json({ error: "Preencha um e-mail válido para o Pix." }, 400, cors);
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.5") {
           return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
         }
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
@@ -391,10 +399,10 @@ export default {
           return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
         }
         try {
-          const r = await depixCreate(env, email, name, uid, plan, doc, req);
+          const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req);
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan, via: "depix",
-            terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+            terms_version: "2026-09-20-v1.5", terms_accepted_at: Date.now()
           }), { expirationTtl: 86400 }).catch(() => {});
           return json(r, 200, cors);
         } catch (e) {
@@ -576,7 +584,7 @@ export default {
         if (plan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
-        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.5") {
           return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
         }
         const email = fb.email;
@@ -590,7 +598,7 @@ export default {
         const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", plan);
         await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
           uid, email, at: Date.now(), plan, via: "abacate",
-          terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+          terms_version: "2026-09-20-v1.5", terms_accepted_at: Date.now()
         }), { expirationTtl: 86400 }).catch(() => {});
         return json(r, 200, cors);
       }

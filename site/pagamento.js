@@ -114,6 +114,9 @@
   // CPF/CNPJ: o Depix (trilho Pix) exige documento REAL do pagador p/ gerar o QR.
   // Valida formato + dígito do CPF; CNPJ aceita 14 dígitos (validação leve).
   function cleanDoc(s) { return String(s || "").replace(/\D/g, ""); }
+  function validEmail(s) {
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(s || "").trim().toLowerCase());
+  }
   function validCPF(d) {
     d = cleanDoc(d);
     if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
@@ -132,15 +135,16 @@
     if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato OK (a receita valida no QR)
     return false;
   }
-  function depixCreate(plan, doc) {
+  function depixCreate(plan, doc, payerEmail) {
     return authReq("/api/depix/create", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
         plan: normalizePlan(plan),
         payer_tax_number: cleanDoc(doc),
+        payer_email: String(payerEmail || "").trim().toLowerCase(),
         terms_accepted: true,
-        terms_version: "2026-09-20-v1.4"
+        terms_version: "2026-09-20-v1.5"
       })
     });
   }
@@ -184,6 +188,11 @@
       "<label for='payDoc' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>CPF ou CNPJ do pagador</label>" +
       "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Digite o documento do titular do pagamento' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
       "<div class='payer-help'><b>Importante:</b> o pagamento deve ser feito por uma pessoa maior de 18 anos. Se você for menor de idade, peça para seu responsável realizar o pagamento e informe o CPF/CNPJ desse responsável. O documento precisa pertencer ao pagador real.</div>" +
+      "<label for='payPixEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail para o Pix</label>" +
+      "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='Preencha o e-mail usado no pagamento' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
+      "<label for='payPixEmailConfirm' style='display:block;font-size:13px;font-weight:700;margin:10px 0 5px'>Confirme o e-mail</label>" +
+      "<input id='payPixEmailConfirm' type='email' maxlength='120' autocomplete='email' placeholder='Digite o mesmo e-mail novamente' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
+      "<div class='payer-help'>Esse e-mail é usado no registro da cobrança Pix. O <b>VIP continua sendo liberado na conta Google mostrada acima</b>, mesmo que o e-mail do pagador seja diferente.</div>" +
       "<label class='accept pay-terms' for='payTerms' style='text-transform:none;letter-spacing:0;margin-top:12px'>" +
         "<input id='payTerms' type='checkbox'>" +
         "<span>Li e aceito os <a href='termos.html' target='_blank' rel='noopener'>Termos de Uso</a>, a <a href='reembolso.html' target='_blank' rel='noopener'>Política de Reembolso</a> e a <a href='privacidade.html' target='_blank' rel='noopener'>Política de Privacidade</a>. Confirmo que os dados do pagamento estão corretos.</span>" +
@@ -265,6 +274,20 @@
         if (window.RC_auth) window.RC_auth.openModal();
         return;
       }
+      var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
+      var pixEmailConfirm = String((document.getElementById("payPixEmailConfirm") || {}).value || "").trim().toLowerCase();
+      if (!validEmail(pixEmail)) {
+        payStatus("Preencha um e-mail válido para o Pix.", "err");
+        return;
+      }
+      if (!validEmail(pixEmailConfirm)) {
+        payStatus("Confirme o e-mail usado no Pix.", "err");
+        return;
+      }
+      if (pixEmail !== pixEmailConfirm) {
+        payStatus("Os dois e-mails não são iguais. Confira antes de continuar.", "err");
+        return;
+      }
       if (!document.getElementById("payTerms").checked) {
         payStatus("Para continuar, leia e aceite os Termos de Uso, a Política de Reembolso e a Política de Privacidade.", "err");
         return;
@@ -294,7 +317,7 @@
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
           if (!validDoc(doc)) { go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
-          depixCreate(plan, doc).then(function (r) {
+          depixCreate(plan, doc, pixEmail).then(function (r) {
             var url = r.url || r.payment_url;
             if (!url) throw new Error("Resposta sem link de pagamento.");
             try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
@@ -324,7 +347,7 @@
           body: JSON.stringify({
             plan: plan,
             terms_accepted: true,
-            terms_version: "2026-09-20-v1.4"
+            terms_version: "2026-09-20-v1.5"
           })
         }).then(function (r) {
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
