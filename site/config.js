@@ -13,5 +13,6 @@ window.RC_CONFIG = {
   // URL do Worker Cloudflare (API de contas + pagamento).
   WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
+  PASS_24H_PRICE_LABEL: "R$ 4,90",
   PREMIUM_DAYS: 30
 };

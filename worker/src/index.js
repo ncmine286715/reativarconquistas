@@ -1,20 +1,23 @@
 /* ReativaConquistas — Worker Cloudflare (API: AbacatePay + contas).
    A chave abc_* mora SÓ aqui (wrangler secret), NUNCA no site.
+   Planos: "vip24h" (Passe 24h, 1 dia) e "vip30" (VIP 30 dias). Cada plano tem
+   seu produto no dashboard AbacatePay (ABACATEPAY_PRODUCT_ID_24H / _ID).
    Endpoints (chamados por site/pagamento.js e site/auth.js):
-     POST /api/auth/register {email,name,password} -> {token,email,name}
-     POST /api/auth/login    {email,password} -> {token,email,name}
-     GET  /api/auth/me      (Bearer) -> {email,name,premium_until_ms}
-     POST /api/auth/logout  (Bearer) -> {ok:true}
-     POST /api/abacate/create   {email, name} -> {url, id} (checkout 30 dias;
-                                se logado, o e-mail da conta vale)
-     GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, premium_until_ms?}
-     POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
-     GET  /api/premium?email=X -> {premium_until_ms}
-     GET  /api/config -> flags públicas
-   Secrets (via API: nunca neste arquivo nem no git):
-     ABACATEPAY_API_KEY, WEBHOOK_SECRET
-   Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, PUBLIC_BASE_URL, ALLOWED_ORIGINS.
-   KV: PREMIUM_KV (contas, sessões, pendentes, premium).
+      POST /api/auth/register {email,name,password} -> {token,email,name}
+      POST /api/auth/login    {email,password} -> {token,email,name}
+      GET  /api/auth/me      (Bearer) -> {email,name,premium_until_ms}
+      POST /api/auth/logout  (Bearer) -> {ok:true}
+      POST /api/abacate/create   {email, name, plan?} -> {url, id, plan}
+                                 (plan "vip24h"|"vip30", padrão "vip30")
+      GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, plan?, premium_until_ms?}
+      POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
+      GET  /api/premium?email=X -> {premium_until_ms}
+      GET  /api/config -> flags públicas
+    Secrets (via API: nunca neste arquivo nem no git):
+      ABACATEPAY_API_KEY, WEBHOOK_SECRET
+    Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_24H,
+      PUBLIC_BASE_URL, ALLOWED_ORIGINS.
+    KV: PREMIUM_KV (contas, sessões, pendentes, premium).
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "ACTIVE", "PAYMENT_CONFIRMED", "CONFIRMED"]);
@@ -92,13 +95,20 @@ async function premiumUntil(env, email) {
   return rec && rec.until > Date.now() ? rec.until : 0;
 }
 
-async function abacateCreate(env, email, name, origin) {
+async function abacateCreate(env, email, name, origin, plan) {
+  plan = plan === "vip24h" ? "vip24h" : "vip30";
+  const pid = plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID;
+  if (!pid) {
+    throw new Error(plan === "vip24h"
+      ? "Passe 24h não configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)."
+      : "Produto não configurado no servidor (ABACATEPAY_PRODUCT_ID).");
+  }
   const base = (origin || String(env.PUBLIC_BASE_URL || "")).replace(/\/+$/, "");
   const body = {
-    items: [{ id: env.ABACATEPAY_PRODUCT_ID, quantity: 1 }],
+    items: [{ id: pid, quantity: 1 }],
     returnUrl: base + "/",
     completionUrl: base + "/sucesso.html",
-    metadata: { email, name, plan: "premium30" },
+    metadata: { email, name, plan },
     methods: ["PIX", "CARD"],
   };
   const resp = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
@@ -118,7 +128,7 @@ async function abacateCreate(env, email, name, origin) {
   }
   const d = data.data || data;
   if (!d.url) throw new Error("AbacatePay não retornou URL de pagamento.");
-  return { url: d.url, id: d.id };
+  return { url: d.url, id: d.id, plan };
 }
 
 async function abacateStatus(env, id) {
@@ -143,7 +153,8 @@ async function abacateStatus(env, id) {
   throw new Error("Não consegui consultar a cobrança agora (" + (last && last.message) + ").");
 }
 
-async function grantPremium(env, email, billingId, days = 30) {
+async function grantPremium(env, email, billingId, days) {
+  days = days === 1 ? 1 : 30; // vip24h = 1 dia; resto = 30 dias
   email = email.trim().toLowerCase();
   const now = Date.now();
   const cur = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
@@ -151,6 +162,11 @@ async function grantPremium(env, email, billingId, days = 30) {
   if (cur && cur.until > now) until = cur.until + days * 86400000;
   await env.PREMIUM_KV.put(premKey(email), JSON.stringify({ until, billing_id: billingId, granted_at: now }));
   return until;
+}
+
+// Dias de VIP a partir do plano guardado no pendente (padrão: 30).
+function planDays(pend) {
+  return pend && pend.plan === "vip24h" ? 1 : 30;
 }
 
 export default {
@@ -162,7 +178,7 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, premium_days: 30, accounts: true }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true }, 200, cors);
       }
 
       // ---------- log de erro do navegador (diagnóstico; leitura protegida) ----------
@@ -246,9 +262,11 @@ export default {
       // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
         if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
-        if (!env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const plan = body.plan === "vip24h" ? "vip24h" : "vip30";
+        if (plan === "vip24h" && !env.ABACATEPAY_PRODUCT_ID_24H) return json({ error: "Passe 24h não configurado no servidor." }, 502, cors);
+        if (plan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         const email = (await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase();
         const name = String(body.name || "").trim().slice(0, 80);
         if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
@@ -259,8 +277,8 @@ export default {
         if (n >= 10) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
         await env.PREMIUM_KV.put(rlKey, String(n + 1), { expirationTtl: 3600 }).catch(() => {});
         const origin = req.headers.get("Origin") || "";
-        const r = await abacateCreate(env, email, name, origin.startsWith("http") ? origin : "");
-        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now() }), { expirationTtl: 86400 }).catch(() => {});
+        const r = await abacateCreate(env, email, name, origin.startsWith("http") ? origin : "", plan);
+        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now(), plan }), { expirationTtl: 86400 }).catch(() => {});
         return json(r, 200, cors);
       }
 
@@ -271,12 +289,15 @@ export default {
         const info = await abacateStatus(env, id);
         const out = { status: info.status, paid: info.paid, email: info.email };
         let email = info.email;
-        if (!email) {
-          const pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
-          if (pend && pend.email) email = String(pend.email).toLowerCase();
+        let pend = null;
+        if (!email || info.paid) {
+          pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+          if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
         }
         if (info.paid && email) {
-          out.premium_until_ms = await grantPremium(env, email, id);
+          const days = planDays(pend);
+          out.plan = days === 1 ? "vip24h" : "vip30";
+          out.premium_until_ms = await grantPremium(env, email, id, days);
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
         }
         return json(out, 200, cors);
@@ -296,11 +317,12 @@ export default {
           try {
             const info = await abacateStatus(env, bid);
             let email = info.email;
-            if (!email) {
-              const pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
-              if (pend && pend.email) email = String(pend.email).toLowerCase();
+            let pend = null;
+            if (!email || info.paid) {
+              pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
+              if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
-            if (info.paid && email) await grantPremium(env, email, bid);
+            if (info.paid && email) await grantPremium(env, email, bid, planDays(pend));
           } catch (e) { console.log("webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);

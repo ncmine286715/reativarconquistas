@@ -76,8 +76,16 @@
     });
   }
 
-  function openPayModal(notice) {
+  var PLANS = {
+    vip24h: { title: "Passe 24h", price: "R$ 4,90", cta: "Liberar por R$ 4,90",
+      sub: "VIP completo por <b>24 horas</b>: mundos gigantes + modo de jogo + foto + tempo/clima + lote. Ideal para resolver <b>aquele mundo grande</b> hoje." },
+    vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Assinar por R$ 19,90",
+      sub: "Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay." }
+  };
+
+  function openPayModal(notice, plan) {
     if (!enabled()) return;
+    plan = plan === "vip24h" ? "vip24h" : "vip30";
     closePay();
     var logged = currentEmail();
     var bg = document.createElement("div");
@@ -85,20 +93,38 @@
     bg.id = "payModal";
     bg.innerHTML =
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
-      "<h3 id='payTitle'>VIP — 30 dias</h3>" +
+      "<h3 id='payTitle'></h3>" +
       (notice ? "<div class='warn' style='margin:0 0 12px;font-size:13px'>" + escH(notice) + "</div>" : "") +
-      "<p class='sub'>Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay.</p>" +
+      "<div class='planpick' role='radiogroup' aria-label='Escolha o plano'>" +
+      "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "> Passe 24h — <b>R$ 4,90</b></label>" +
+      "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "> VIP 30 dias — <b>R$ 19,90</b></label>" +
+      "</div>" +
+      "<p class='sub' id='paySub'></p>" +
       "<div class='status' id='payMsg' hidden></div>" +
       "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o VIP é liberado nele)</label>" +
       "<input id='payEmail' type='email' maxlength='120' autocomplete='email' value='" + logged.replace(/\"/g, "&quot;") + "'" + (logged ? " readonly" : "") + " style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
       "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
       "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
-      "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'>Ir pagar</button></div>" +
+      "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'></button></div>" +
       "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Testando conexão…</div>" +
       (logged
         ? "<div class='secure' style='margin-top:10px;font-size:13px'>Pagando como <b>" + logged.replace(/[<>&\"']/g, "") + "</b></div>"
         : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu VIP</div>") + "</div>";
     document.body.appendChild(bg);
+    function selPlan() {
+      var r = bg.querySelector("input[name='payplan']:checked");
+      return (r && r.value === "vip24h") ? "vip24h" : "vip30";
+    }
+    function paintPlan() {
+      var p = PLANS[selPlan()];
+      document.getElementById("payTitle").textContent = p.title + " — " + p.price;
+      document.getElementById("paySub").innerHTML = p.sub;
+      document.getElementById("payGo").textContent = p.cta;
+    }
+    Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) {
+      r.addEventListener("change", paintPlan);
+    });
+    paintPlan();
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
     // self-test: mostra na hora se o servidor de pagamento responde
     try {
@@ -130,11 +156,13 @@
       function attempt(n) {
         go.disabled = true; go.textContent = "Gerando cobrança…";
         payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
+        var planEl = document.querySelector("#payModal input[name='payplan']:checked");
+        var plan = (planEl && planEl.value === "vip24h") ? "vip24h" : "vip30";
         // text/plain = request simples (sem preflight); o Worker lê o JSON do corpo
         req("/api/abacate/create", {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({ email: email, name: name })
+          body: JSON.stringify({ email: email, name: name, plan: plan })
         }).then(function (r) {
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
           try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
@@ -171,9 +199,12 @@
             }
             localStorage.removeItem("rc_pending_billing");
           } catch (e) {}
+          var untilTxt = +r.premium_until_ms > Date.now()
+            ? "VIP liberado até <b>" + new Date(+r.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
+            : "VIP liberado";
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
-            ". VIP liberado por 30 dias. <a href='index.html#converter'><b>Ir converter</b></a>";
+            ". " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
         } else {
           box.className = "status";
           box.textContent = "Pagamento ainda não confirmado (" + (r.status || "?") + "). Se já pagou, aguarde 1 min e recarregue.";
@@ -201,7 +232,7 @@
       b.hidden = false;
       b.addEventListener("click", function (e) {
         e.preventDefault();
-        openPayModal();
+        openPayModal(null, b.getAttribute("data-pay"));
       });
     });
     document.addEventListener("keydown", function (e) {

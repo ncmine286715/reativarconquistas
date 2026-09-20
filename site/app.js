@@ -195,20 +195,20 @@
   function loggedIn() {
     try { return !!((window.RC_auth && window.RC_auth.user()) || null); } catch (e) { return false; }
   }
-  // Recurso pago: sem login -> entra primeiro; logado sem Premium -> assinar.
-  function needPremium(msg) {
+  // Recurso pago: sem login -> entra primeiro; logado sem VIP -> assinar.
+  function needPremium(msg, plan) {
     if (!loggedIn()) {
       setStatus("", escapeHtml(msg) + ' <a href="minha-conta.html"><b>Entre com Google</b></a> para continuar.');
       try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e) {}
       return false;
     }
-    if (!remotePremOk()) { lockedHint(msg); return false; }
+    if (!remotePremOk()) { lockedHint(msg, plan); return false; }
     return true;
   }
-  function lockedHint(msg) {
+  function lockedHint(msg, plan) {
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
-    // upsell direto: recurso Premium abre o popup de assinatura na hora
-    try { if (window.RC_pay && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg); } catch (e) {}
+    // upsell direto: recurso VIP abre o popup de assinatura na hora
+    try { if (window.RC_pay && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan); } catch (e) {}
   }
 
   /* ---------- arquivo ---------- */
@@ -311,7 +311,8 @@
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
       if (!remotePremOk()) {
         // gatilho contextual: mundo gigante bloqueado abre a oferta VIP na hora
-        lockedHint("Esse mundo passa de 10 MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
+        // (Passe 24h pré-selecionado: entrada mais barata p/ um mundo só)
+        lockedHint("Esse mundo passa de 10 MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.", "vip24h");
       } else {
         setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
       }
