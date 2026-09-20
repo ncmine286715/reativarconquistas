@@ -1,9 +1,8 @@
-/* ReativaConquistas — pagamento AbacatePay 100% em JS, SEM segredo no navegador.
-   A chave abc_* fica SÓ no Cloudflare Worker (worker/): o site chama o Worker,
-   o Worker chama o AbacatePay. Ativação: WORKER_URL em config.js.
-   Fluxo: [data-pay] -> modal (e-mail + status visível) -> POST /api/abacate/create ->
-   redireciona p/ checkout -> volta em sucesso.html?id=BILLING_ID ->
-   checkReturn() consulta /api/abacate/status e mostra o resultado.
+/* ReativaConquistas — checkout Pix DePix, SEM segredo no navegador.
+   A chave sk_live_* e o webhook secret ficam SOMENTE no Cloudflare Worker.
+   Fluxo novo: [data-pay] -> modal -> POST /api/depix/create -> checkout DePix ->
+   volta em sucesso.html?checkout_id=... -> /api/depix/status -> libera VIP.
+   Rotas antigas de pagamento permanecem apenas para retorno legado.
 */
 (function () {
   "use strict";
@@ -110,15 +109,20 @@
     if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato OK (a receita valida no QR)
     return false;
   }
-  function depixCreate(email, name, plan, doc) {
+  function depixCreate(email, name, plan, doc, idempotencyKey) {
     return req("/api/depix/create", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ email: email, name: name, plan: plan, payer_tax_number: cleanDoc(doc) })
+      body: JSON.stringify({ email: email, name: name, plan: plan, payer_tax_number: cleanDoc(doc), idempotency_key: idempotencyKey || "" })
     });
   }
   function depixStatus(id) {
     return req("/api/depix/status?id=" + encodeURIComponent(id));
+  }
+  function makeIdempotencyKey(plan, email) {
+    var rnd = "";
+    try { rnd = crypto.randomUUID(); } catch (e) { rnd = Date.now() + "-" + Math.random().toString(36).slice(2); }
+    return ("rc-" + plan + "-" + String(email || "").toLowerCase().replace(/[^a-z0-9@._-]/g, "").slice(0, 60) + "-" + rnd).slice(0, 180);
   }
 
   function openPayModal(notice, plan) {
@@ -174,18 +178,13 @@
         return r.json();
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
-        if (c) c.textContent = cfg.depix_configured ? "✓ Conectado ao Pix (Depix)" : "✓ Conectado ao pagamento seguro";
-        if (cfg && cfg.product24h_configured === false) {
-          var radio = bg.querySelector("input[name='payplan'][value='vip24h']");
-          if (radio) {
-            radio.checked = false;
-            radio.disabled = true;
-            var lb = radio.closest("label");
-            if (lb) { lb.style.opacity = ".5"; lb.title = "Passe 24h indisponível no momento"; }
-            var r30 = bg.querySelector("input[name='payplan'][value='vip30']");
-            if (r30) r30.checked = true;
-            paintPlan();
-          }
+        var payButton = document.getElementById("payGo");
+        if (cfg && cfg.depix_configured) {
+          if (c) c.textContent = cfg.depix_test_mode ? "⚠ DePix em modo de teste" : "✓ Pix DePix conectado";
+          if (payButton) payButton.disabled = false;
+        } else {
+          if (c) c.textContent = "⚠ Pix temporariamente indisponível. Configuração do DePix incompleta no servidor.";
+          if (payButton) { payButton.disabled = true; payButton.textContent = "Pagamento indisponível"; }
         }
       }).catch(function (err) {
         logClient("selftest", (err && err.message) || err);
@@ -235,65 +234,53 @@
       }
       var email = (document.getElementById("payEmail").value || "").trim();
       if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
-      // já é VIP? redireciona em vez de cobrar de novo (trava final)
-      if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. O novo pagamento será somado após a confirmação da Kiwify.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
       var go = document.getElementById("payGo");
+      if (vipLockUntil > Date.now() && !vipOverride) {
+        vipOverride = true; vipLockUntil = 0;
+        payStatus("Você já tem VIP ativo. O novo período será somado após a confirmação do Pix.", "ok");
+        go.textContent = "Confirmar compra de mais dias";
+        return;
+      }
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
-      try {
-        var u0 = window.RC_auth && window.RC_auth.user();
-        if (u0 && u0.name) buyerName = u0.name;
-      } catch (e0) {}
+      try { var u0 = window.RC_auth && window.RC_auth.user(); if (u0 && u0.name) buyerName = u0.name; } catch (e0) {}
+      var createKey = "", createKeyPlan = "";
       remotePremiumMs(email).then(function (ms) {
         if (ms > Date.now() && document.getElementById("payModal")) { showVipOwner(ms); return; }
         attempt(1);
-      }).catch(function () {
-        attempt(1);
-      });
+      }).catch(function () { attempt(1); });
       function attempt(n) {
-        var name = buyerName;
         go.disabled = true; go.textContent = "Gerando cobrança…";
-        payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
+        payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança Pix segura…");
         var planEl = document.querySelector("#payModal input[name='payplan']:checked");
         var plan = (planEl && planEl.value === "vip24h") ? "vip24h" : "vip30";
-        // Depix primeiro (Pix via Worker); AbacatePay como reserva.
-        if (depixEnabled()) {
-          var docEl = document.getElementById("payDoc");
-          var doc = docEl ? docEl.value : "";
-          if (!validDoc(doc)) { go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
-          depixCreate(email, name, plan, doc).then(function (r) {
-            var url = r.url || r.payment_url;
-            if (!url) throw new Error("Resposta sem link de pagamento.");
-            try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
-            try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e2) {}
-            payStatus("Abrindo o checkout Pix…");
-            location.href = url;
-          }).catch(function (err) {
-            logClient("depix-create-" + n, (err && err.message) || err);
-            if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
-            go.disabled = false; go.textContent = "Tentar de novo";
-            payStatus(friendlyErr(err), "err");
-          });
+        if (!depixEnabled()) {
+          go.disabled = false; go.textContent = "Tentar de novo";
+          payStatus("O Pix DePix está temporariamente indisponível. Nenhuma cobrança foi criada.", "err");
           return;
         }
-        // Reserva: AbacatePay (quando Depix desligado).
-        req("/api/abacate/create", {
-          method: "POST",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({ email: email, name: name, plan: plan })
-        }).then(function (r) {
-          if (!r.url) throw new Error("Resposta sem link de pagamento.");
-          try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
-          payStatus("Abrindo o checkout…");
-          location.href = r.url;
+        var docEl = document.getElementById("payDoc");
+        var doc = docEl ? docEl.value : "";
+        if (!validDoc(doc)) {
+          go.disabled = false; go.textContent = "Tentar de novo";
+          payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err");
+          return;
+        }
+        if (!createKey || createKeyPlan !== plan) { createKeyPlan = plan; createKey = makeIdempotencyKey(plan, email); }
+        depixCreate(email, buyerName, plan, doc, createKey).then(function (r) {
+          var url = r.url || r.payment_url;
+          if (!url) throw new Error("Resposta sem link de pagamento.");
+          try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
+          try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e2) {}
+          payStatus("Abrindo o checkout Pix…");
+          location.href = url;
         }).catch(function (err) {
-          logClient("create-" + n, (err && err.message) || err);
+          logClient("depix-create-" + n, (err && err.message) || err);
           if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
           go.disabled = false; go.textContent = "Tentar de novo";
           payStatus(friendlyErr(err), "err");
         });
       }
-      attempt(1);
     });
   }
 
@@ -388,15 +375,8 @@
     });
   }
 
-  function kiwifyUrl(plan) {
-    var cfg = window.RC_CONFIG || {};
-    var u = plan === "vip24h" ? (cfg.KIWIFY_URL_24H || "") : (cfg.KIWIFY_URL_30D || "");
-    return /^https?:\/\//i.test(u) ? u : "";
-  }
-
-  // Entrada única de compra: Depix (Pix via Worker) primeiro,
-  // Kiwify (link direto) como reserva, AbacatePay por último.
-  // Backup Kiwify em site/backup-kiwify-2026-09-20/.
+  // Entrada única de compra: novos pagamentos usam somente DePix.
+  // O backend mantém rotas antigas apenas para conciliar pagamentos legados.
   function checkout(plan, notice) {
     plan = plan === "vip24h" ? "vip24h" : "vip30";
     if (!currentEmail()) {
@@ -404,15 +384,7 @@
       if (window.RC_auth) window.RC_auth.openModal();
       return true;
     }
-    if (depixEnabled()) { openPayModal(notice || null, plan); return true; }
-    var kw = kiwifyUrl(plan);
-    if (kw) {
-      // volta da Kiwify: o navegador não fica sabendo sozinho — marca
-      // pendência p/ o site oferecer "vincular e-mail do pagamento" ao voltar
-      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
-      location.href = kw; return true;
-    }
-    if (!enabled()) return false;
+    if (!depixEnabled() || !enabled()) return false;
     openPayModal(notice || null, plan);
     return true;
   }
@@ -420,7 +392,7 @@
   function wire() {
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
       var plan = b.getAttribute("data-pay") === "vip24h" ? "vip24h" : "vip30";
-      if (!depixEnabled() && !kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }
+      if (!depixEnabled() || !enabled()) { b.hidden = true; return; }
       b.hidden = false;
       b.addEventListener("click", function (e) {
         e.preventDefault();
@@ -447,7 +419,6 @@
     validDoc: validDoc,
     openPayModal: openPayModal,
     checkout: checkout,
-    kiwifyUrl: kiwifyUrl,
     checkReturn: checkReturn,
     remotePremiumMs: remotePremiumMs
   };

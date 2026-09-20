@@ -273,15 +273,7 @@
   }
   function vipNeed(msg) {
     if (vipOk()) return true;
-    var kw = "";
-    try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl() || ""; } catch (e) {}
-    var html = esc(msg) + " ";
-    html += kw ? '<a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>'
-      : '<a href="#planos"><b>Ver planos VIP</b></a>';
-    try {
-      // Upgrade links are explicit; do not open a disabled payment provider.
-    } catch (e) {}
-    return { html: html };
+    return { html: esc(msg) + ' <a href="#planos"><b>Ver planos VIP</b></a>' };
   }
 
   /* ---------- monta o .mcworld de saída ---------- */

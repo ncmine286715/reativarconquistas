@@ -1,6 +1,6 @@
 /* Configuração PÚBLICA do site — NENHUM segredo aqui.
-   Conversão 100% no navegador. Premium via conta + AbacatePay (Worker).
-   Chave abc_* fica SÓ no Worker Cloudflare. */
+   Conversão 100% no navegador. Premium via conta + DePix (Worker).
+   As chaves sk_live_/whsec_ ficam SOMENTE nos Secrets do Worker Cloudflare. */
 window.RC_CONFIG = {
   // Modelo: mundos de até FREE_MAX_MB são grátis (FREE_DAILY/dia).
   // Acima disso (mundos gigantes, mais processamento) é VIP.
@@ -20,7 +20,7 @@ window.RC_CONFIG = {
   OPERATOR_DOC: "",
   OPERATOR_CITY_UF: "Terra Roxa/PR",
   // URL do Worker Cloudflare (API de contas + pagamento).
-  // API usada para consultar VIP e receber webhooks; o checkout é Kiwify.
+  // API usada para consultar VIP, criar checkout DePix e receber webhooks.
   WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
   PASS_24H_PRICE_LABEL: "R$ 5,90",
@@ -29,14 +29,8 @@ window.RC_CONFIG = {
   // Mínimo do Depix: 500 (R$ 5,00) — 590 e 1990 estão OK.
   PASS_24H_CENTS: 590,
   PREMIUM_CENTS_30D: 1990,
-  // Depix (Pix via api.depixapp.com, através do Worker — NENHUM segredo aqui).
-  // true = botão usa Depix primeiro; false = volta p/ Kiwify/Abacate.
-  // Modo teste: use sk_test_ no Worker p/ testar sem dinheiro real.
-  DEPIX_ENABLED: false,
-  DEPIX_TEST_MODE: false,
-  // Checkout Kiwify (venda imediata): links pay.kiwify.com.br de cada plano.
-  // BACKUP EM: site/backup-kiwify-2026-09-20/ (versão do PC preservada).
-  // Kiwify ativa: cada plano abre seu checkout. Depix desativado.
-  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
-  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
+  // DePix (Pix via api.depixapp.com, através do Worker — NENHUM segredo aqui).
+  // Produção: as credenciais ficam somente nos Secrets do Worker.
+  DEPIX_ENABLED: true,
+  DEPIX_TEST_MODE: false
 };
