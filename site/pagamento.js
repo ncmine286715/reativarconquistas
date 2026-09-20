@@ -187,7 +187,6 @@
         "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 19,90</b><small>Melhor valor</small></span></label>" +
       "</div>" +
       "<p class='sub pay-sub' id='paySub'></p>" +
-      "<div class='status' id='payMsg' hidden></div>" +
       "<div class='pay-form-grid'>" +
         "<div class='pay-field pay-field-full'>" +
           "<label for='payDoc'>CPF ou CNPJ do pagador</label>" +
@@ -210,6 +209,7 @@
       "</label>" +
       "</div>" +
       "<div class='pay-footer'>" +
+        "<div class='status' id='payMsg' hidden></div>" +
         "<div class='secure' id='payConn'>Verificando pagamento seguro…</div>" +
         "<div class='row2 pay-actions'>" +
           "<button class='btn-ghost' id='payBack' type='button'>Voltar</button>" +
