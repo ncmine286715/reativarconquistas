@@ -169,38 +169,53 @@
     bg.className = "modal-bg open";
     bg.id = "payModal";
     bg.innerHTML =
-      '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
-      "<h3 id='payTitle'></h3>" +
-      (notice ? "<div class='warn' style='margin:0 0 12px;font-size:13px'>" + escH(notice) + "</div>" : "") +
-      "<div class='pay-account'>" +
-        (avatar ? "<img class='pay-account-avatar' src='" + escH(avatar) + "' alt=''>" : "<div class='pay-account-avatar-fallback'>" + escH(displayName.charAt(0).toUpperCase()) + "</div>") +
-        "<div class='pay-account-meta'><b>" + escH(displayName) + "</b><span>" + escH(logged) + "</span></div>" +
-        "<span class='pay-account-badge'>Google</span>" +
+      '<div class="modal pay-modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
+      "<div class='pay-scroll'>" +
+      "<div class='pay-head'>" +
+        "<h3 id='payTitle'></h3>" +
+        "<div class='pay-account'>" +
+          (avatar ? "<img class='pay-account-avatar' src='" + escH(avatar) + "' alt=''>" : "<div class='pay-account-avatar-fallback'>" + escH(displayName.charAt(0).toUpperCase()) + "</div>") +
+          "<div class='pay-account-meta'><b>" + escH(displayName) + "</b><span>" + escH(logged) + "</span></div>" +
+          "<span class='pay-account-badge'>Google</span>" +
+        "</div>" +
       "</div>" +
-      "<div class='vip-assurance'><b>VIP nesta conta:</b> após a confirmação do pagamento, o acesso é liberado automaticamente nesta conta Google e acompanha você em outros aparelhos.</div>" +
-      "<div class='planpick' role='radiogroup' aria-label='Escolha o plano'>" +
-      "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "><span class='plan-main'><strong>Passe 24h — R$ 5,90</strong><small>Para resolver um mundo hoje</small></span></label>" +
-      "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>VIP 7 dias — R$ 9,90</strong><small>Para vários mundos durante a semana</small></span></label>" +
-      "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>VIP 30 dias — R$ 19,90</strong><small>Melhor custo por dia</small></span></label>" +
+      (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
+      "<div class='vip-assurance'><b>VIP automático:</b> cai nesta conta Google assim que o Pix for confirmado.</div>" +
+      "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'>" +
+        "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "><span class='plan-main'><strong>24h</strong><b>R$ 5,90</b><small>1 dia</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 9,90</b><small>Semana</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 19,90</b><small>Melhor valor</small></span></label>" +
       "</div>" +
-      "<p class='sub' id='paySub'></p>" +
-      "<div class='status' id='payMsg' hidden></div>" +
-      "<label for='payDoc' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>CPF ou CNPJ do pagador</label>" +
-      "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Digite o documento do titular do pagamento' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<div class='payer-help'><b>Importante:</b> o pagamento deve ser feito por uma pessoa maior de 18 anos. Se você for menor de idade, peça para seu responsável realizar o pagamento e informe o CPF/CNPJ desse responsável. O documento precisa pertencer ao pagador real.</div>" +
-      "<label for='payPixEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail para o Pix</label>" +
-      "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='Preencha o e-mail usado no pagamento' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<label for='payPixEmailConfirm' style='display:block;font-size:13px;font-weight:700;margin:10px 0 5px'>Confirme o e-mail</label>" +
-      "<input id='payPixEmailConfirm' type='email' maxlength='120' autocomplete='email' placeholder='Digite o mesmo e-mail novamente' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<div class='payer-help'>Esse e-mail é usado no registro da cobrança Pix. O <b>VIP continua sendo liberado na conta Google mostrada acima</b>, mesmo que o e-mail do pagador seja diferente.</div>" +
-      "<label class='accept pay-terms' for='payTerms' style='text-transform:none;letter-spacing:0;margin-top:12px'>" +
+      "<p class='sub pay-sub' id='paySub'></p>" +
+      "<div class='pay-form-grid'>" +
+        "<div class='pay-field pay-field-full'>" +
+          "<label for='payDoc'>CPF ou CNPJ do pagador</label>" +
+          "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Documento do titular do Pix'>" +
+          "<small class='pay-help'><b>Pagador maior de 18 anos.</b> Se você for menor, use os dados do responsável que fará o pagamento.</small>" +
+        "</div>" +
+        "<div class='pay-field'>" +
+          "<label for='payPixEmail'>E-mail para o Pix</label>" +
+          "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='E-mail do pagamento'>" +
+        "</div>" +
+        "<div class='pay-field'>" +
+          "<label for='payPixEmailConfirm'>Confirmar e-mail</label>" +
+          "<input id='payPixEmailConfirm' type='email' maxlength='120' autocomplete='email' placeholder='Repita o e-mail'>" +
+        "</div>" +
+      "</div>" +
+      "<div class='pay-mini-note'>O e-mail acima identifica a cobrança Pix. O VIP continua vinculado à <b>conta Google</b> mostrada no topo.</div>" +
+      "<label class='accept pay-terms' for='payTerms'>" +
         "<input id='payTerms' type='checkbox'>" +
-        "<span>Li e aceito os <a href='termos.html' target='_blank' rel='noopener'>Termos de Uso</a>, a <a href='reembolso.html' target='_blank' rel='noopener'>Política de Reembolso</a> e a <a href='privacidade.html' target='_blank' rel='noopener'>Política de Privacidade</a>. Confirmo que os dados do pagamento estão corretos.</span>" +
+        "<span>Li e aceito os <a href='termos.html' target='_blank' rel='noopener'>Termos</a>, <a href='reembolso.html' target='_blank' rel='noopener'>Reembolso</a> e <a href='privacidade.html' target='_blank' rel='noopener'>Privacidade</a>. Confirmo os dados da compra.</span>" +
       "</label>" +
-      "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
-      "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
-      "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'></button></div>" +
-      "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Verificando pagamento seguro…</div>" +
+      "</div>" +
+      "<div class='pay-footer'>" +
+        "<div class='status' id='payMsg' hidden></div>" +
+        "<div class='secure' id='payConn'>Verificando pagamento seguro…</div>" +
+        "<div class='row2 pay-actions'>" +
+          "<button class='btn-ghost' id='payBack' type='button'>Voltar</button>" +
+          "<button class='btn-ghost pay-primary' id='payGo' type='button'></button>" +
+        "</div>" +
+      "</div>" +
       "</div>";
     document.body.appendChild(bg);
     function selPlan() {
