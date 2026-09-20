@@ -13,9 +13,9 @@
 </div></div>
 <div class="page"><div class="legal">
 <h1>Política de Privacidade — LGPD</h1>
-<div class="updated">Última atualização: 17 de setembro de 2026 · Lei nº 13.709/2018 (LGPD) + Marco Civil (Lei 12.965/2014)</div>
+<div class="updated">Última atualização: 20 de setembro de 2026 · Versão 1.4 · LGPD + Marco Civil</div>
 
-<div class="box"><b>Em resumo:</b> seu mundo <b>nem é enviado</b> — a conversão roda no seu navegador. Coletamos o <b>mínimo</b>: conta (nome/e-mail), e-mail de suporte (só se você falar conosco) e pagamento (checkout AbacatePay). Sem venda de dados.</div>
+<div class="box"><b>Em resumo:</b> seu mundo é processado no navegador. Para conta e pagamento usamos apenas os dados necessários: identificação da conta Google, documento do pagador enviado ao provedor Pix, status/identificador da cobrança e registro do aceite dos termos. Não vendemos dados pessoais.</div>
 
 <h2>1. Controlador e contato (DPO)</h2>
 <p>Controlador: <b>ReativaConquistas</b>, responsável residente em <b>Terra Roxa/PR</b>. Encarregado (DPO): <b>ncmine75@gmail.com</b> — use este e-mail para qualquer pedido sobre seus dados.</p>
@@ -23,17 +23,18 @@
 <h2>2. O que coletamos e por quê (base legal)</h2>
 <p><b>2.1. Arquivo do mundo (.mcworld) e foto (VIP)</b> — <b>Não coletamos.</b> A conversão roda no seu navegador; o arquivo nunca é enviado. Base legal: não há tratamento de dados.</p>
 <p><b>2.2. E-mail (só se você falar conosco)</b> — Finalidade: responder seu suporte/reembolso. Base legal: <b>execução de contrato</b> e legítimo interesse. Retenção: até <b>5 anos</b> após (CDC) só para prova.</p>
-<p><b>2.3. Dados de pagamento</b> — Processados <b>exclusivamente pelo AbacatePay ou pela Kiwify</b> (Pix/cartão, em checkout próprio deles). Nós não recebemos número de cartão — só a confirmação (pago/não pago) ligada ao seu e-mail.</p>
+<p><b>2.3. Dados de pagamento</b> — O Pix principal é processado pelo <b>DePix</b>; provedores alternativos podem ser usados quando informados no checkout. Para gerar o Pix, o CPF/CNPJ do pagador é transmitido ao provedor. Nosso Worker usa esse documento apenas para solicitar a cobrança e <b>não o grava no cadastro de VIP nem nos logs de pagamento</b>. Recebemos o identificador/status da cobrança e os dados necessários para liberar o acesso.</p>
 <p><b>2.4. Logs técnicos</b> — Não mantemos servidor próprio; a hospedagem (Cloudflare Pages/Worker) pode gerar logs de acesso padrão. Não criamos perfil de usuário.</p>
-<p><b>2.5. Conta Google (nome, e-mail)</b> — Finalidade: identificar sua conta e liberar o VIP. O login é feito pelo <b>Google</b>; nós <b>não vemos nem guardamos sua senha</b>. No seu aparelho ficam só preferência de tema (<code>rc_theme</code>), status do VIP (<code>rc_prem_remote</code>) e sessão do Google. Base legal: <b>execução de contrato</b>.</p>
+<p><b>2.5. Conta Google (UID, nome e e-mail)</b> — Finalidade: autenticar a conta, impedir que o VIP seja liberado para o e-mail errado e disponibilizar o acesso em outros aparelhos. O login é feito pelo <b>Google/Firebase</b>; nós <b>não recebemos sua senha do Google</b>. O UID do Firebase é a referência principal do VIP. Base legal: execução do contrato e segurança da conta, conforme aplicável.</p>
+<p><b>2.5b. Aceite contratual</b> — Ao criar uma cobrança, registramos a versão dos Termos aceita, data/hora, conta vinculada e ID da cobrança, para comprovar a contratação e atender suporte, contestação e obrigações legais. Não armazenamos o CPF/CNPJ junto desse registro.</p>
 <p><b>2.6. Conta e saída.</b> Entrar é grátis e você pode pedir a <b>exclusão</b> a qualquer momento pelo e-mail de suporte (apagamos conta e VIP; comprovantes fiscais seguem a lei).</p>
-<p><b>2.8. Não coletamos:</b> conteúdo do seu mapa para fins publicitários, dados sensíveis (art. 11 da LGPD), nem dados de menores além do necessário — o Serviço não é dirigido a menores de 13 anos.</p>
+<p><b>2.8. Não coletamos:</b> conteúdo do mapa para publicidade, senha da conta Google, número de cartão ou dados bancários completos. CPF/CNPJ é dado pessoal e é usado somente no fluxo de pagamento descrito acima. O Serviço não é dirigido a menores de 13 anos.</p>
 
 <h2>3. Cookies e similares</h2>
 <p>Usamos apenas armazenamento <b>estritamente necessário</b> (tema, status do VIP, sessão da conta, pendência de pagamento). <b>Sem cookies de rastreamento, sem pixel de ads, sem venda de dados.</b> Se um dia ativarmos analytics, atualizaremos esta política e pediremos consentimento quando exigido.</p>
 
 <h2>4. Compartilhamento</h2>
-<p>Compartilhamos dados <b>somente</b> com: (a) <b>AbacatePay/Kiwify</b> (processamento do pagamento); (b) <b>Cloudflare</b> (hospedagem do site e da API de contas/pagamento); (c) <b>autoridades</b>, quando houver ordem legal. Nunca vendemos dados.</p>
+<p>Compartilhamos dados apenas quando necessário com: (a) <b>Google/Firebase</b> para autenticação; (b) <b>DePix</b> e eventuais provedores alternativos exibidos no checkout para pagamento; (c) <b>Cloudflare</b> para hospedagem/API; e (d) autoridades, quando houver obrigação legal. Nunca vendemos dados pessoais.</p>
 
 <h2>5. Segurança</h2>
 <p>Adotamos: HTTPS, processamento local (arquivo nunca sai do PC), login só via Google (sem senha nossa), segredos de pagamento fora do site (só no servidor), limite de tamanho por plano (10 MB no grátis) e validação de formato. Nenhum sistema é 100% invulnerável.</p>

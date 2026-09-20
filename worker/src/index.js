@@ -61,6 +61,7 @@ function corsHeaders(req, env) {
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120));
 const validPw = (p) => typeof p === "string" && p.length >= 8 && p.length <= 128;
 const premKey = (email) => "prem:" + email.trim().toLowerCase();
+const premUidKey = (uid) => "premuid:" + String(uid || "").trim().slice(0, 160);
 const pendKey = (id) => "pend:" + id;
 const acctKey = (email) => "acct:" + email.trim().toLowerCase();
 const sessKey = (t) => "sess:" + t;
@@ -95,6 +96,33 @@ async function sessionEmail(req, env) {
   if (!s || s.exp < Date.now()) return "";
   return s.email || "";
 }
+
+// Valida o ID token do Firebase no servidor. O navegador nunca escolhe qual
+// conta receberá o VIP: UID/e-mail vêm da sessão Google verificada.
+async function firebaseUser(req, env) {
+  const h = req.headers.get("Authorization") || "";
+  const token = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+  const apiKey = String(env.FIREBASE_WEB_API_KEY || "").trim();
+  if (!token || token.length > 4096 || !apiKey) return null;
+  try {
+    const resp = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(apiKey), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: token }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const u = data && data.users && data.users[0];
+    if (!u || !u.localId || !validEmail(u.email)) return null;
+    return {
+      uid: String(u.localId).slice(0, 160),
+      email: String(u.email).trim().toLowerCase(),
+      name: String(u.displayName || "").slice(0, 80),
+    };
+  } catch (e) {
+    return null;
+  }
+}
 async function rlTake(env, key, limit, ttl) {
   const n = parseInt((await env.PREMIUM_KV.get(key).catch(() => null)) || "0", 10);
   if (n >= limit) return false;
@@ -105,8 +133,18 @@ async function premiumUntil(env, email) {
   const rec = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
   return rec && rec.until > Date.now() ? rec.until : 0;
 }
+async function premiumUntilAccount(env, uid, email) {
+  const byUid = uid ? await env.PREMIUM_KV.get(premUidKey(uid), "json").catch(() => null) : null;
+  const byEmail = email ? await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null) : null;
+  const until = Math.max((byUid && +byUid.until) || 0, (byEmail && +byEmail.until) || 0);
+  // Migração transparente: VIP antigo por e-mail passa a acompanhar a conta Google.
+  if (uid && until > Date.now() && (!byUid || +byUid.until < until)) {
+    await env.PREMIUM_KV.put(premUidKey(uid), JSON.stringify({ until, email, migrated_at: Date.now() })).catch(() => {});
+  }
+  return until > Date.now() ? until : 0;
+}
 
-async function abacateCreate(env, email, name, origin, plan) {
+async function abacateCreate(env, email, name, uid, origin, plan) {
   plan = plan === "vip24h" ? "vip24h" : "vip30";
   const pid = plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID;
   if (!pid) {
@@ -119,7 +157,7 @@ async function abacateCreate(env, email, name, origin, plan) {
     items: [{ id: pid, quantity: 1 }],
     returnUrl: base + "/",
     completionUrl: base + "/sucesso.html",
-    metadata: { email, name, plan },
+    metadata: { firebase_uid: uid || "", email, name, plan },
     methods: ["PIX", "CARD"],
   };
   const resp = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
@@ -165,11 +203,26 @@ async function abacateStatus(env, id) {
 }
 
 /* ---------- Depix: preços em centavos p/ teste e produção ---------- */
+function normalizeDepixPlan(plan) {
+  return plan === "vip24h" || plan === "vip7" || plan === "vip30" ? plan : "vip30";
+}
 function depixAmount(plan) {
-  return plan === "vip24h" ? 590 : 1990; // R$ 5,90 / R$ 19,90
+  plan = normalizeDepixPlan(plan);
+  if (plan === "vip24h") return 590;
+  if (plan === "vip7") return 990;
+  return 1990;
 }
 function depixPlanDays(plan) {
-  return plan === "vip24h" ? 1 : 30;
+  plan = normalizeDepixPlan(plan);
+  if (plan === "vip24h") return 1;
+  if (plan === "vip7") return 7;
+  return 30;
+}
+function depixPlanLabel(plan) {
+  plan = normalizeDepixPlan(plan);
+  if (plan === "vip24h") return "Passe 24h";
+  if (plan === "vip7") return "VIP 7 dias";
+  return "VIP 30 dias";
 }
 function cleanDoc(s) {
   return String(s || "").replace(/\D/g, "").slice(0, 14);
@@ -200,8 +253,9 @@ async function verifyDepixSignature(rawBody, header, secret) {
     return hex === v1;
   } catch (e) { return false; }
 }
-async function depixCreate(env, email, name, plan, doc, req) {
+async function depixCreate(env, email, name, uid, plan, doc, req) {
   if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
+  plan = normalizeDepixPlan(plan);
   var amount = depixAmount(plan);
   var origin = "";
   try { origin = new URL(req.url).origin; } catch (e) {}
@@ -214,11 +268,11 @@ async function depixCreate(env, email, name, plan, doc, req) {
   var body = {
     amount: amount,
     payer_tax_number: cleanDoc(doc),
-    description: plan === "vip24h" ? "ReativaConquistas — Passe 24h" : "ReativaConquistas — VIP 30 dias",
+    description: "ReativaConquistas — " + depixPlanLabel(plan),
     expires_in: 1200,
     callback_url: origin + "/api/depix/webhook",
     redirect_url: siteBase + "/sucesso.html",
-    metadata: { email: email, name: name || "", plan: plan }
+    metadata: { firebase_uid: uid || "", email: email, name: name || "", plan: plan }
   };
   var resp = await fetch("https://api.depixapp.com/api/checkouts", {
     method: "POST",
@@ -247,12 +301,19 @@ async function depixStatus(env, id) {
   var paid = status === "completed" || status === "approved";
   var meta = c.metadata || {};
   if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch (e) { meta = {}; } }
-  return { status: status || "unknown", paid: paid, email: String(meta.email || "").toLowerCase(), plan: meta.plan === "vip24h" ? "vip24h" : "vip30" };
+  return {
+    status: status || "unknown",
+    paid: paid,
+    uid: String(meta.firebase_uid || "").slice(0, 160),
+    email: String(meta.email || "").toLowerCase(),
+    plan: normalizeDepixPlan(meta.plan)
+  };
 }
 
-async function grantPremium(env, email, billingId, days) {
-  days = days === 1 ? 1 : 30;
+async function grantPremium(env, email, billingId, days, uid = "") {
+  days = [1, 7, 30].includes(+days) ? +days : 30;
   email = email.trim().toLowerCase();
+  uid = String(uid || "").trim().slice(0, 160);
   billingId = String(billingId || "").trim().slice(0, 180);
   const now = Date.now();
 
@@ -260,22 +321,23 @@ async function grantPremium(env, email, billingId, days) {
   // novamente quando o ID da cobrança/pedido já foi processado.
   if (billingId) {
     const previous = await env.PREMIUM_KV.get(grantKey(billingId), "json").catch(() => null);
-    if (previous && previous.email === email && +previous.until > 0) return +previous.until;
+    if (previous && +previous.until > 0 &&
+        ((!uid && previous.email === email) || (uid && previous.uid === uid))) return +previous.until;
   }
 
-  const cur = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
-  let until = now + days * 86400000;
-  if (cur && cur.until > now) until = cur.until + days * 86400000;
+  const curEmail = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
+  const curUid = uid ? await env.PREMIUM_KV.get(premUidKey(uid), "json").catch(() => null) : null;
+  const baseUntil = Math.max(now, (curEmail && +curEmail.until) || 0, (curUid && +curUid.until) || 0);
+  const until = baseUntil + days * 86400000;
 
-  await env.PREMIUM_KV.put(
-    premKey(email),
-    JSON.stringify({ until, billing_id: billingId, granted_at: now })
-  );
+  const record = { until, email, uid, billing_id: billingId, granted_at: now };
+  await env.PREMIUM_KV.put(premKey(email), JSON.stringify(record));
+  if (uid) await env.PREMIUM_KV.put(premUidKey(uid), JSON.stringify(record));
 
   if (billingId) {
     await env.PREMIUM_KV.put(
       grantKey(billingId),
-      JSON.stringify({ email, until, days, granted_at: now }),
+      JSON.stringify({ email, uid, until, days, granted_at: now }),
       { expirationTtl: 400 * 86400 }
     ).catch(() => {});
   }
@@ -284,7 +346,9 @@ async function grantPremium(env, email, billingId, days) {
 
 // Dias de VIP a partir do plano guardado no pendente (padrão: 30).
 function planDays(pend) {
-  return pend && pend.plan === "vip24h" ? 1 : 30;
+  if (pend && pend.plan === "vip24h") return 1;
+  if (pend && pend.plan === "vip7") return 7;
+  return 30;
 }
 
 export default {
@@ -302,24 +366,36 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), pass24h_cents: 590, premium30_cents: 1990 }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), pass24h_cents: 590, vip7_cents: 990, premium30_cents: 1990 }, 200, cors);
       }
 
       // ---------- Depix: criar checkout Pix ----------
       if (url.pathname === "/api/depix/create" && req.method === "POST") {
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
-        const plan = body.plan === "vip24h" ? "vip24h" : "vip30";
-        const email = ((await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase());
-        const name = String(body.name || "").trim().slice(0, 80);
+        const plan = normalizeDepixPlan(body.plan);
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
+        const email = fb.email;
+        const name = fb.name;
+        const uid = fb.uid;
         const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
         if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        }
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-depix:" + ip, 10, 3600))) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
+        // Evita bloqueio exagerado: por conta + IP, janela curta e chave versionada.
+        // O frontend não repete automaticamente uma cobrança que falhou.
+        if (!(await rlTake(env, "rl-depix-v2:" + uid + ":" + ip, 12, 900))) {
+          return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
+        }
         try {
-          const r = await depixCreate(env, email, name, plan, doc, req);
-          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now(), plan, via: "depix" }), { expirationTtl: 86400 }).catch(() => {});
+          const r = await depixCreate(env, email, name, uid, plan, doc, req);
+          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
+            uid, email, at: Date.now(), plan, via: "depix",
+            terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+          }), { expirationTtl: 86400 }).catch(() => {});
           return json(r, 200, cors);
         } catch (e) {
           return json({ error: String((e && e.message) || e) }, 502, cors);
@@ -334,13 +410,15 @@ export default {
           const info = await depixStatus(env, id);
           const out = { status: info.status, paid: info.paid, email: info.email, plan: info.plan };
           let email = info.email;
+          let uid = info.uid || "";
           let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
           if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
-          const plan = (pend && pend.plan) || info.plan || "vip30";
+          if (pend && pend.uid && !uid) uid = String(pend.uid);
+          const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
           out.plan = plan;
           if (email) out.email = email;
           if (info.paid && email) {
-            out.premium_until_ms = await grantPremium(env, email, id, depixPlanDays(plan));
+            out.premium_until_ms = await grantPremium(env, email, id, depixPlanDays(plan), uid);
             await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
           }
           return json(out, 200, cors);
@@ -372,10 +450,12 @@ export default {
           try {
             const info = await depixStatus(env, bid);
             let email = info.email;
+            let uid = info.uid || "";
             const pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
             if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
-            const plan = (pend && pend.plan) || info.plan || "vip30";
-            if (info.paid && email) await grantPremium(env, email, bid, depixPlanDays(plan));
+            if (pend && pend.uid && !uid) uid = String(pend.uid);
+            const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
+            if (info.paid && email) await grantPremium(env, email, bid, depixPlanDays(plan), uid);
           } catch (e) { console.log("depix webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
@@ -494,18 +574,24 @@ export default {
         const plan = body.plan === "vip24h" ? "vip24h" : "vip30";
         if (plan === "vip24h" && !env.ABACATEPAY_PRODUCT_ID_24H) return json({ error: "Passe 24h não configurado no servidor." }, 502, cors);
         if (plan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
-        const email = (await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase();
-        const name = String(body.name || "").trim().slice(0, 80);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
-        // rate-limit simples: 10 criações/hora por IP
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
+        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.4") {
+          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        }
+        const email = fb.email;
+        const name = fb.name;
+        const uid = fb.uid;
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        const rlKey = "rl:" + ip;
-        const n = parseInt((await env.PREMIUM_KV.get(rlKey).catch(() => null)) || "0", 10);
-        if (n >= 10) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
-        await env.PREMIUM_KV.put(rlKey, String(n + 1), { expirationTtl: 3600 }).catch(() => {});
+        if (!(await rlTake(env, "rl-alt-v2:" + uid + ":" + ip, 12, 900))) {
+          return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
+        }
         const origin = req.headers.get("Origin") || "";
-        const r = await abacateCreate(env, email, name, origin.startsWith("http") ? origin : "", plan);
-        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now(), plan }), { expirationTtl: 86400 }).catch(() => {});
+        const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", plan);
+        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
+          uid, email, at: Date.now(), plan, via: "abacate",
+          terms_version: "2026-09-20-v1.4", terms_accepted_at: Date.now()
+        }), { expirationTtl: 86400 }).catch(() => {});
         return json(r, 200, cors);
       }
 
@@ -523,8 +609,9 @@ export default {
         }
         if (info.paid && email) {
           const days = planDays(pend);
-          out.plan = days === 1 ? "vip24h" : "vip30";
-          out.premium_until_ms = await grantPremium(env, email, id, days);
+          const uid = pend && pend.uid ? String(pend.uid) : "";
+          out.plan = days === 1 ? "vip24h" : (days === 7 ? "vip7" : "vip30");
+          out.premium_until_ms = await grantPremium(env, email, id, days, uid);
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
         }
         return json(out, 200, cors);
@@ -549,7 +636,7 @@ export default {
               pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
               if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
-            if (info.paid && email) await grantPremium(env, email, bid, planDays(pend));
+            if (info.paid && email) await grantPremium(env, email, bid, planDays(pend), pend && pend.uid ? String(pend.uid) : "");
           } catch (e) { console.log("webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
@@ -603,8 +690,16 @@ export default {
         return json({ items: (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [] }, 200, cors);
       }
 
-      // ---------- premium por e-mail ----------
+      // ---------- premium da conta Google (UID); e-mail antigo só como compatibilidade ----------
       if (url.pathname === "/api/premium" && req.method === "GET") {
+        const fb = await firebaseUser(req, env);
+        if (fb) {
+          return json({
+            premium_until_ms: await premiumUntilAccount(env, fb.uid, fb.email),
+            account_email: fb.email,
+            account_uid: fb.uid
+          }, 200, cors);
+        }
         const email = (url.searchParams.get("email") || "").trim().toLowerCase();
         if (!validEmail(email)) return json({ premium_until_ms: 0 }, 200, cors);
         return json({ premium_until_ms: await premiumUntil(env, email) }, 200, cors);

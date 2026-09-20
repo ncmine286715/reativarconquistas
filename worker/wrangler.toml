@@ -10,6 +10,8 @@ id = "acfc4981776e4dd0b8513722597f8f01"
 preview_id = "acfc4981776e4dd0b8513722597f8f01"
 
 [vars]
+# Firebase Web API key é pública e serve para validar o ID token Google no Worker.
+FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 # ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
 # ID do produto "Passe 24h" (R$ 5,90) no dashboard AbacatePay.
@@ -38,4 +40,4 @@ ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pa
 
 # continuação de [vars]
 # "1" = teste (site mostra aviso); "0"/vazio = produção.
-DEPIX_TEST_MODE = "1"
+DEPIX_TEST_MODE = "0"

@@ -30,12 +30,22 @@
     });
   }
 
+  function currentUser() {
+    try { return (window.RC_auth && window.RC_auth.user()) || null; }
+    catch (e) { return null; }
+  }
   function currentEmail() {
-    try {
-      var u = window.RC_auth && window.RC_auth.user();
-      if (u && u.email) return u.email;
-    } catch (e) {}
-    return "";
+    var u = currentUser();
+    return (u && u.email) || "";
+  }
+  function authReq(path, opts) {
+    opts = opts || {};
+    return (window.RC_auth && window.RC_auth.getToken ? window.RC_auth.getToken() : Promise.resolve("")).then(function (token) {
+      if (!token) throw new Error("Entre novamente com sua conta Google para continuar.");
+      opts.headers = opts.headers || {};
+      opts.headers.Authorization = "Bearer " + token;
+      return req(path, opts);
+    });
   }
 
   // Telemetria de erro: o navegador conta o que travou (leitura só com segredo).
@@ -52,7 +62,14 @@
   function friendlyErr(err) {
     var m = String((err && err.message) || err || "");
     if (/failed to fetch|networkerror|load failed/i.test(m)) {
-      return "Não consegui falar com o servidor de pagamento. Toque em Tentar de novo — se persistir, confira sua internet ou fale no suporte.";
+      return "Não consegui falar com o servidor de pagamento. Confira sua internet e tente novamente.";
+    }
+    if (/Muitas tentativas/i.test(m)) return m;
+    if (/compliance review|unable to process deposits for this payer/i.test(m)) {
+      return "O provedor Pix não conseguiu processar este pagador no momento. Nenhuma cobrança foi criada. Use somente o documento do responsável que realmente fará o pagamento ou contate o suporte do provedor.";
+    }
+    if (/401|API key|invalid_api_key/i.test(m)) {
+      return "O Pix está temporariamente indisponível. Tente novamente mais tarde.";
     }
     return "Não deu: " + m;
   }
@@ -77,10 +94,15 @@
 
   var PLANS = {
     vip24h: { title: "Passe 24h", price: "R$ 5,90", cta: "Liberar por R$ 5,90",
-      sub: "VIP completo por <b>24 horas</b>: mundos gigantes + modo de jogo + foto + tempo/clima + lote. Ideal para resolver <b>aquele mundo grande</b> hoje. Pix via Depix." },
-    vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Assinar por R$ 19,90",
-      sub: "Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + manter inventário + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix) via Depix." }
+      sub: "Acesso completo por <b>24 horas</b>: mundos gigantes + modo de jogo + manter inventário + foto + tempo/clima + lote." },
+    vip7: { title: "VIP — 7 dias", price: "R$ 9,90", cta: "Liberar 7 dias por R$ 9,90",
+      sub: "Acesso completo por <b>7 dias</b>. Ideal para ajustar vários mundos durante a semana." },
+    vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Liberar 30 dias por R$ 19,90",
+      sub: "Acesso completo por <b>30 dias</b>: mundos gigantes + modo de jogo + manter inventário + foto + tempo/clima + lote." }
   };
+  function normalizePlan(plan) {
+    return plan === "vip24h" || plan === "vip7" || plan === "vip30" ? plan : "vip30";
+  }
 
   /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
   function depixEnabled() {
@@ -110,11 +132,16 @@
     if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato OK (a receita valida no QR)
     return false;
   }
-  function depixCreate(email, name, plan, doc) {
-    return req("/api/depix/create", {
+  function depixCreate(plan, doc) {
+    return authReq("/api/depix/create", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ email: email, name: name, plan: plan, payer_tax_number: cleanDoc(doc) })
+      body: JSON.stringify({
+        plan: normalizePlan(plan),
+        payer_tax_number: cleanDoc(doc),
+        terms_accepted: true,
+        terms_version: "2026-09-20-v1.4"
+      })
     });
   }
   function depixStatus(id) {
@@ -123,9 +150,17 @@
 
   function openPayModal(notice, plan) {
     if (!enabled()) return;
-    plan = plan === "vip24h" ? "vip24h" : "vip30";
+    plan = normalizePlan(plan);
     closePay();
-    var logged = currentEmail();
+    var user = currentUser();
+    if (!user || !user.email) {
+      try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
+      if (window.RC_auth) window.RC_auth.openModal();
+      return;
+    }
+    var logged = user.email;
+    var displayName = user.name || logged.split("@")[0];
+    var avatar = user.photo || "";
     var bg = document.createElement("div");
     bg.className = "modal-bg open";
     bg.id = "payModal";
@@ -133,27 +168,35 @@
       '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
       "<h3 id='payTitle'></h3>" +
       (notice ? "<div class='warn' style='margin:0 0 12px;font-size:13px'>" + escH(notice) + "</div>" : "") +
+      "<div class='pay-account'>" +
+        (avatar ? "<img class='pay-account-avatar' src='" + escH(avatar) + "' alt=''>" : "<div class='pay-account-avatar-fallback'>" + escH(displayName.charAt(0).toUpperCase()) + "</div>") +
+        "<div class='pay-account-meta'><b>" + escH(displayName) + "</b><span>" + escH(logged) + "</span></div>" +
+        "<span class='pay-account-badge'>Google</span>" +
+      "</div>" +
+      "<div class='vip-assurance'><b>VIP nesta conta:</b> após a confirmação do pagamento, o acesso é liberado automaticamente nesta conta Google e acompanha você em outros aparelhos.</div>" +
       "<div class='planpick' role='radiogroup' aria-label='Escolha o plano'>" +
-      "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "> Passe 24h — <b>R$ 5,90</b></label>" +
-      "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "> VIP 30 dias — <b>R$ 19,90</b></label>" +
+      "<label><input type='radio' name='payplan' value='vip24h'" + (plan === "vip24h" ? " checked" : "") + "><span class='plan-main'><strong>Passe 24h — R$ 5,90</strong><small>Para resolver um mundo hoje</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>VIP 7 dias — R$ 9,90</strong><small>Para vários mundos durante a semana</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>VIP 30 dias — R$ 19,90</strong><small>Melhor custo por dia</small></span></label>" +
       "</div>" +
       "<p class='sub' id='paySub'></p>" +
       "<div class='status' id='payMsg' hidden></div>" +
-      "<label for='payDoc' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>CPF ou CNPJ (exigido pelo Pix Depix)</label>" +
-      "<input id='payDoc' inputmode='numeric' maxlength='18' placeholder='Ex.: 529.982.247-25' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
-      "<label for='payEmail' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>E-mail (o VIP é liberado nele)</label>" +
-      "<input id='payEmail' type='email' maxlength='120' autocomplete='email' value='" + logged.replace(/\"/g, "&quot;") + "'" + (logged ? " readonly" : "") + " style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
+      "<label for='payDoc' style='display:block;font-size:13px;font-weight:700;margin:12px 0 5px'>CPF ou CNPJ do pagador</label>" +
+      "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Digite o documento do titular do pagamento' style='width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px'>" +
+      "<div class='payer-help'><b>Importante:</b> o pagamento deve ser feito por uma pessoa maior de 18 anos. Se você for menor de idade, peça para seu responsável realizar o pagamento e informe o CPF/CNPJ desse responsável. O documento precisa pertencer ao pagador real.</div>" +
+      "<label class='accept pay-terms' for='payTerms' style='text-transform:none;letter-spacing:0;margin-top:12px'>" +
+        "<input id='payTerms' type='checkbox'>" +
+        "<span>Li e aceito os <a href='termos.html' target='_blank' rel='noopener'>Termos de Uso</a>, a <a href='reembolso.html' target='_blank' rel='noopener'>Política de Reembolso</a> e a <a href='privacidade.html' target='_blank' rel='noopener'>Política de Privacidade</a>. Confirmo que os dados do pagamento estão corretos.</span>" +
+      "</label>" +
       "<div class='row2' style='display:flex;gap:10px;margin-top:14px'>" +
       "<button class='btn-ghost' id='payBack' type='button' style='flex:1'>Voltar</button>" +
       "<button class='btn-ghost' id='payGo' type='button' style='flex:2;background:var(--orange);border-color:var(--orange);color:#fff'></button></div>" +
-      "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Testando conexão…</div>" +
-      (logged
-        ? "<div class='secure' style='margin-top:10px;font-size:13px'>Pagando como <b>" + logged.replace(/[<>&\"']/g, "") + "</b></div>"
-        : "<div class='secure' style='margin-top:10px;font-size:13px'><a href='#' id='payLogin'><b>Entrar / criar conta</b></a> para guardar seu VIP</div>") + "</div>";
+      "<div class='secure' id='payConn' style='margin-top:10px;font-size:13px'>Verificando pagamento seguro…</div>" +
+      "</div>";
     document.body.appendChild(bg);
     function selPlan() {
       var r = bg.querySelector("input[name='payplan']:checked");
-      return (r && r.value === "vip24h") ? "vip24h" : "vip30";
+      return r ? normalizePlan(r.value) : "vip30";
     }
     function paintPlan() {
       var p = PLANS[selPlan()];
@@ -174,7 +217,7 @@
         return r.json();
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
-        if (c) c.textContent = cfg.depix_configured ? "✓ Conectado ao Pix (Depix)" : "✓ Conectado ao pagamento seguro";
+        if (c) c.textContent = cfg.depix_configured ? "✓ Pagamento Pix disponível" : "✓ Pagamento seguro disponível";
         if (cfg && cfg.product24h_configured === false) {
           var radio = bg.querySelector("input[name='payplan'][value='vip24h']");
           if (radio) {
@@ -201,50 +244,40 @@
       if (m) {
         m.hidden = false;
         m.className = "status ok";
-        m.innerHTML = "Este e-mail já tem <b>VIP até " + new Date(ms).toLocaleDateString("pt-BR") + "</b>. Não precisa pagar de novo.";
+        m.innerHTML = "Esta conta já tem <b>VIP até " + new Date(ms).toLocaleDateString("pt-BR") + "</b>. Você só precisa pagar novamente se quiser somar mais tempo.";
       }
       var go = document.getElementById("payGo");
       if (go) { go.disabled = false; go.textContent = "Comprar mais dias"; }
     }
     function refreshVipLock() {
       if (!document.getElementById("payModal")) return;
-      var em = (document.getElementById("payEmail").value || "").trim();
-      if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(em)) return;
-      remotePremiumMs(em).then(function (ms) {
+      remotePremiumMs().then(function (ms) {
         if (ms > Date.now() && document.getElementById("payModal") && !vipLockUntil) showVipOwner(ms);
       }).catch(function () {});
     }
-    var emailTimer = null;
-    document.getElementById("payEmail").addEventListener("input", function () {
-      vipLockUntil = 0; vipOverride = false;
-      if (emailTimer) clearTimeout(emailTimer);
-      emailTimer = setTimeout(refreshVipLock, 700);
-    });
     refreshVipLock();
     document.getElementById("payBack").addEventListener("click", closePay);
-    var pl = document.getElementById("payLogin");
-    if (pl) pl.addEventListener("click", function (e) {
-      e.preventDefault(); closePay();
-      if (window.RC_auth) window.RC_auth.openModal("login", "Entre para pagar com sua conta (ou pague só com o e-mail).");
-    });
     document.getElementById("payGo").addEventListener("click", function () {
-      if (!currentEmail()) {
+      var go = document.getElementById("payGo");
+      var email = currentEmail();
+      if (!currentUser()) {
         closePay();
         if (window.RC_auth) window.RC_auth.openModal();
         return;
       }
-      var email = (document.getElementById("payEmail").value || "").trim();
-      if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
+      if (!document.getElementById("payTerms").checked) {
+        payStatus("Para continuar, leia e aceite os Termos de Uso, a Política de Reembolso e a Política de Privacidade.", "err");
+        return;
+      }
       // já é VIP? redireciona em vez de cobrar de novo (trava final)
-      if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. O novo pagamento será somado após a confirmação da Kiwify.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
-      var go = document.getElementById("payGo");
+      if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. Se confirmar uma nova compra, o novo período será somado após a confirmação do pagamento.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
       try {
         var u0 = window.RC_auth && window.RC_auth.user();
         if (u0 && u0.name) buyerName = u0.name;
       } catch (e0) {}
-      remotePremiumMs(email).then(function (ms) {
+      remotePremiumMs().then(function (ms) {
         if (ms > Date.now() && document.getElementById("payModal")) { showVipOwner(ms); return; }
         attempt(1);
       }).catch(function () {
@@ -255,13 +288,13 @@
         go.disabled = true; go.textContent = "Gerando cobrança…";
         payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
         var planEl = document.querySelector("#payModal input[name='payplan']:checked");
-        var plan = (planEl && planEl.value === "vip24h") ? "vip24h" : "vip30";
+        var plan = normalizePlan(planEl && planEl.value);
         // Depix primeiro (Pix via Worker); AbacatePay como reserva.
         if (depixEnabled()) {
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
           if (!validDoc(doc)) { go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
-          depixCreate(email, name, plan, doc).then(function (r) {
+          depixCreate(plan, doc).then(function (r) {
             var url = r.url || r.payment_url;
             if (!url) throw new Error("Resposta sem link de pagamento.");
             try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
@@ -269,27 +302,39 @@
             payStatus("Abrindo o checkout Pix…");
             location.href = url;
           }).catch(function (err) {
-            logClient("depix-create-" + n, (err && err.message) || err);
-            if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
-            go.disabled = false; go.textContent = "Tentar de novo";
+            logClient("depix-create", (err && err.message) || err);
+            go.disabled = false;
+            go.textContent = PLANS[plan].cta;
             payStatus(friendlyErr(err), "err");
           });
           return;
         }
         // Reserva: AbacatePay (quando Depix desligado).
-        req("/api/abacate/create", {
+        // O plano de 7 dias usa preço dinâmico no Depix; não convertemos
+        // silenciosamente para 30 dias em outro provedor.
+        if (plan === "vip7") {
+          go.disabled = false;
+          go.textContent = PLANS[plan].cta;
+          payStatus("O plano de 7 dias está disponível somente no Pix no momento. Escolha 24h ou 30 dias para usar outra forma de pagamento.", "err");
+          return;
+        }
+        authReq("/api/abacate/create", {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({ email: email, name: name, plan: plan })
+          body: JSON.stringify({
+            plan: plan,
+            terms_accepted: true,
+            terms_version: "2026-09-20-v1.4"
+          })
         }).then(function (r) {
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
           try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
           payStatus("Abrindo o checkout…");
           location.href = r.url;
         }).catch(function (err) {
-          logClient("create-" + n, (err && err.message) || err);
-          if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
-          go.disabled = false; go.textContent = "Tentar de novo";
+          logClient("create-alt", (err && err.message) || err);
+          go.disabled = false;
+          go.textContent = PLANS[plan].cta;
           payStatus(friendlyErr(err), "err");
         });
       }
@@ -381,9 +426,9 @@
   // Em FALHA DE REDE/SERVIDOR, REJEITA em vez de devolver 0 — assim o
   // chamador sabe a diferença entre "sem VIP" e "não consegui verificar"
   // e NÃO apaga o cache local de quem já é VIP.
-  function remotePremiumMs(email) {
-    if (!enabled() || !email) return Promise.resolve(0);
-    return req("/api/premium?email=" + encodeURIComponent(email)).then(function (r) {
+  function remotePremiumMs() {
+    if (!enabled() || !currentUser()) return Promise.resolve(0);
+    return authReq("/api/premium").then(function (r) {
       return +r.premium_until_ms || 0;
     });
   }
@@ -398,20 +443,14 @@
   // Kiwify (link direto) como reserva, AbacatePay por último.
   // Backup Kiwify em site/backup-kiwify-2026-09-20/.
   function checkout(plan, notice) {
-    plan = plan === "vip24h" ? "vip24h" : "vip30";
+    plan = normalizePlan(plan);
     if (!currentEmail()) {
       try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
       if (window.RC_auth) window.RC_auth.openModal();
       return true;
     }
-    if (depixEnabled()) { openPayModal(notice || null, plan); return true; }
-    var kw = kiwifyUrl(plan);
-    if (kw) {
-      // volta da Kiwify: o navegador não fica sabendo sozinho — marca
-      // pendência p/ o site oferecer "vincular e-mail do pagamento" ao voltar
-      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
-      location.href = kw; return true;
-    }
+    // Sempre passa pelo nosso modal antes de qualquer cobrança:
+    // conta Google, resumo do plano e aceite explícito dos termos.
     if (!enabled()) return false;
     openPayModal(notice || null, plan);
     return true;
@@ -435,7 +474,7 @@
       try { plan = localStorage.getItem("rc_pending_plan") || ""; } catch (e) {}
       if (!em || !plan) return;
       try { localStorage.removeItem("rc_pending_plan"); } catch (e2) {}
-      openPayModal(null, plan === "vip24h" ? "vip24h" : "vip30");
+      openPayModal(null, normalizePlan(plan));
     });
   }
 

@@ -13,13 +13,13 @@
     load("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js").then(function () { return load("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"); }).then(function () {
       if (!firebase.apps.length) firebase.initializeApp(cfg);
       auth = firebase.auth();
-      auth.onAuthStateChanged(function (u) { state.user = u ? { email: u.email || "", name: u.displayName || "", uid: u.uid || "" } : null; if (!u) clearLocalVip(); state.ready = true; emit(); });
+      auth.onAuthStateChanged(function (u) { state.user = u ? { email: u.email || "", name: u.displayName || "", uid: u.uid || "", photo: u.photoURL || "" } : null; if (!u) clearLocalVip(); state.ready = true; emit(); });
     }).catch(function () { state.ready = true; emit(); });
   }
   function close() { var m = document.getElementById("authModal"); if (m) m.remove(); }
   function open() {
     close(); var bg = document.createElement("div"); bg.className = "modal-bg open"; bg.id = "authModal";
-    bg.innerHTML = '<div class="modal" role="dialog" aria-modal="true"><h3>Entrar</h3><p class="sub">Entre com sua conta Google. Seu VIP fica vinculado ao e-mail usado no pagamento.</p><div class="status err" id="authMsg" hidden></div><button class="btn-ghost" id="authGoogle" type="button" style="width:100%;background:#fff;font-weight:700">Continuar com Google</button><div class="row2" style="margin-top:10px"><button class="btn-ghost" id="authCancel" type="button" style="width:100%">Voltar</button></div></div>';
+    bg.innerHTML = '<div class="modal auth-card" role="dialog" aria-modal="true"><h3>Entrar com Google</h3><p class="sub">Use sua conta Google para entrar. O VIP comprado será vinculado automaticamente a essa conta.</p><div class="status err" id="authMsg" hidden></div><button class="google-btn" id="authGoogle" type="button"><span class="google-g" aria-hidden="true">G</span><span>Continuar com Google</span></button><div class="row2" style="margin-top:10px"><button class="btn-ghost" id="authCancel" type="button" style="width:100%">Voltar</button></div><p class="auth-note">Sem senha criada no site. A autenticação é feita pelo Google/Firebase.</p></div>';
     document.body.appendChild(bg); bg.addEventListener("click", function (e) { if (e.target === bg) close(); }); document.getElementById("authCancel").onclick = close;
     document.getElementById("authGoogle").onclick = function () { var b = this, m = document.getElementById("authMsg"); b.disabled = true; b.textContent = "Abrindo o Google…"; window.RC_auth.signInGoogle().then(close).catch(function (e) { b.disabled = false; b.textContent = "Continuar com Google"; m.hidden = false; m.textContent = /unauthorized-domain/.test(String(e.code || "")) ? "Este domínio ainda não está autorizado no Firebase." : "Não foi possível entrar: " + (e.message || e); }); };
   }
