@@ -318,10 +318,14 @@
           payStatus("O plano de 7 dias está disponível somente no Pix no momento. Escolha 24h ou 30 dias para usar outra forma de pagamento.", "err");
           return;
         }
-        req("/api/abacate/create", {
+        authReq("/api/abacate/create", {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({ email: email, name: name, plan: plan })
+          body: JSON.stringify({
+            plan: plan,
+            terms_accepted: true,
+            terms_version: "2026-09-20-v1.4"
+          })
         }).then(function (r) {
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
           try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
@@ -445,14 +449,8 @@
       if (window.RC_auth) window.RC_auth.openModal();
       return true;
     }
-    if (depixEnabled()) { openPayModal(notice || null, plan); return true; }
-    var kw = kiwifyUrl(plan);
-    if (kw) {
-      // volta da Kiwify: o navegador não fica sabendo sozinho — marca
-      // pendência p/ o site oferecer "vincular e-mail do pagamento" ao voltar
-      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
-      location.href = kw; return true;
-    }
+    // Sempre passa pelo nosso modal antes de qualquer cobrança:
+    // conta Google, resumo do plano e aceite explícito dos termos.
     if (!enabled()) return false;
     openPayModal(notice || null, plan);
     return true;
