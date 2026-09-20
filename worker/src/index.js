@@ -339,12 +339,12 @@ export default {
         }
         let body = {};
         try { body = await req.json(); } catch { body = {}; }
-        const evt = String(body.webhook_event_type || body.event || "");
-        const status = String(body.order_status || body.status || "").toLowerCase();
-        const approved = evt === "order_approved" || status === "paid" || status === "approved";
-        const email = String((body.Customer && body.Customer.email) || body.customer_email || body.email || "").trim().toLowerCase();
-        const pid = String((body.Product && body.Product.product_id) || body.product_id || "");
-        const oid = String(body.order_id || body.id || "");
+        const evt = String(body.webhook_event_type || body.event || body.type || "");
+        const status = String(body.order_status || body.status || body.orderStatus || "").toLowerCase();
+        const approved = /approv/i.test(evt) || ["paid", "approved", "completed", "active", "payment_confirmed", "confirmed"].includes(status);
+        const email = String((body.Customer && body.Customer.email) || (body.customer && body.customer.email) || (body.Client && body.Client.email) || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
+        const pid = String((body.Product && (body.Product.product_id || body.Product.id)) || body.product_id || body.productId || "");
+        const oid = String(body.order_id || body.orderId || body.id || body.code || "");
         // log cru (últimos 50) p/ depurar sem adivinhar formato
         try {
           const lst = (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [];
@@ -352,12 +352,16 @@ export default {
           await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
         } catch (e) {}
         if (!approved || !validEmail(email)) return json({ ok: true, granted: false }, 200, cors);
-        if (!env.KIWIFY_PID_24H && !env.KIWIFY_PID_30D) {
-          return json({ ok: true, granted: false, reason: "no_product_map" }, 200, cors);
-        }
-        // Dias pelo ID do produto; se não bater, tenta pelo NOME ("24h" = 1 dia).
-        const pname = String((body.Product && (body.Product.product_name || body.Product.name)) || body.product_name || "").toLowerCase();
-        const days = (pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H) || /24\s*h/.test(pname) ? 1 : 30;
+        // Dias pelo ID do produto quando KIWIFY_PID_* estão configurados;
+        // senão cai no NOME do produto ("24h"/"24 h"/"passe" = 1 dia, resto = 30).
+        // (Antes havia um early-return "no_product_map" aqui que impedia
+        //  qualquer liberação quando os PIDs não estavam configurados —
+        //  ou seja, quem pagava na Kiwify nunca virava VIP. Removido.)
+        const pname = String((body.Product && (body.Product.product_name || body.Product.name)) || body.product_name || body.productName || "").toLowerCase();
+        let days = 30;
+        if (pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H) days = 1;
+        else if (pid && env.KIWIFY_PID_30D && pid === env.KIWIFY_PID_30D) days = 30;
+        else if (/24\s*h|passe|di[aá]ria|avulso/.test(pname)) days = 1;
         if (oid) {
           const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);

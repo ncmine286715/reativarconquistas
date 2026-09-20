@@ -150,38 +150,138 @@
     if (CFG.OPERATOR_CITY_UF) { var oc = $("opCity"); if (oc) oc.textContent = CFG.OPERATOR_CITY_UF; }
   }
 
-  /* ---------- Premium = conta (AbacatePay) ---------- */
-  // Premium da conta (pagamento Abacate) — soma ao código local.
+  /* ---------- Premium = conta (AbacatePay/Kiwify via Worker) ---------- */
+  // Cache local: { until, email }. Vale para logados E convidados
+  // (quem pagou sem login libera neste navegador via sucesso.html).
+  // E-mail vinculado: o usuário pode ter pago com um e-mail diferente do
+  // Google — dá para vincular esse e-mail de pagamento manualmente.
+  var LS_PREM = "rc_prem_remote", LS_LINKED = "rc_prem_email";
+  function linkedEmail() {
+    try { return (localStorage.getItem(LS_LINKED) || "").trim().toLowerCase(); }
+    catch (e) { return ""; }
+  }
+  function googleEmail() {
+    try {
+      var u = (window.RC_auth && window.RC_auth.user()) || null;
+      return ((u && u.email) || "").trim().toLowerCase();
+    } catch (e) { return ""; }
+  }
+  function vipEmails() {
+    var out = [], g = googleEmail(), l = linkedEmail();
+    if (g && out.indexOf(g) < 0) out.push(g);
+    if (l && out.indexOf(l) < 0) out.push(l);
+    try {
+      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
+      if (r && r.email && out.indexOf(String(r.email).toLowerCase()) < 0) out.push(String(r.email).toLowerCase());
+    } catch (e) {}
+    return out;
+  }
   function remotePremUntil() {
     try {
-      var r = JSON.parse(localStorage.getItem("rc_prem_remote") || "null");
+      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
       return (r && +r.until) || 0;
     } catch (e) { return 0; }
   }
+  function remotePremEmail() {
+    try {
+      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
+      return (r && r.email) || "";
+    } catch (e) { return ""; }
+  }
   function remotePremOk() { return remotePremUntil() > Date.now(); }
   function isPremiumAny() { return remotePremOk(); }
+  // Consulta o servidor para TODOS os e-mails conhecidos e guarda o melhor.
+  // Em falha total de rede, MANTÉM o cache (nunca apaga VIP de quem pagou).
   function refreshRemotePrem() {
+    paintQuota();
     try {
-      var u = (window.RC_auth && window.RC_auth.user()) || null;
-      if (!u || !u.email || !window.RC_pay || !window.RC_pay.enabled()) return;
-      window.RC_pay.remotePremiumMs(u.email).then(function (ms) {
-        try {
-          if (ms > Date.now()) localStorage.setItem("rc_prem_remote", JSON.stringify({ until: ms }));
-          else localStorage.removeItem("rc_prem_remote");
-        } catch (e) {}
-        paintQuota();
+      var emails = vipEmails();
+      if (!emails.length || !window.RC_pay || !window.RC_pay.enabled()) return;
+      var pending = emails.length, best = 0, bestEmail = "", okAny = false;
+      emails.forEach(function (em) {
+        window.RC_pay.remotePremiumMs(em).then(function (ms) {
+          okAny = true;
+          if (+ms > best) { best = +ms; bestEmail = em; }
+        }).catch(function () {
+          // falha de rede neste e-mail: ignora, tenta os outros
+        }).then(function () {
+          if (--pending) return;
+          // todas as consultas responderam (ou falharam)
+          if (!okAny) { paintQuota(); return; } // sem nenhuma resposta: mantém cache
+          try {
+            if (best > Date.now()) {
+              localStorage.setItem(LS_PREM, JSON.stringify({ until: best, email: bestEmail }));
+            } else if (remotePremUntil() <= Date.now()) {
+              localStorage.removeItem(LS_PREM);
+            }
+            // se o cache local ainda é melhor que o servidor, preserva
+          } catch (e) {}
+          paintQuota();
+        });
       });
     } catch (e) {}
   }
+  // Vincula um e-mail de pagamento (ex.: pagou na Kiwify com outro e-mail)
+  function claimWithEmail(email) {
+    email = String(email || "").trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setStatus("err", "Informe um e-mail válido para verificar o VIP.");
+      return;
+    }
+    if (!window.RC_pay || !window.RC_pay.enabled()) {
+      setStatus("err", "Verificação indisponível agora. Tente de novo em instantes.");
+      return;
+    }
+    setStatus("", "Verificando VIP em <b>" + escapeHtml(email) + "</b>…");
+    window.RC_pay.remotePremiumMs(email).then(function (ms) {
+      if (+ms > Date.now()) {
+        try {
+          localStorage.setItem(LS_LINKED, email);
+          localStorage.setItem(LS_PREM, JSON.stringify({ until: +ms, email: email }));
+        } catch (e) {}
+        paintQuota();
+        setStatus("ok", "VIP encontrado em <b>" + escapeHtml(email) + "</b> até <b>" +
+          new Date(+ms).toLocaleDateString("pt-BR") + "</b>. Recursos VIP desbloqueados!");
+      } else {
+        setStatus("err", "Nenhum VIP ativo em <b>" + escapeHtml(email) + "</b>. " +
+          "Confira se pagou com este e-mail — <b>o VIP vale no e-mail do pagamento</b>. " +
+          "Pagou e não liberou? Fale com <b>" + escapeHtml(CFG.SUPPORT_EMAIL || "o suporte") + "</b> com o comprovante.");
+      }
+    }).catch(function () {
+      setStatus("err", "Sem conexão com o servidor de pagamento agora. Confira sua internet e toque em <b>Verificar de novo</b>.");
+    });
+  }
+  function askClaimEmail() {
+    var cur = linkedEmail() || googleEmail() || "";
+    var em = null;
+    try { em = window.prompt("Qual e-mail você usou no pagamento? (o VIP vale nele)", cur); } catch (e) {}
+    if (em === null) return;
+    claimWithEmail(em);
+  }
 
   function paintQuota() {
-    if (remotePremOk()) {
+    var vip = remotePremOk();
+    if (vip) {
       quotaBar.classList.add("premium");
-      quotaText.innerHTML = "<strong>VIP ativo</strong> na sua conta até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — mundos gigantes liberados. <a href='minha-conta.html'>Minha conta</a>";
+      quotaText.innerHTML = "<strong>VIP ativo</strong>" +
+        (remotePremEmail() ? " em <strong>" + escapeHtml(remotePremEmail()) + "</strong>" : "") +
+        " até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — recursos VIP desbloqueados. " +
+        "<a href='minha-conta.html'>Minha conta</a> · " +
+        "<a href='#' id='vipRefresh'>Verificar de novo</a>";
     } else {
       quotaBar.classList.remove("premium");
-      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis e ilimitado</strong>. Mundos gigantes (acima de 10 MB) exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a>";
+      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis e ilimitado</strong>. Mundos gigantes (acima de 10 MB) exigem mais processamento — <a href='#planos'><b>libere com o VIP</b></a><br>" +
+        "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipClaim'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='vipRefresh'>Verificar de novo</a></span>";
     }
+    // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
+    ["keepOpt", "modeOpt", "timeOpt", "iconOpt"].forEach(function (id) {
+      var el = $(id);
+      if (el) el.classList.toggle("locked", !vip);
+    });
+    var r1 = $("vipRefresh");
+    if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(); });
+    var r2 = $("vipClaim");
+    if (r2) r2.addEventListener("click", function (e) { e.preventDefault(); askClaimEmail(); });
     updateSubmit();
   }
 
@@ -195,15 +295,16 @@
   function loggedIn() {
     try { return !!((window.RC_auth && window.RC_auth.user()) || null); } catch (e) { return false; }
   }
-  // Recurso pago: sem login -> entra primeiro; logado sem VIP -> assinar.
+  // Recurso pago: quem já tem VIP no cache (logado ou não) usa direto;
+  // sem VIP -> entra com Google primeiro; logado sem VIP -> assinar.
   function needPremium(msg, plan) {
+    if (remotePremOk()) return true;
     if (!loggedIn()) {
       setStatus("", escapeHtml(msg) + ' <a href="minha-conta.html"><b>Entre com Google</b></a> para continuar.');
       try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e) {}
       return false;
     }
-    if (!remotePremOk()) { lockedHint(msg, plan); return false; }
-    return true;
+    lockedHint(msg, plan); return false;
   }
   function lockedHint(msg, plan) {
     // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
@@ -363,7 +464,7 @@
     if (gameSel.value !== "keep" && !needPremium("Mudar o modo de jogo é VIP.")) gameSel.value = "keep";
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
-    if (wantIcon.checked && !remotePremOk()) { wantIcon.checked = false; lockedHint("Trocar a foto do mundo é VIP."); }
+    if (wantIcon.checked && !needPremium("Trocar a foto do mundo é VIP.")) wantIcon.checked = false;
   });
   if (wantRename) wantRename.addEventListener("change", function () {
     if (wantRename.checked) renameInput.focus();
@@ -471,9 +572,15 @@
     var wantsKeep = rules.keepinventory !== null;
     var iconBytes = (wantIcon.checked && (selectedIconBytes || presetBytes)) || null;
     var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime || wantsKeep;
-    if (wantsPrem && !loggedIn()) {
-      setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine.");
-      try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e3) {}
+    if (wantsPrem && !prem) {
+      if (!loggedIn()) {
+        setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine. <a href='#' id='claimLink'><b>Já paguei com outro e-mail</b></a>");
+        var cl = $("claimLink");
+        if (cl) cl.addEventListener("click", function (e) { e.preventDefault(); askClaimEmail(); });
+        try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e3) {}
+        return;
+      }
+      lockedHint("Essa função é VIP.", batch ? "vip30" : undefined);
       return;
     }
     var diffSel = $("difficulty");

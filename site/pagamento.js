@@ -272,11 +272,15 @@
   }
 
   // Premium remoto (conta) — é o que libera o Premium no site.
+  // Retorna o timestamp (ms) em caso de SUCESSO (0 = sem VIP).
+  // Em FALHA DE REDE/SERVIDOR, REJEITA em vez de devolver 0 — assim o
+  // chamador sabe a diferença entre "sem VIP" e "não consegui verificar"
+  // e NÃO apaga o cache local de quem já é VIP.
   function remotePremiumMs(email) {
     if (!enabled() || !email) return Promise.resolve(0);
     return req("/api/premium?email=" + encodeURIComponent(email)).then(function (r) {
       return +r.premium_until_ms || 0;
-    }).catch(function () { return 0; });
+    });
   }
 
   function kiwifyUrl(plan) {
