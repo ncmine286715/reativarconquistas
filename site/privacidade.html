@@ -13,7 +13,7 @@
 </div></div>
 <div class="page"><div class="legal">
 <h1>Política de Privacidade — LGPD</h1>
-<div class="updated">Última atualização: 20 de setembro de 2026 · Versão 1.4 · LGPD + Marco Civil</div>
+<div class="updated">Última atualização: 20 de setembro de 2026 · Versão 1.5 · LGPD + Marco Civil</div>
 
 <div class="box"><b>Em resumo:</b> seu mundo é processado no navegador. Para conta e pagamento usamos apenas os dados necessários: identificação da conta Google, documento do pagador enviado ao provedor Pix, status/identificador da cobrança e registro do aceite dos termos. Não vendemos dados pessoais.</div>
 
@@ -22,8 +22,8 @@
 
 <h2>2. O que coletamos e por quê (base legal)</h2>
 <p><b>2.1. Arquivo do mundo (.mcworld) e foto (VIP)</b> — <b>Não coletamos.</b> A conversão roda no seu navegador; o arquivo nunca é enviado. Base legal: não há tratamento de dados.</p>
-<p><b>2.2. E-mail (só se você falar conosco)</b> — Finalidade: responder seu suporte/reembolso. Base legal: <b>execução de contrato</b> e legítimo interesse. Retenção: até <b>5 anos</b> após (CDC) só para prova.</p>
-<p><b>2.3. Dados de pagamento</b> — O Pix principal é processado pelo <b>DePix</b>; provedores alternativos podem ser usados quando informados no checkout. Para gerar o Pix, o CPF/CNPJ do pagador é transmitido ao provedor. Nosso Worker usa esse documento apenas para solicitar a cobrança e <b>não o grava no cadastro de VIP nem nos logs de pagamento</b>. Recebemos o identificador/status da cobrança e os dados necessários para liberar o acesso.</p>
+<p><b>2.2. E-mail</b> — Coletamos o e-mail da conta Google para autenticação e, no checkout Pix, um <b>e-mail do pagador</b> digitado e confirmado pelo usuário. Esse e-mail de pagamento é enviado ao provedor dentro dos dados da cobrança e pode ser diferente do e-mail da conta Google. Também usamos e-mail para suporte/reembolso. Base legal: execução do contrato e atendimento de solicitações.</p>
+<p><b>2.3. Dados de pagamento</b> — O Pix principal é processado pelo <b>DePix</b>; provedores alternativos podem ser usados quando informados no checkout. Para gerar/registrar a cobrança, transmitimos ao provedor o CPF/CNPJ do pagador e o e-mail de pagamento informado pelo usuário, além do valor e metadados mínimos da compra. Nosso Worker não usa esses dados para definir quem recebe o VIP: a liberação continua vinculada ao UID da conta Google autenticada.</p>
 <p><b>2.4. Logs técnicos</b> — Não mantemos servidor próprio; a hospedagem (Cloudflare Pages/Worker) pode gerar logs de acesso padrão. Não criamos perfil de usuário.</p>
 <p><b>2.5. Conta Google (UID, nome e e-mail)</b> — Finalidade: autenticar a conta, impedir que o VIP seja liberado para o e-mail errado e disponibilizar o acesso em outros aparelhos. O login é feito pelo <b>Google/Firebase</b>; nós <b>não recebemos sua senha do Google</b>. O UID do Firebase é a referência principal do VIP. Base legal: execução do contrato e segurança da conta, conforme aplicável.</p>
 <p><b>2.5b. Aceite contratual</b> — Ao criar uma cobrança, registramos a versão dos Termos aceita, data/hora, conta vinculada e ID da cobrança, para comprovar a contratação e atender suporte, contestação e obrigações legais. Não armazenamos o CPF/CNPJ junto desse registro.</p>
