@@ -1,42 +1,99 @@
-/* Configuração PÚBLICA do site — NENHUM segredo aqui.
-   Conversão 100% no navegador. Premium via conta + AbacatePay (Worker).
-   Chave abc_* fica SÓ no Worker Cloudflare. */
+/* Configuração PÚBLICA do ReativaConquistas.
+   NÃO coloque chaves, tokens ou secrets neste arquivo.
+
+   O navegador acessa somente o Cloudflare Worker.
+   Segredos como DEPIX_API_KEY e DEPIX_WEBHOOK_SECRET
+   ficam exclusivamente configurados no Worker Cloudflare.
+*/
+
 window.RC_CONFIG = {
-  // Modelo: mundos de até FREE_MAX_MB são grátis (FREE_DAILY/dia).
-  // Acima disso (mundos gigantes, mais processamento) é VIP.
+
+  /* =========================
+     LIMITES DO SITE
+     ========================= */
+
+  // Limite padrão para usuários grátis.
   FREE_MAX_MB: 10,
-  // PROMOÇÃO: até 23/09/2026, o grátis vale 25 MB (auto-expira, sem deploy)
+
+  // Promoção temporária para usuários grátis.
   PROMO_MAX_MB: 25,
   PROMO_UNTIL: "2026-09-24T23:59:59-03:00",
+
+  // Limite técnico máximo aceito pelo sistema.
   PRE_MAX_MB: 500,
-  // Limites leves do grátis (margem pro VIP sem forçar):
-  // mundos até FREE_MAX_MB (ou PROMO), 1 por vez, FREE_DAILY conversões/dia.
-  // FREE_MAX_PACKS = behavior packs existentes que o grátis pode remover.
-  // VIP = recursos liberados e sem quota diária; limite técnico PRE_MAX_MB.
+
+  // Quantidade de conversões grátis por dia.
   FREE_DAILY: 2,
+
+  // Quantidade máxima de Behavior Packs que o plano grátis pode remover.
   FREE_MAX_PACKS: 1,
+
+
+  /* =========================
+     INFORMAÇÕES DO SERVIÇO
+     ========================= */
+
   SUPPORT_EMAIL: "ncmine75@gmail.com",
+
   OPERATOR_NAME: "ReativaConquistas",
+
+  // Preencha somente se realmente quiser exibir documento publicamente.
   OPERATOR_DOC: "",
+
   OPERATOR_CITY_UF: "Terra Roxa/PR",
-  // URL do Worker Cloudflare (API de contas + pagamento).
-  // API usada para consultar VIP e receber webhooks; o checkout é Kiwify.
+
+
+  /* =========================
+     CLOUDFLARE WORKER
+     ========================= */
+
+  // Backend responsável por:
+  // - pagamentos
+  // - consulta do VIP
+  // - webhooks
+  // - KV
+  // - APIs do site
   WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
-  PREMIUM_PRICE_LABEL: "R$ 19,90",
+
+
+  /* =========================
+     PLANOS VIP
+     ========================= */
+
+  // Passe de 24 horas.
   PASS_24H_PRICE_LABEL: "R$ 5,90",
+
+  // VIP de 30 dias.
+  PREMIUM_PRICE_LABEL: "R$ 19,90",
+
   PREMIUM_DAYS: 30,
-  // Preços em centavos (usados pelo Depix p/ teste e produção).
-  // Mínimo do Depix: 500 (R$ 5,00) — 590 e 1990 estão OK.
+
+  // Valores enviados para o Depix em centavos.
   PASS_24H_CENTS: 590,
   PREMIUM_CENTS_30D: 1990,
-  // Depix (Pix via api.depixapp.com, através do Worker — NENHUM segredo aqui).
-  // true = botão usa Depix primeiro; false = volta p/ Kiwify/Abacate.
-  // Modo teste: use sk_test_ no Worker p/ testar sem dinheiro real.
-  DEPIX_ENABLED: false,
+
+
+  /* =========================
+     DEPIX
+     ========================= */
+
+  // Depix é o sistema principal de pagamento Pix.
+  DEPIX_ENABLED: true,
+
+  // false = produção
+  // true  = ambiente de testes
   DEPIX_TEST_MODE: false,
-  // Checkout Kiwify (venda imediata): links pay.kiwify.com.br de cada plano.
-  // BACKUP EM: site/backup-kiwify-2026-09-20/ (versão do PC preservada).
-  // Kiwify ativa: cada plano abre seu checkout. Depix desativado.
+
+
+  /* =========================
+     FALLBACK DE PAGAMENTO
+     ========================= */
+
+  // Mantidos apenas como fallback caso seja necessário
+  // voltar temporariamente para a Kiwify.
+  //
+  // Com DEPIX_ENABLED = true, o fluxo normal utiliza Depix.
   KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
   KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
+
 };
