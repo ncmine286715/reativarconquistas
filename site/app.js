@@ -300,13 +300,15 @@
     } else {
       quotaBar.classList.remove("premium");
       var fl = freeLeft();
-      quotaText.innerHTML = "Mundos de até <strong>10 MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" +
+      var lim = freeLimitMB();
+      var promoTxt = promoOn() ? " <span class='promo-tag'>PROMO " + lim + "MB até dia 23/09</span>" : "";
+      quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" + promoTxt +
         (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
-          : ". Mundos gigantes (acima de 10 MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
+          : ". Mundos gigantes (acima de " + lim + " MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
         "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipClaim'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='vipRefresh'>Verificar de novo</a></span>";
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
-    ["keepOpt", "modeOpt", "timeOpt", "iconOpt"].forEach(function (id) {
+    ["keepOpt", "modeOpt", "timeOpt", "iconOpt", "stripOpt"].forEach(function (id) {
       var el = $(id);
       if (el) el.classList.toggle("locked", !vip);
     });
@@ -360,7 +362,20 @@
     return "Não deu certo: " + escapeHtml(m);
   }
 
-  function sizeLimitMB() { return remotePremOk() ? PRE_MAX_MB : FREE_MAX_MB; }
+  function promoOn() {
+    try {
+      if (!CFG.PROMO_UNTIL || !CFG.PROMO_MAX_MB) return false;
+      return Date.now() < new Date(CFG.PROMO_UNTIL).getTime();
+    } catch (e) { return false; }
+  }
+  function freeLimitMB() { return promoOn() ? (CFG.PROMO_MAX_MB || FREE_MAX_MB) : FREE_MAX_MB; }
+  function sizeLimitMB() { return remotePremOk() ? PRE_MAX_MB : freeLimitMB(); }
+  function promoDaysLeft() {
+    try {
+      var ms = new Date(CFG.PROMO_UNTIL).getTime() - Date.now();
+      return ms > 0 ? Math.ceil(ms / 86400000) : 0;
+    } catch (e) { return 0; }
+  }
   function fmtSize(n) {
     if (n < 1024) return n + " B";
     if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
@@ -456,7 +471,7 @@
       if (!remotePremOk()) {
         // gatilho contextual: mundo gigante bloqueado abre a oferta VIP na hora
         // (Passe 24h pré-selecionado: entrada mais barata p/ um mundo só)
-        lockedHint("Esse mundo passa de 10 MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.", "vip24h");
+        lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.", "vip24h");
       } else {
         setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(big[0].name));
       }
@@ -502,6 +517,28 @@
   if (wantIcon) wantIcon.addEventListener("change", function () {
     if (wantIcon.checked && !needPremium("Trocar a foto do mundo é VIP.")) wantIcon.checked = false;
   });
+  var stripCb = $("stripPacks");
+  if (stripCb) stripCb.addEventListener("change", function () {
+    if (stripCb.checked && !remotePremOk()) {
+      stripCb.checked = false;
+      needPremium("Remover addons para voltar as conquistas é 100% VIP.");
+    }
+  });
+  // banner de promoção com prazo (some sozinho quando expira)
+  (function promoBanner() {
+    try {
+      if (!promoOn()) return;
+      if ($("promoBanner")) return;
+      var conv = $("converter");
+      if (!conv) return;
+      var d = document.createElement("div");
+      d.id = "promoBanner";
+      d.className = "promo-banner";
+      var pd = promoDaysLeft();
+      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (23/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>. Depois volta a 10 MB.";
+      conv.insertBefore(d, conv.firstChild);
+    } catch (e) {}
+  })();
   if (wantRename) wantRename.addEventListener("change", function () {
     if (wantRename.checked) renameInput.focus();
   });
@@ -562,6 +599,138 @@
       setStatus(null);
     }).catch(function (err) {
       setStatus("err", "Foto: " + escapeHtml((err && err.message) || err));
+    });
+  });
+
+  /* ---------- instalar addons (.mcpack/.zip -> behavior/resource_packs) ---------- */
+  var FREE_PACKS = 2;
+  var packInput = $("packFiles"), packBtn = $("packBtn"), packListEl = $("packList");
+  var selectedPacks = [];
+  function sanitizeFolder(s) {
+    var t = String(s || "pack").toLowerCase();
+    try { t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); } catch (e) {}
+    t = t.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
+    return t || "pack";
+  }
+  function revokePackIcons() {
+    selectedPacks.forEach(function (p) {
+      try { if (p.iconUrl) URL.revokeObjectURL(p.iconUrl); } catch (e) {}
+    });
+  }
+  function paintPacks() {
+    if (!packListEl) return;
+    if (!selectedPacks.length) { packListEl.textContent = ""; return; }
+    packListEl.innerHTML = selectedPacks.map(function (p, i) {
+      var img = p.iconUrl ? '<img class="pack-icon" src="' + p.iconUrl + '" alt="" aria-hidden="true">' : '<span class="pack-icon pack-icon-none" aria-hidden="true">📦</span>';
+      return '<span class="pack-chip">' + img + '<span class="pack-tx"><b>' + escapeHtml(p.pack.name) + "</b><em>" + (p.kind === "resource" ? "textura" : "comportamento") + " · v" + p.pack.version.join(".") + '</em></span><button type="button" class="pack-x" data-i="' + i + '" aria-label="Remover pacote">×</button></span>';
+    }).join("") + ' <a href="#" id="packClear">limpar tudo</a>';
+    Array.prototype.forEach.call(packListEl.querySelectorAll(".pack-x"), function (b) {
+      b.addEventListener("click", function () {
+        var i = +b.getAttribute("data-i");
+        try { if (selectedPacks[i] && selectedPacks[i].iconUrl) URL.revokeObjectURL(selectedPacks[i].iconUrl); } catch (e) {}
+        selectedPacks.splice(i, 1);
+        if (!selectedPacks.length && packInput) packInput.value = "";
+        paintPacks();
+      });
+    });
+    var c = $("packClear");
+    if (c) c.addEventListener("click", function (e) {
+      e.preventDefault();
+      revokePackIcons();
+      selectedPacks = [];
+      if (packInput) packInput.value = "";
+      paintPacks();
+    });
+  }
+  function parseManifestJson(txt) {
+    try { return JSON.parse(String(txt || "").replace(/^\uFEFF/, "")); }
+    catch (e) { throw new Error("manifest.json inválido"); }
+  }
+  function packFromZip(z, f, manRel) {
+    return z.file(manRel).async("string").then(function (txt) {
+      var man = parseManifestJson(txt);
+      var h = man.header || {};
+      var pid = h.pack_id || h.uuid;
+      if (!pid) throw new Error("manifest sem uuid/pack_id");
+      var ver = Array.isArray(h.version) ? h.version.slice(0, 3).map(Number) : [1, 0, 0];
+      while (ver.length < 3) ver.push(0);
+      if (ver.some(function (n) { return !isFinite(n); })) throw new Error("versão do manifest inválida");
+      var mods = man.modules || [];
+      var hasData = mods.some(function (m) { return /^(data|script)$/i.test(m.type || ""); });
+      var hasRes = mods.some(function (m) { return /^resources$/i.test(m.type || ""); });
+      var kind = hasData ? "behavior" : (hasRes ? "resource" : "behavior");
+      var base = manRel.indexOf("/") >= 0 ? manRel.slice(0, manRel.lastIndexOf("/") + 1) : "";
+      var files = {}, jobs = [];
+      z.forEach(function (rel, e) {
+        if (e.dir) return;
+        if (rel.slice(0, base.length) !== base) return; // fora da pasta do pack: ignora
+        jobs.push(e.async("uint8array").then(function (u8) { files[rel.slice(base.length) || "manifest.json"] = new Uint8Array(u8); }));
+      });
+      return Promise.all(jobs).then(function () {
+        var iconUrl = null;
+        try {
+          var iconKey = Object.keys(files).filter(function (k) { return /(^|\/)pack_icon\.(png|jpg|jpeg)$/i.test(k); })[0];
+          if (iconKey) {
+            var mime = /\.png$/i.test(iconKey) ? "image/png" : "image/jpeg";
+            iconUrl = URL.createObjectURL(new Blob([files[iconKey]], { type: mime }));
+          }
+        } catch (e) {}
+        return { file: f, folder: sanitizeFolder(h.name || f.name), kind: kind, pack: { pack_id: String(pid), version: ver, name: String(h.name || f.name).slice(0, 80) }, files: files, iconUrl: iconUrl };
+      });
+    });
+  }
+  // Sempre resolve para ARRAY de pacotes (um .mcaddon pode conter vários).
+  function readPackFile(f, depth) {
+    depth = depth || 0;
+    return f.arrayBuffer().then(function (ab) {
+      if (typeof JSZip === "undefined") throw new Error("JSZip não carregou. Recarregue a página.");
+      if (f.size > 50 * 1024 * 1024) throw new Error("pacote maior que 50 MB");
+      return JSZip.loadAsync(ab);
+    }).then(function (z) {
+      var manRel = null;
+      z.forEach(function (rel, e) {
+        if (!e.dir && !manRel && /(^|\/)manifest\.json$/i.test(rel)) manRel = rel;
+      });
+      if (manRel) return packFromZip(z, f, manRel).then(function (p) { return [p]; });
+      // sem manifest: pode ser .mcaddon (zip com .mcpack dentro)
+      if (depth > 0) throw new Error("não é addon válido (sem manifest.json)");
+      var inners = [];
+      z.forEach(function (rel, e) {
+        if (!e.dir && /\.mcpack$/i.test(rel)) inners.push(rel);
+      });
+      if (!inners.length) throw new Error("não é addon válido (sem manifest.json)");
+      if (inners.length > 10) throw new Error("mcaddon com pacotes demais (máx. 10)");
+      var jobs = inners.map(function (rel) {
+        return z.file(rel).async("blob").then(function (b) {
+          var nm = rel.split("/").pop() || "pack.mcpack";
+          var like = { name: nm, size: b.size, arrayBuffer: function () { return b.arrayBuffer(); } };
+          return readPackFile(like, depth + 1);
+        });
+      });
+      return Promise.all(jobs).then(function (lists) {
+        var flat = [];
+        lists.forEach(function (l) { flat = flat.concat(l); });
+        if (!flat.length) throw new Error("mcaddon vazio");
+        return flat;
+      });
+    });
+  }
+  if (packBtn) packBtn.addEventListener("click", function () { if (packInput) packInput.click(); });
+  if (packInput) packInput.addEventListener("change", function () {
+    var files = Array.prototype.slice.call(packInput.files || []);
+    files = files.filter(function (f) { return /\.(mcpack|mcaddon|zip)$/i.test(f.name || ""); });
+    if (!files.length) { setStatus("err", "Envie <b>.mcpack</b>, <b>.mcaddon</b> ou <b>.zip</b> de addon."); return; }
+    setStatus("", '<span class="spin"></span> Lendo pacote(s)…');
+    Promise.all(files.map(function (f) {
+      return readPackFile(f).catch(function (err) { throw new Error(escapeHtml(f.name) + ": " + escapeHtml((err && err.message) || err)); });
+    })).then(function (lists) {
+      revokePackIcons();
+      selectedPacks = [];
+      lists.forEach(function (l) { selectedPacks = selectedPacks.concat(l); });
+      paintPacks();
+      setStatus(null);
+    }).catch(function (err) {
+      setStatus("err", "Pacote inválido: " + (err && err.message));
     });
   });
 
@@ -628,13 +797,19 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
+    if (stripPacks && !prem) { lockedHint("Remover addons para voltar as conquistas é 100% VIP."); return; }
+    var addPacks = selectedPacks.map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
+    if (addPacks.length && !prem && addPacks.length > FREE_PACKS) {
+      lockedHint("Grátis: até " + FREE_PACKS + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
+      return;
+    }
 
     if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é VIP. No grátis, converta um por vez."); return; }
     // tamanho vale na hora do clique (o VIP pode ter expirado depois da seleção)
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
-      if (!remotePremOk()) lockedHint("Esse mundo passa de 10 MB (" + tooBig[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
+      if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
       else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }
@@ -697,6 +872,7 @@
       if (rl) { out.push((RULE_TXT[rl[1]] || rl[1]) + (rl[2] === "1" ? " ligado" : " desligado")); return; }
       if (/foto do mundo|world_icon/.test(c)) { out.push("foto do mundo atualizada"); return; }
       if (/addons removidos/.test(c)) { out.push("addons removidos (conquistas desbloqueadas dos packs)"); return; }
+      if (/addon instalado/.test(c)) { out.push(c.replace(/^addon instalado \(([^)]+)\)/, "pacote $1 instalado")); return; }
       if (/nome alterado/.test(c)) { out.push("mundo renomeado"); return; }
       if (/levelname\.txt/.test(c)) { out.push("nome em levelname.txt"); return; }
     });
@@ -713,6 +889,9 @@
       (res.warnings || []).forEach(function (w) {
         warn += "<br><span style='font-size:13px'>Atenção: <b>" + escapeHtml(w) + "</b></span>";
       });
+      if (addPacks.some(function (p) { return p.kind !== "resource"; })) {
+        warn += "<br><span style='font-size:13px'>Atenção: pacotes de <b>comportamento</b> instalados <b>bloqueiam conquistas</b> no jogo. Para jogar com conquistas, converta com <b>“Remover addons” (VIP)</b>.</span>";
+      }
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
         "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
         ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + warn + nudge);
@@ -740,7 +919,7 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -763,7 +942,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {

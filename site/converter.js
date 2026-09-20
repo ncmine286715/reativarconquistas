@@ -340,7 +340,7 @@
     try {
       var f = zip.file("world_behavior_packs.json");
       if (f) {
-        var arr = JSON.parse(await f.async("string"));
+        var arr = JSON.parse(String(await f.async("string") || "").replace(/^\uFEFF/, ""));
         if (arr && arr.length) active = arr.length;
       }
     } catch (e) {}
@@ -398,6 +398,32 @@
       throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Converta a imagem e tente de novo.");
     }
 
+    // Update limpo de addon: pastas antigas com o MESMO pack_id saem antes
+    // de copiar (senão o jogo acha 2 pastas do mesmo addon e o novo não entra).
+    var dropFolders = [];
+    var incomingPacks = opts.addPacks || [];
+    if (incomingPacks.length) {
+      var incomingIds = {};
+      incomingPacks.forEach(function (pk) { incomingIds[String(pk.pack.pack_id)] = 1; });
+      var manJobs = [];
+      zip.forEach(function (rel, entry) {
+        if (entry.dir) return;
+        var lowm = rel.toLowerCase();
+        if ((lowm.indexOf("behavior_packs/") === 0 || lowm.indexOf("resource_packs/") === 0) && baseNameOf(rel).toLowerCase() === "manifest.json") {
+          manJobs.push(entry.async("string").then(function (txt) {
+            try {
+              var m = JSON.parse(String(txt || "").replace(/^\uFEFF/, ""));
+              var id = m.header && (m.header.pack_id || m.header.uuid);
+              if (id && incomingIds[String(id)]) return rel.slice(0, rel.length - 13);
+            } catch (e) {}
+            return null;
+          }));
+        }
+      });
+      dropFolders = (await Promise.all(manJobs)).filter(Boolean);
+      dropFolders.forEach(function (d) { changes.push("addon antigo atualizado (" + d.replace(/\/$/, "") + ")"); });
+    }
+
     var out = new JSZip();
     var jobs = [];
     zip.forEach(function (rel, entry) {
@@ -408,6 +434,12 @@
       // do mundo (resource_packs ficam — visuais não bloqueiam conquistas).
       if (stripPacks && (low === "world_behavior_packs.json" || low === "world_behavior_pack_history.json" || low.indexOf("behavior_packs/") === 0)) {
         return;
+      }
+      // update limpo: pula arquivos das pastas antigas do mesmo addon
+      if (dropFolders.length) {
+        for (var dfi = 0; dfi < dropFolders.length; dfi++) {
+          if (rel.indexOf(dropFolders[dfi]) === 0) return;
+        }
       }
       // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
       if (iconBytes && (base === "world_icon.jpeg" || base === "world_icon.jpg" || base === "world_icon.png" || base === "pack_icon.png")) {
@@ -426,6 +458,51 @@
     await Promise.all(jobs);
     if (stripPacks && packCount > 0) {
       changes.push("addons removidos (pacotes de comportamento: " + packCount + ") — conquistas desbloqueadas dos packs");
+    }
+    // Instalar addons: copia os arquivos p/ behavior_packs|resource_packs e
+    // registra em world_behavior_packs.json|world_resource_packs.json.
+    // addPacks: [{folder, kind:'behavior'|'resource', files:{rel:u8}, pack:{pack_id, version, name}}]
+    var addPacks = opts.addPacks || [];
+    if (addPacks.length) {
+      var regNames = { behavior: "world_behavior_packs.json", resource: "world_resource_packs.json" };
+      var regs = { behavior: null, resource: null };
+      // carrega registros existentes do MUNDO (se houver)
+      var kinds = ["behavior", "resource"];
+      for (var ki = 0; ki < kinds.length; ki++) {
+        var rn = regNames[kinds[ki]];
+        var found = null;
+        zip.forEach(function (rel, entry) {
+          if (!entry.dir && !found && rel.toLowerCase() === rn) found = rel;
+        });
+        regs[kinds[ki]] = [];
+        if (found) {
+          try {
+            var txt = await zip.file(found).async("string");
+            var arr = JSON.parse(String(txt || "").replace(/^\uFEFF/, ""));
+            if (Array.isArray(arr)) regs[kinds[ki]] = arr;
+          } catch (e) {}
+        }
+      }
+      for (var pi = 0; pi < addPacks.length; pi++) {
+        var pk = addPacks[pi];
+        var pre = pk.kind === "resource" ? "resource_packs/" : "behavior_packs/";
+        var fns = Object.keys(pk.files);
+        for (var fi = 0; fi < fns.length; fi++) {
+          out.file(pre + pk.folder + "/" + fns[fi], pk.files[fns[fi]]);
+        }
+        var reg = regs[pk.kind] || (regs[pk.kind] = []);
+        var at = -1, di;
+        for (di = 0; di < reg.length; di++) {
+          if (reg[di] && reg[di].pack_id === pk.pack.pack_id) { at = di; break; }
+        }
+        // a versão registrada TEM que ser igual à da pasta (senão o jogo ignora)
+        var entry2 = { pack_id: pk.pack.pack_id, version: pk.pack.version };
+        if (at >= 0) reg[at] = entry2;
+        else reg.push(entry2);
+        changes.push("addon instalado (" + (pk.kind === "resource" ? "recursos" : "comportamento") + ": " + pk.pack.name + ")");
+      }
+      out.file(regNames.behavior, JSON.stringify(regs.behavior || [], null, 1));
+      out.file(regNames.resource, JSON.stringify(regs.resource || [], null, 1));
     }
     if (iconBytes) {
       out.file("world_icon.jpeg", iconBytes);
