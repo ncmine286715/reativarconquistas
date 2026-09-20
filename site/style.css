@@ -1271,3 +1271,10 @@ body {
     min-height: 46px;
   }
 }
+
+.pay-footer #payMsg {
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
