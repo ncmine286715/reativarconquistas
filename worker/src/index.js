@@ -330,8 +330,7 @@ export default {
         return json({ ok: true }, 200, cors);
       }
 
-      // ---------- Kiwify: compra aprovada -> libera VIP ----------
-      // Na Kiwify: produto -> Webhooks -> Adicionar: evento "Compra aprovada",
+      // ---------- Kiwify: compra aprovada -> libera VIP ----------      // Na Kiwify: produto -> Webhooks -> Adicionar: evento "Compra aprovada",
       // URL: https://<worker>/api/kiwify/webhook?secret=VALOR (VALOR = secret
       // KIWIFY_SECRET). Dias pelo produto: KIWIFY_PID_24H = 1, KIWIFY_PID_30D = 30.
       if (url.pathname === "/api/kiwify/webhook" && req.method === "POST") {
@@ -356,7 +355,9 @@ export default {
         if (!env.KIWIFY_PID_24H && !env.KIWIFY_PID_30D) {
           return json({ ok: true, granted: false, reason: "no_product_map" }, 200, cors);
         }
-        const days = pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H ? 1 : 30;
+        // Dias pelo ID do produto; se não bater, tenta pelo NOME ("24h" = 1 dia).
+        const pname = String((body.Product && (body.Product.product_name || body.Product.name)) || body.product_name || "").toLowerCase();
+        const days = (pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H) || /24\s*h/.test(pname) ? 1 : 30;
         if (oid) {
           const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
@@ -364,6 +365,13 @@ export default {
         const until = await grantPremium(env, email, "kiwify:" + (oid || Date.now()), days);
         if (oid) await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
         return json({ ok: true, granted: true, premium_until_ms: until, plan: days === 1 ? "vip24h" : "vip30" }, 200, cors);
+      }
+      // Visor do log Kiwify (só com o segredo): ver o que chegou.
+      if (url.pathname === "/api/kiwify/log" && req.method === "GET") {
+        if (!env.KIWIFY_SECRET || url.searchParams.get("secret") !== env.KIWIFY_SECRET) {
+          return json({ error: "forbidden" }, 403, cors);
+        }
+        return json({ items: (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [] }, 200, cors);
       }
 
       // ---------- premium por e-mail ----------

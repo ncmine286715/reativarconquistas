@@ -206,8 +206,15 @@
     return true;
   }
   function lockedHint(msg, plan) {
+    // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
+    // Sem Kiwify: abre o modal AbacatePay como antes.
+    var kw = "";
+    try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl(plan) || ""; } catch (e) {}
+    if (kw) {
+      setStatus("", escapeHtml(msg) + ' <a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>');
+      return;
+    }
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
-    // upsell direto: recurso VIP abre o popup de assinatura na hora
     try { if (window.RC_pay && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan); } catch (e) {}
   }
 

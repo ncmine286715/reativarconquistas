@@ -64,3 +64,20 @@ Var vazia = plano desligado (o site recebe 502 com mensagem clara).
 
 Segurança: o webhook **nunca** confia só no POST — reconfere cada cobrança
 na API do AbacatePay antes de liberar. Limite: 10 checkouts/hora por IP.
+
+## Kiwify (venda imediata, sem esperar o AbacatePay)
+
+1. Na Kiwify, crie os produtos (pagamento único) e anote o **ID de cada
+   produto** (UUID na página do produto, ex.: `93081353-...`).
+2. Em cada produto: **Webhooks → Adicionar** → evento **Compra aprovada** →
+   URL `https://<worker>/api/kiwify/webhook?secret=VALOR` (invente o VALOR).
+3. No Worker, grave o segredo e os IDs (dashboard → Variables, ou):
+   `wrangler secret put KIWIFY_SECRET` (o mesmo VALOR), e nas vars
+   `KIWIFY_PID_24H` / `KIWIFY_PID_30D` com os UUIDs. Depois `wrangler deploy`.
+4. No `site/config.js`, preencha `KIWIFY_URL_24H` / `KIWIFY_URL_30D` com os
+   links `pay.kiwify.com.br/...` — os botões passam a ir direto pra Kiwify.
+5. **Importante:** peça pro cliente pagar com o **mesmo e-mail da conta
+   Google** dele — é pelo e-mail que o VIP é liberado (webhook → KV).
+
+Reembolso/chargeback chegam no log (`klog`) mas **não revogam sozinhos**:
+confira e encerre manualmente se precisar.

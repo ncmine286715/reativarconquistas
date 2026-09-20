@@ -77,7 +77,7 @@
   }
 
   var PLANS = {
-    vip24h: { title: "Passe 24h", price: "R$ 4,90", cta: "Liberar por R$ 4,90",
+    vip24h: { title: "Passe 24h", price: "R$ 5,90", cta: "Liberar por R$ 5,90",
       sub: "VIP completo por <b>24 horas</b>: mundos gigantes + modo de jogo + foto + tempo/clima + lote. Ideal para resolver <b>aquele mundo grande</b> hoje." },
     vip30: { title: "VIP — 30 dias", price: "R$ 19,90", cta: "Assinar por R$ 19,90",
       sub: "Mundos <b>gigantes</b> (acima de 10 MB) + modo de jogo + manter inventário + foto do mundo + travar tempo e clima + lote. Pagamento seguro (Pix ou cartão) via AbacatePay." }
@@ -279,13 +279,31 @@
     }).catch(function () { return 0; });
   }
 
+  function kiwifyUrl(plan) {
+    var cfg = window.RC_CONFIG || {};
+    var u = plan === "vip24h" ? (cfg.KIWIFY_URL_24H || "") : (cfg.KIWIFY_URL_30D || "");
+    return /^https?:\/\//i.test(u) ? u : "";
+  }
+
+  // Entrada única de compra: Kiwify (link direto) se configurada,
+  // senão o modal AbacatePay. Retorna false se não há como pagar.
+  function checkout(plan, notice) {
+    plan = plan === "vip24h" ? "vip24h" : "vip30";
+    var kw = kiwifyUrl(plan);
+    if (kw) { location.href = kw; return true; }
+    if (!enabled()) return false;
+    openPayModal(notice || null, plan);
+    return true;
+  }
+
   function wire() {
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
-      if (!enabled()) { b.hidden = true; return; }
+      var plan = b.getAttribute("data-pay") === "vip24h" ? "vip24h" : "vip30";
+      if (!kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }
       b.hidden = false;
       b.addEventListener("click", function (e) {
         e.preventDefault();
-        openPayModal(null, b.getAttribute("data-pay"));
+        checkout(plan, null);
       });
     });
     document.addEventListener("keydown", function (e) {
@@ -296,6 +314,8 @@
   window.RC_pay = {
     enabled: enabled,
     openPayModal: openPayModal,
+    checkout: checkout,
+    kiwifyUrl: kiwifyUrl,
     checkReturn: checkReturn,
     remotePremiumMs: remotePremiumMs
   };

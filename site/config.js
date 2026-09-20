@@ -13,6 +13,10 @@ window.RC_CONFIG = {
   // URL do Worker Cloudflare (API de contas + pagamento).
   WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
-  PASS_24H_PRICE_LABEL: "R$ 4,90",
-  PREMIUM_DAYS: 30
+  PASS_24H_PRICE_LABEL: "R$ 6,90",
+  PREMIUM_DAYS: 30,
+  // Checkout Kiwify (venda imediata): links pay.kiwify.com.br de cada plano.
+  // Preenchido = botão vai direto p/ a Kiwify. Vazio = usa o modal AbacatePay.
+  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
+  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
 };
