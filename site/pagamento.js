@@ -18,10 +18,8 @@
   function req(path, opts) {
     opts = opts || {};
     opts.headers = opts.headers || {};
-    try {
-      var t = localStorage.getItem("rc_token") || "";
-      if (t) opts.headers.Authorization = "Bearer " + t;
-    } catch (e) {}
+    // O login atual é Firebase/Google. Não envie rc_token legado:
+    // uma sessão antiga poderia associar a cobrança ao e-mail errado.
     return fetch(base() + path, opts).then(function (res) {
       return res.text().then(function (txt) {
         var j = {};

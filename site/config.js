@@ -11,8 +11,8 @@ window.RC_CONFIG = {
   PRE_MAX_MB: 500,
   // Limites leves do grátis (margem pro VIP sem forçar):
   // mundos até FREE_MAX_MB (ou PROMO), 1 por vez, FREE_DAILY conversões/dia.
-  // Grátis: até 1 addon por mundo; acima disso é VIP.
-  // VIP = tudo ilimitado.
+  // FREE_MAX_PACKS = behavior packs existentes que o grátis pode remover.
+  // VIP = recursos liberados e sem quota diária; limite técnico PRE_MAX_MB.
   FREE_DAILY: 2,
   FREE_MAX_PACKS: 1,
   SUPPORT_EMAIL: "ncmine75@gmail.com",

@@ -6,7 +6,7 @@
 <title>Minha conta — ReativaConquistas</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="stylesheet" href="style.css">
-<script>document.documentElement.setAttribute("data-theme", "light"); try { localStorage.setItem("rc_theme", "light"); } catch (e) {}</script>
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
@@ -24,10 +24,10 @@
 </div>
 </div>
 </div>
-<script src="config.js?v=18"></script>
+<script src="config.js?v=20"></script>
 <script src="firebase-config.js?v=13"></script>
-<script src="auth.js?v=13"></script>
-<script src="pagamento.js?v=13"></script>
+<script src="auth.js?v=14"></script>
+<script src="pagamento.js?v=14"></script>
 <script>
 (function () {
   try {
@@ -56,6 +56,13 @@
     });
   }
   function show(html) { document.getElementById("box").innerHTML = html; }
+  function freeLimitLabel() {
+    try {
+      var c = window.RC_CONFIG || {};
+      var promo = c.PROMO_UNTIL && c.PROMO_MAX_MB && Date.now() < new Date(c.PROMO_UNTIL).getTime();
+      return (promo ? c.PROMO_MAX_MB : (c.FREE_MAX_MB || 10)) + " MB";
+    } catch (e) { return "o limite grátis atual"; }
+  }
   function render() {
     if (!window.RC_auth || !window.RC_auth.enabled) {
       show("<p class='sub'>Conta indisponível agora. Volte ao <a href='index.html#converter'>conversor</a>.</p>");
@@ -81,7 +88,7 @@
     var pending = emails.length, best = 0, okAny = false;
     if (!pending) {
       show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
-        "<p><b>Plano:</b> Grátis (mundos até 10 MB, 2 por dia)</p>" +
+        "<p><b>Plano:</b> Grátis (mundos até " + freeLimitLabel() + ", 2 por dia)</p>" +
         "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>");
       return;
     }
@@ -105,7 +112,7 @@
         show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
           "<p><b>Plano:</b> " + (prem
             ? "VIP até <b>" + new Date(best).toLocaleDateString("pt-BR") + "</b> · <a href='index.html#converter'><b>Ir converter</b></a>"
-            : "Grátis (mundos até 10 MB, 2 por dia)") + "</p>" +
+            : "Grátis (mundos até " + freeLimitLabel() + ", 2 por dia)") + "</p>" +
           (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>") +
           "<p class='sub'>Pagou com <b>outro e-mail</b> (ex.: na Kiwify)? <a href='#' id='linkEmail'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='retryVip'>Verificar de novo</a></p>");
         document.getElementById("retryVip").addEventListener("click", function (e) { e.preventDefault(); render(); });

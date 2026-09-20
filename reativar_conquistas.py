@@ -95,10 +95,13 @@ PREMIUM_PRODUCT_NAME = os.environ.get(
 FREE_PER_WEEK = int(os.environ.get("FREE_PER_WEEK", "1"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "100")) * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
-CSP_HTML = ("default-src 'self'; img-src 'self' data: blob:; "
-            "style-src 'self' 'unsafe-inline'; script-src 'self'; "
-            "connect-src 'self'; frame-ancestors 'none'; "
-            "base-uri 'self'; form-action 'self'")
+CSP_HTML = ("default-src 'self'; img-src 'self' data: blob: https:; "
+            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; "
+            "connect-src 'self' https://reativa-pay.rosidomingos032.workers.dev "
+            "https://*.googleapis.com https://*.firebaseapp.com; "
+            "frame-src https://*.firebaseapp.com https://accounts.google.com; "
+            "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")  # ex.: https://seudominio.com.br
 
@@ -1252,7 +1255,7 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 return
             length = int(self.headers.get("Content-Length", 0) or 0)
             if length > MAX_UPLOAD_BYTES + 8 * 1024 * 1024:
-                self._json(413, {"error": "Arquivo grande demais (max. 100 MB)."})
+                self._json(413, {"error": "Arquivo grande demais (max. %d MB)." % (MAX_UPLOAD_BYTES // (1024 * 1024))})
                 return
             body = self.rfile.read(length)
             fields = _parse_multipart(self.headers.get("Content-Type"), body)
@@ -1261,7 +1264,7 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 self._json(400, {"error": "Campo 'mcworld' nao enviado."})
                 return
             if len(file_field["data"]) > MAX_UPLOAD_BYTES:
-                self._json(413, {"error": "Arquivo grande demais (max. 100 MB)."})
+                self._json(413, {"error": "Arquivo grande demais (max. %d MB)." % (MAX_UPLOAD_BYTES // (1024 * 1024))})
                 return
             if not fields.get("accept_terms", {}).get("data"):
                 # aceita tambem via campo texto simples

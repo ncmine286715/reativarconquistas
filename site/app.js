@@ -341,7 +341,9 @@
       quotaBar.classList.remove("premium");
       var fl = freeLeft();
       var lim = freeLimitMB();
-      var promoTxt = promoOn() ? " <span class='promo-tag'>PROMO " + lim + "MB até dia 23/09</span>" : "";
+      var promoEnd = "";
+      try { promoEnd = new Date(CFG.PROMO_UNTIL).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch (e) {}
+      var promoTxt = promoOn() ? " <span class='promo-tag'>PROMO " + lim + "MB até " + promoEnd + "</span>" : "";
       quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" + promoTxt +
         (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
           : ". Mundos gigantes (acima de " + lim + " MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
@@ -558,12 +560,7 @@
     if (wantIcon.checked && !needPremium("Trocar a foto do mundo é VIP.")) wantIcon.checked = false;
   });
   var stripCb = $("stripPacks");
-  if (stripCb) stripCb.addEventListener("change", function () {
-    if (stripCb.checked && false) {
-      stripCb.checked = false;
-      needPremium("Remover addons para voltar as conquistas é 100% VIP.");
-    }
-  });
+  // O limite grátis real é validado no processamento via FREE_MAX_PACKS.
   // banner de promoção com prazo (some sozinho quando expira)
   (function promoBanner() {
     try {
@@ -643,7 +640,7 @@
   });
 
   /* ---------- instalar addons (.mcpack/.zip -> behavior/resource_packs) ---------- */
-  var FREE_PACKS = 2;
+  var FREE_INSTALL_PACKS = 2;
   var packInput = $("packFiles"), packBtn = $("packBtn"), packListEl = $("packList");
   var selectedPacks = [];
   function sanitizeFolder(s) {
@@ -840,10 +837,9 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
-    if (stripPacks && !prem && false) { lockedHint("Remover addons é grátis até 1 addon; acima disso o VIP libera sem limite."); return; }
     var addPacks = selectedPacks.map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
-    if (addPacks.length && !prem && addPacks.length > FREE_PACKS) {
-      lockedHint("Grátis: até " + FREE_PACKS + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
+    if (addPacks.length && !prem && addPacks.length > FREE_INSTALL_PACKS) {
+      lockedHint("Grátis: até " + FREE_INSTALL_PACKS + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
       return;
     }
 
@@ -852,7 +848,7 @@
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
-      if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.");
+      if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). O VIP aceita arquivos de até " + PRE_MAX_MB + " MB e libera os recursos avançados.");
       else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }

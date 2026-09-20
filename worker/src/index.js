@@ -64,6 +64,7 @@ const premKey = (email) => "prem:" + email.trim().toLowerCase();
 const pendKey = (id) => "pend:" + id;
 const acctKey = (email) => "acct:" + email.trim().toLowerCase();
 const sessKey = (t) => "sess:" + t;
+const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
 const SESS_TTL = 30 * 86400;
 
 function b64(bytes) {
@@ -250,13 +251,34 @@ async function depixStatus(env, id) {
 }
 
 async function grantPremium(env, email, billingId, days) {
-  days = days === 1 ? 1 : 30; // vip24h = 1 dia; resto = 30 dias
+  days = days === 1 ? 1 : 30;
   email = email.trim().toLowerCase();
+  billingId = String(billingId || "").trim().slice(0, 180);
   const now = Date.now();
+
+  // Polling e webhooks podem repetir a MESMA confirmação. Não some o plano
+  // novamente quando o ID da cobrança/pedido já foi processado.
+  if (billingId) {
+    const previous = await env.PREMIUM_KV.get(grantKey(billingId), "json").catch(() => null);
+    if (previous && previous.email === email && +previous.until > 0) return +previous.until;
+  }
+
   const cur = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
   let until = now + days * 86400000;
   if (cur && cur.until > now) until = cur.until + days * 86400000;
-  await env.PREMIUM_KV.put(premKey(email), JSON.stringify({ until, billing_id: billingId, granted_at: now }));
+
+  await env.PREMIUM_KV.put(
+    premKey(email),
+    JSON.stringify({ until, billing_id: billingId, granted_at: now })
+  );
+
+  if (billingId) {
+    await env.PREMIUM_KV.put(
+      grantKey(billingId),
+      JSON.stringify({ email, until, days, granted_at: now }),
+      { expirationTtl: 400 * 86400 }
+    ).catch(() => {});
+  }
   return until;
 }
 

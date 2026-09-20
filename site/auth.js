@@ -6,6 +6,8 @@
   function load(src) { return new Promise(function (ok, no) { var s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = function () { no(new Error("Falha ao carregar o Firebase")); }; document.head.appendChild(s); }); }
   function clearLocalVip() { try { localStorage.removeItem("rc_prem_remote"); localStorage.removeItem("rc_prem_email"); } catch (e) {} }
   function boot() {
+    // Migração: a autenticação atual usa Firebase; descarte sessão antiga do Worker.
+    try { localStorage.removeItem("rc_token"); } catch (e) {}
     var cfg = window.RC_FIREBASE || {};
     if (!cfg.apiKey) { state.ready = true; emit(); return; }
     load("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js").then(function () { return load("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"); }).then(function () {
