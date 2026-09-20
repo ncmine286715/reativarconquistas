@@ -332,9 +332,9 @@
           payStatus("Abrindo o checkout…");
           location.href = r.url;
         }).catch(function (err) {
-          logClient("create-" + n, (err && err.message) || err);
-          if (n < 2) { setTimeout(function () { attempt(n + 1); }, 1500); return; }
-          go.disabled = false; go.textContent = "Tentar de novo";
+          logClient("create-alt", (err && err.message) || err);
+          go.disabled = false;
+          go.textContent = PLANS[plan].cta;
           payStatus(friendlyErr(err), "err");
         });
       }
