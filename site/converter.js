@@ -324,6 +324,29 @@
     return found;
   }
 
+  // Addons: pacotes de comportamento PERSONALIZADOS (fora do Marketplace)
+  // bloqueiam conquistas no jogo, mesmo com o level.dat 100% limpo.
+  // (A Mojang só mantém conquistas com add-ons do Marketplace.)
+  // Detecta pastas behavior_packs/ e conta os ativos em world_behavior_packs.json.
+  async function scanBehaviorPacks(zip) {
+    var folders = [];
+    try {
+      zip.forEach(function (rel) {
+        var m = /^behavior_packs\/([^\/]+)/i.exec(rel);
+        if (m && folders.indexOf(m[1]) < 0) folders.push(m[1]);
+      });
+    } catch (e) {}
+    var active = 0;
+    try {
+      var f = zip.file("world_behavior_packs.json");
+      if (f) {
+        var arr = JSON.parse(await f.async("string"));
+        if (arr && arr.length) active = arr.length;
+      }
+    } catch (e) {}
+    return { folders: folders, active: active };
+  }
+
   async function convertMcworld(arrayBuffer, opts) {
     opts = opts || {};
     var gameMode = opts.gameMode || "survival";
@@ -336,6 +359,15 @@
     var zip = await JSZip.loadAsync(arrayBuffer);
     var levelName = findLevelName(zip);
     if (!levelName) throw new Error("level.dat não encontrado no .mcworld");
+    var packInfo = await scanBehaviorPacks(zip);
+    var stripPacks = !!opts.stripBehaviorPacks;
+    var warnings = [];
+    var packCount = packInfo.active || packInfo.folders.length;
+    if (!stripPacks && packCount > 0) {
+      warnings.push("addons: este mundo tem " + packCount + " pacote(s) de comportamento" +
+        (packInfo.folders.length ? " (" + packInfo.folders.slice(0, 4).join(", ") + (packInfo.folders.length > 4 ? ", …" : "") + ")" : "") +
+        " — pacotes personalizados BLOQUEIAM conquistas no jogo mesmo com o level.dat limpo. Remova no jogo (Editar mundo > Pacotes de comportamento) ou marque 'Remover addons' aqui e converta de novo.");
+    }
     var levelRaw = new Uint8Array(await zip.file(levelName).async("uint8array"));
 
     // gzip?
@@ -368,6 +400,12 @@
     zip.forEach(function (rel, entry) {
       if (entry.dir) return;
       var base = baseNameOf(rel);
+      var low = rel.toLowerCase();
+      // Remoção de addons: tira os pacotes de comportamento e os vínculos
+      // do mundo (resource_packs ficam — visuais não bloqueiam conquistas).
+      if (stripPacks && (low === "world_behavior_packs.json" || low === "world_behavior_pack_history.json" || low.indexOf("behavior_packs/") === 0)) {
+        return;
+      }
       // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
       if (iconBytes && (base === "world_icon.jpeg" || base === "world_icon.jpg" || base === "world_icon.png" || base === "pack_icon.png")) {
         return;
@@ -383,6 +421,9 @@
       jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
     });
     await Promise.all(jobs);
+    if (stripPacks && packCount > 0) {
+      changes.push("addons removidos (pacotes de comportamento: " + packCount + ") — conquistas desbloqueadas dos packs");
+    }
     if (iconBytes) {
       out.file("world_icon.jpeg", iconBytes);
       changes.push("foto do mundo atualizada (world_icon.jpeg)");
@@ -394,7 +435,7 @@
       if (!renamed.oldName && !renamed.changes.length) changes.push("nome em levelname.txt (LevelName não estava na raiz)");
     }
     var blob = await out.generateAsync({ type: "blob", compression: "STORE" });
-    return { blob: blob, changes: changes };
+    return { blob: blob, changes: changes, warnings: warnings, packInfo: packInfo };
   }
 
   window.RC_convert = convertMcworld;

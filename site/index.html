@@ -196,6 +196,14 @@
         </span>
       </label>
 
+      <label class="opt" id="stripOpt">
+        <input type="checkbox" id="stripPacks">
+        <span style="flex:1">
+          <b><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Remover addons (pacotes de comportamento)</b>
+          <em>Pacotes personalizados (fora do Marketplace) <b>bloqueiam conquistas no jogo</b> mesmo com o level.dat limpo. Marcando, o arquivo gerado sai sem eles. <b>O original fica intacto.</b> Atenção: se o mundo depende dos addons (blocos/itens deles), esse conteúdo some no arquivo novo.</em>
+        </span>
+      </label>
+
         </div>
       </details>
 
@@ -339,7 +347,7 @@
       <div class="step"><b>2.</b> Só isso muda - mapa e inventário intactos, arquivo validado.</div>
       <div class="step"><b>3.</b> Abra em Sobrevivência, cheats desligados. Conquistas seguem as regras da Mojang.</div>
     </div>
-    <div class="warn"><b>Sem promessa de resultado:</b> nenhum serviço de terceiros pode garantir que a Mojang/Microsoft vai liberar conquistas. O que garantimos: arquivo íntegro, no mesmo formato, com os flags corrigidos e validado — ou vale a <a href="reembolso.html">política de reembolso</a> (7 dias, art. 49 do CDC).</div>
+    <div class="warn"><b>Sem promessa de resultado:</b> nenhum serviço de terceiros pode garantir que a Mojang/Microsoft vai liberar conquistas. O que garantimos: arquivo íntegro, no mesmo formato, com os flags corrigidos e validado — ou vale a <a href="reembolso.html">política de reembolso</a> (7 dias, art. 49 do CDC). <b>Importante:</b> pacotes de comportamento personalizados (addons fora do Marketplace) bloqueiam conquistas no próprio jogo — o diagnóstico avisa quando há, e a opção <b>“Remover addons”</b> tira eles do arquivo gerado.</div>
   </section>
 
   <section class="section" id="faq">
@@ -350,7 +358,7 @@
     <details class="faq"><summary>Meus arquivos vão para algum servidor?</summary><p>Não. Tudo roda no navegador; só conta e pagamento usam servidor.</p></details>
     <details class="faq"><summary>Vale a pena o VIP?</summary><p>Se seus mundos passam de <b>10 MB</b>, sim — só o VIP abre gigantes. E ainda leva modo de jogo, foto do mundo, tempo/clima e lote. Até 10 MB, o grátis já resolve tudo.</p></details>
     <details class="faq"><summary>Como assino o VIP?</summary><p>Pagar com Pix, checkout, libera na conta na hora. Não liberou? chama no e-mail com o comprovante.</p></details>
-    <details class="faq"><summary>E se não funcionar?</summary><p>Confira: Sobrevivência, cheats desligados, sem behavior pack, jogo atualizado. Defeito nosso: reembolso em 7 dias.</p></details>
+    <details class="faq"><summary>E se não funcionar?</summary><p>Confira: Sobrevivência, cheats desligados, jogo atualizado — e <b>sem pacotes de comportamento personalizados</b> (addons fora do Marketplace bloqueiam conquistas mesmo com o level.dat limpo; marque <b>“Remover addons”</b> no passo 2 e converta de novo). Defeito nosso: reembolso em 7 dias.</p></details>
     <details class="faq"><summary>Como cancelo o VIP?</summary><p>Não precisa: pré-pago, expira sozinho em 30 dias.</p></details>
     <details class="faq"><summary>Onde acho o arquivo .mcworld?</summary><p>No jogo: lápis do mundo, Exportar. Aceitamos .mcworld, .zip ou level.dat avulso.</p></details>
   </section>
@@ -374,10 +382,10 @@
 <script src="vendor/jszip.min.js?v=13"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="config.js?v=13"></script>
-<script src="converter.js?v=13"></script>
+<script src="converter.js?v=14"></script>
 <script src="pixel-icons.js?v=13"></script>
-<script src="ferramentas-local.js?v=13"></script>
-<script src="app.js?v=13"></script>
+<script src="ferramentas-local.js?v=14"></script>
+<script src="app.js?v=14"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=13"></script>
 <script src="pagamento.js?v=13"></script>

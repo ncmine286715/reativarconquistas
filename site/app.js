@@ -69,6 +69,16 @@
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
 
+  /* ---------- addons: pacotes de comportamento bloqueiam conquistas ---------- */
+  function packCount(rep) {
+    if (!rep || !rep.behaviorPacks) return 0;
+    return rep.behaviorPacks.active || (rep.behaviorPacks.folders || []).length;
+  }
+  function packNames(rep) {
+    if (!rep || !rep.behaviorPacks) return "";
+    return (rep.behaviorPacks.folders || []).slice(0, 4).join(", ");
+  }
+
   /* ---------- menu hambúrguer / drawer ---------- */
   (function drawer() {
     var hamb = $("hamb"), dr = $("drawer"), bg = $("drawerBg"), x = $("drawerClose");
@@ -367,6 +377,8 @@
     $("wiSpawn").textContent = (rep.spawn && rep.spawn[0] !== null && rep.spawn[0] !== undefined) ? rep.spawn.join(", ") : "—";
     var st = rep.alreadyClean ? "pronto p/ conquistas" : (rep.wouldChange.length + " ajuste(s) pendente(s)");
     if (rep.locked && (rep.locked.hasLockedBehaviorPack || []).indexOf(1) >= 0) st += " · pack travado!";
+    var pc = packCount(rep);
+    if (pc > 0) st += " · " + pc + " addon(s) — bloqueiam conquistas!";
     if (multi) st += " (1º de " + multi + ")";
     $("wiStatus").textContent = st;
   }
@@ -389,6 +401,8 @@
       if (df) t += " · dificuldade " + df;
       if (rep.seed && rep.seed.length) t += " · seed " + rep.seed[0];
       if (rep.spawn && rep.spawn[0] !== null && rep.spawn[0] !== undefined) t += " · spawn (" + rep.spawn.join(", ") + ")";
+      var pc0 = packCount(rep);
+      if (pc0 > 0) t += " · " + pc0 + " addon(s) ativo(s) — BLOQUEIAM conquistas!";
       if (selectedList.length > 1) t += " (1º de " + selectedList.length + ")";
       box.textContent = t;
     }).catch(function () { if (my === raioXSeq) { box.hidden = true; paintWorldInfo(null); } });
@@ -590,6 +604,8 @@
     if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é VIP."); return; }
     if (wantsKeep && !prem) { lockedHint("Manter inventário ao morrer é VIP."); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
+    var stripEl = $("stripPacks");
+    var stripPacks = !!(stripEl && stripEl.checked);
 
     if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é VIP. No grátis, converta um por vez."); return; }
     // tamanho vale na hora do clique (o VIP pode ter expirado depois da seleção)
@@ -642,20 +658,25 @@
       var rl = /\((keepinventory|showcoordinates|dodaylightcycle|doweathercycle)\) = \d+ -> (\d)/.exec(c);
       if (rl) { out.push((RULE_TXT[rl[1]] || rl[1]) + (rl[2] === "1" ? " ligado" : " desligado")); return; }
       if (/foto do mundo|world_icon/.test(c)) { out.push("foto do mundo atualizada"); return; }
+      if (/addons removidos/.test(c)) { out.push("addons removidos (conquistas desbloqueadas dos packs)"); return; }
       if (/nome alterado/.test(c)) { out.push("mundo renomeado"); return; }
       if (/levelname\.txt/.test(c)) { out.push("nome em levelname.txt"); return; }
     });
     return out.join(" · ");
   }
 
-  function finishSingle(outName, f, res, iconBytes) {
+    function finishSingle(outName, f, res, iconBytes) {
       downloadBlob(res.blob, outName);
       paintQuota();
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
+      var warn = "";
+      (res.warnings || []).forEach(function (w) {
+        warn += "<br><span style='font-size:13px'>Atenção: <b>" + escapeHtml(w) + "</b></span>";
+      });
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
         "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
-        ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + nudge);
+        ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + warn + nudge);
       submit.disabled = false;
     }
 
@@ -680,12 +701,16 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
         paintQuota();
-        setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>.");
+        var bwarn = "";
+        var bpacks = results.filter(function (r) { return (r.warnings || []).length; }).length;
+        if (bpacks > 0 && !stripPacks) bwarn = "<br><span style='font-size:13px'>Atenção: <b>" + bpacks + " arquivo(s) têm addons (pacotes de comportamento)</b> que bloqueiam conquistas no jogo. Marque <b>“Remover addons”</b> no passo 2 e converta de novo.</span>";
+        if (stripPacks) bwarn = "<br><span style='font-size:13px'>Addons (pacotes de comportamento) removidos dos arquivos.</span>";
+        setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {
         setStatus("err", friendlyFileErr(err));
@@ -698,7 +723,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
@@ -741,12 +766,18 @@
       // gatilho contextual: mundo em Criativo/Aventura + usuário grátis
       var vipMode = (!isPremiumAny() && (rep.gameType || []).filter(function (g) { return +g !== 0 && String(g).indexOf("tag") !== 0; }).length)
         ? "<br>Quer <b>manter o Criativo/Aventura</b> em vez de ir para Sobrevivência? Só o <a href='#planos'><b>VIP</b></a> permite." : "";
+      // addons: o level.dat pode estar limpo e as conquistas continuarem
+      // bloqueadas por pacotes de comportamento personalizados
+      var pcD = packCount(rep);
+      var packTxt = pcD > 0
+        ? "<br>Pacotes de comportamento (addons): <b>" + pcD + " ativo(s)" + (packNames(rep) ? " (" + escapeHtml(packNames(rep)) + (((rep.behaviorPacks.folders || []).length > 4) ? ", …" : "") + ")" : "") + "</b> — addons personalizados <b>BLOQUEIAM conquistas no jogo</b> mesmo com o level.dat limpo. Marque <b>“Remover addons”</b> no passo 2 antes de converter (o original fica intacto)."
+        : "";
       setStatus("", "Diagnóstico de <b>" + escapeHtml(f.name) + "</b> — <b>nada foi alterado</b>:<br>· " + det +
         ((rep.worldName && rep.worldName[0]) ? "<br>Nome no level.dat: <b>" + escapeHtml(rep.worldName[0]) + "</b>" : "") +
         ((rep.seed && rep.seed[0]) ? "<br>Seed: <b>" + escapeHtml(rep.seed[0]) + "</b>" : "") +
         (rep.gameType.length ? "<br>Modo atual (GameType): <b>" + rep.gameType.join(", ") + "</b> (0 = Sobrevivência, 1 = Criativo)" : "") +
         (rep.difficulty && rep.difficulty.length ? "<br>Dificuldade atual: <b>" + diffName(rep.difficulty[0]) + "</b>" : "") +
-        (grTxt ? "<br>Regras: " + grTxt : "") + lockedTxt + vipMode +
+        (grTxt ? "<br>Regras: " + grTxt : "") + lockedTxt + vipMode + packTxt +
         "<br><br>Aperte <b>Corrigir meu mundo</b> para aplicar.");
     }).catch(function (err) {
       diagBtn.disabled = false;

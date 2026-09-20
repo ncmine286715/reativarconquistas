@@ -30,10 +30,27 @@
       if ((low === "level.dat" || low.endsWith("/level.dat")) && !levelName) levelName = rel;
     });
     if (!levelName) throw new Error("level.dat não encontrado no .mcworld");
+    // Addons ativos bloqueiam conquistas mesmo com flags limpas — detecta aqui
+    // para o diagnóstico avisar (pastas + ativos em world_behavior_packs.json).
+    var packFolders = [];
+    try {
+      zip.forEach(function (rel) {
+        var m = /^behavior_packs\/([^\/]+)/i.exec(rel);
+        if (m && packFolders.indexOf(m[1]) < 0) packFolders.push(m[1]);
+      });
+    } catch (e) {}
+    var packActive = 0;
+    try {
+      var wbp = zip.file("world_behavior_packs.json");
+      if (wbp) {
+        var arr = JSON.parse(await wbp.async("string"));
+        if (arr && arr.length) packActive = arr.length;
+      }
+    } catch (e) {}
     var raw = u8(await zip.file(levelName).async("uint8array"));
     var wasGzip = raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b;
     if (wasGzip) raw = await NBT.gunzipAsync(raw);
-    return { raw: raw, levelName: levelName, wasGzip: wasGzip };
+    return { raw: raw, levelName: levelName, wasGzip: wasGzip, packs: { folders: packFolders, active: packActive } };
   }
 
   function summarizeHits(hits) {
@@ -92,6 +109,7 @@
       ok: true,
       levelName: got.levelName,
       wasGzip: got.wasGzip,
+      behaviorPacks: got.packs || { folders: [], active: 0 },
       header: !!split.meta.header,
       flags: s.flags,
       locked: s.locked,
@@ -124,6 +142,7 @@
       var s = summarizeHits(hits);
       return {
         ok: true, levelName: filename, wasGzip: wasGzip,
+        behaviorPacks: { folders: [], active: 0 },
         header: !!split.meta.header,
         flags: s.flags, locked: s.locked, gameType: s.gameType, difficulty: s.difficulty,
         seed: s.seed, worldName: s.levelName, spawn: s.spawn, gamerules: s.gamerules,
@@ -178,7 +197,7 @@
       } else {
         res = await window.RC_convert(ab, opts);
       }
-      results.push({ file: f, outName: isDat ? f.name.replace(/\.dat$/i, "") + "-conquistas.dat" : baseName(f.name), blob: res.blob, changes: res.changes });
+      results.push({ file: f, outName: isDat ? f.name.replace(/\.dat$/i, "") + "-conquistas.dat" : baseName(f.name), blob: res.blob, changes: res.changes, warnings: res.warnings || [] });
       // cede o event loop entre arquivos grandes
       await new Promise(function (r) { setTimeout(r, 0); });
     }
