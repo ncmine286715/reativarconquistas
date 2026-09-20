@@ -854,6 +854,21 @@
       lockedHint("Você usou as " + FREE_DAILY + " conversões grátis de hoje. O VIP é ilimitado, sem espera.", "vip30");
       return;
     }
+    // Botão único: chunks + player entram no MESMO arquivo, se marcados
+    var wantChunks = !!(window.RC_reset && window.RC_reset.selCount() > 0);
+    var wantPlayer = !!(window.RC_player && window.RC_player.hasEdits());
+    if ((wantChunks || wantPlayer) && (batch || /\.dat$/i.test(selected.name || ""))) {
+      setStatus("err", "Reset de chunks e player gemado funcionam com <b>1 .mcworld por vez</b> (não no lote nem em level.dat avulso).");
+      return;
+    }
+    if (wantChunks) {
+      var cerr = window.RC_reset.preflight();
+      if (cerr) { setStatus("err", cerr); return; }
+    }
+    if (wantPlayer) {
+      var perr = window.RC_player.preflight();
+      if (perr) { setStatus("err", perr); return; }
+    }
     function packLimitOf(err) {
       var g = /^PACK_LIMIT\|(\d+)\|(\d+)/.exec(String((err && err.message) || err || ""));
       return g ? { packs: +g[1], limit: +g[2] } : null;
@@ -911,7 +926,7 @@
     return out.join(" · ");
   }
 
-    function finishSingle(outName, f, res, iconBytes) {
+    function finishSingle(outName, f, res, iconBytes, extras) {
       downloadBlob(res.blob, outName);
       if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
       paintQuota();
@@ -924,8 +939,9 @@
       if (addPacks.some(function (p) { return p.kind !== "resource"; })) {
         warn += "<br><span style='font-size:13px'>Atenção: pacotes de <b>comportamento</b> instalados <b>bloqueiam conquistas</b> no jogo. Para jogar com conquistas, converta com <b>“Remover addons” (VIP)</b>.</span>";
       }
+      var extraTxt = (extras && extras.length) ? "<br>" + extras.map(function (x) { return "· " + escapeHtml(x); }).join(" ") : "";
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
-        "</b><br>" + escapeHtml(summarizeChanges(res.changes)) +
+        "</b><br>" + escapeHtml(summarizeChanges(res.changes)) + extraTxt +
         ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + warn + nudge);
       submit.disabled = false;
     }
@@ -978,7 +994,32 @@
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
-      finishSingle(baseName(selected.name), selected, both.res, both.iconBytes);
+      var chain = Promise.resolve(both.res.blob);
+      var extras = [];
+      if (wantChunks) {
+        chain = chain.then(function (b) {
+          setStatus("", '<span class="spin"></span> Aplicando reset de chunks…');
+          return window.RC_reset.applyToBlob(b);
+        }).then(function (r) {
+          extras.push(r.nChunks + " chunk(s) resetado(s)" + (r.vilDel ? " (+" + r.vilDel + " de vila)" : ""));
+          if (!premUnlimited) window.RC_reset.useFree();
+          return r.blob;
+        });
+      }
+      if (wantPlayer) {
+        chain = chain.then(function (b) {
+          setStatus("", '<span class="spin"></span> Aplicando player…');
+          return window.RC_player.applyToBlob(b);
+        }).then(function (r) {
+          extras.push("player com " + r.occ + " item(ns)");
+          if (!premUnlimited) { try { window.RC_dbx.useFreePlayer(); } catch (e) {} }
+          return r.blob;
+        });
+      }
+      return chain.then(function (finalBlob) {
+        both.res.blob = finalBlob;
+        finishSingle(baseName(selected.name), selected, both.res, both.iconBytes, extras);
+      });
     }).catch(function (err) {
       if (packLimitHint(err)) return;
       setStatus("err", friendlyFileErr(err));

@@ -35,18 +35,23 @@
     if (c) {
       var n = selCount(), free = 8;
       try { if (window.RC_dbx && window.RC_dbx.limits) free = window.RC_dbx.limits.freeResetChunks; } catch (e) {}
-      c.innerHTML = n ? ("<b>" + n + " chunk(s)</b> selecionado(s)" + (n > free && !window.RC_dbx.vipOk() ? " · grátis até <b>" + free + "</b>" : "")) : "nenhum chunk selecionado — use <b>▦ Selecionar</b> no mapa";
+      c.innerHTML = n ? ("<b>" + n + " pintado(s)</b>" + (n > free && !window.RC_dbx.vipOk() ? " · grátis até <b>" + free + "</b>" : "")) : "nada pintado ainda";
     }
     var an = $("analyzeBtn"), rs = $("resetBtn");
     if (an) an.disabled = !selCount();
     if (rs) rs.disabled = !selCount();
     try { if (window.RC_mapDraw) window.RC_mapDraw(); } catch (e) {}
   }
-  // chamado pelo mapa quando a seleção muda
+  // chamado pelo mapa quando a seleção muda (análise automática, sem botão)
+  var analyzeTimer = null;
   window.RC_selChanged = function () {
     analysis = null;
     var ar = $("analysisBox"); if (ar) { ar.hidden = true; ar.innerHTML = ""; }
     paintSelUI();
+    if (analyzeTimer) clearTimeout(analyzeTimer);
+    if (window.RC_sel.size && curFile) {
+      analyzeTimer = setTimeout(function () { try { analyze(); } catch (e) {} }, 900);
+    }
   };
   window.RC_selMsg = status;
 
@@ -390,6 +395,138 @@
     paintSelUI();
   }
 
+  /* ---------- núcleo reutilizável (botão único) ---------- */
+  function hexOf(u8) {
+    var h = "";
+    for (var q = 0; q < u8.length; q++) h += (u8[q] < 16 ? "0" : "") + u8[q].toString(16);
+    return h;
+  }
+  function preflightChunks() {
+    if (!curFile) return "Escolha o <b>.mcworld</b> primeiro (passo 1).";
+    if (!selCount()) return null; // nada marcado = pula sem erro
+    if (!window.RC_dbx || !window.RC_nbt2 || !window.RC_ldbw) return "Módulos ainda carregando. Aguarde e toque de novo.";
+    if (!analysis) return "Analisando a seleção, aguarde 2s e toque de novo.";
+    var vip = window.RC_dbx.vipOk();
+    var freeN = window.RC_dbx.limits.freeResetChunks;
+    if (!vip) {
+      if (selCount() > freeN) return window.RC_dbx.vipNeed("Grátis: até " + freeN + " chunks por dia (" + selCount() + " selecionados). O VIP é ilimitado.").html;
+      if (window.RC_dbx.freeResetLeft() <= 0) return window.RC_dbx.vipNeed("Você já usou seu reset grátis de hoje. O VIP reseta sem limite, todo dia.").html;
+    }
+    var ack = $("resetAck");
+    if (ack && !ack.checked) return "Marque <b>“Backup feito”</b> no reset.";
+    if (selCount() > MAX_CHUNKS) return "Acima do limite (" + MAX_CHUNKS + "). Divida em partes.";
+    return null;
+  }
+  // coleta ops de delete p/ a seleção (chunks + digp + atores + vilas)
+  function collectChunkOps(data, sel) {
+    var ops = [], targetHex = {}, vilKeys = [], vilDel = 0;
+    function delAll(kv) {
+      var vs = window.RC_dbx.keyVariants(kv);
+      for (var q = 0; q < vs.length; q++) {
+        ops.push({ t: "del", k: vs[q] });
+        targetHex[hexOf(vs[q])] = 1;
+      }
+    }
+    var entries = Array.from(data.db.keys.entries());
+    var i = 0, n = entries.length;
+    function step() {
+      var end = Math.min(n, i + 8000);
+      for (; i < end; i++) {
+        var kv = entries[i][1];
+        if (!kv || kv === false) continue;
+        var b = null;
+        try { b = kv.keyBytes; } catch (e) { continue; }
+        if (!b) continue;
+        var c = window.RC_dbx.parseChunkKey(b);
+        if (c && sel.has(c.dim + ":" + c.cx + "," + c.cz)) { delAll(kv); continue; }
+        var dg = window.RC_dbx.parseDigp(b);
+        if (dg && sel.has(dg.dim + ":" + dg.cx + "," + dg.cz)) { delAll(kv); continue; }
+        if (asciiPrefix(b, "village_")) { vilKeys.push(kv); continue; }
+      }
+      if (i < n) return tick().then(step);
+      return null;
+    }
+    return step().then(function () {
+      var wantActors = {};
+      ((analysis && analysis.digpKeys) || []).forEach(function (dg) {
+        var v = dg.val || new Uint8Array(0);
+        for (var o = 0; o + 8 <= v.length; o += 8) wantActors[Array.from(v.subarray(o, o + 8)).join(",")] = 1;
+      });
+      Object.keys((analysis && analysis.sweep.ids) || {}).forEach(function (id) { wantActors[id] = 1; });
+      var ids = Object.keys(wantActors);
+      if (ids.length) {
+        for (var j = 0; j < entries.length; j++) {
+          var kv = entries[j][1];
+          if (!kv || kv === false) continue;
+          var b = null;
+          try { b = kv.keyBytes; } catch (e) { continue; }
+          if (!b || b.length < 19 || b[0] !== 97) continue;
+          var tail = Array.from(b.subarray(b.length - 8)).join(",");
+          var hit = wantActors[tail] ? tail : null;
+          if (!hit) {
+            try {
+              var ks = kv.key;
+              if (ks && ks.length >= 8) {
+                var t2 = [];
+                for (var q2 = ks.length - 8; q2 < ks.length; q2++) t2.push(ks.charCodeAt(q2) & 255);
+                var tail2 = t2.join(",");
+                if (wantActors[tail2]) hit = tail2;
+              }
+            } catch (e2) {}
+          }
+          if (hit) { delAll(kv); delete wantActors[tail]; try { delete wantActors[t2]; } catch (e3) {} }
+        }
+      }
+      var vilGroups = {};
+      vilKeys.forEach(function (kv) {
+        var g = villageGroup(kv);
+        (vilGroups[g] = vilGroups[g] || []).push(kv);
+      });
+      Object.keys(vilGroups).forEach(function (g) {
+        if (groupHitsSelection(vilGroups[g], sel)) {
+          vilGroups[g].forEach(function (kv) { delAll(kv); vilDel++; });
+        }
+      });
+      return { ops: ops, vilDel: vilDel, targetHex: targetHex };
+    });
+  }
+  // aplica o reset em cima de um blob (pós-conversor) — sem baixar
+  function applyToBlobChunks(blob) {
+    var sel = new Set(window.RC_sel), data;
+    return window.RC_dbx.openFromBlob(blob).then(function (d) {
+      data = d;
+      return collectChunkOps(data, sel);
+    }).then(function (col) {
+      if (!col.ops.length) throw new Error("Nada a apagar (seleção sem dados).");
+      var upd = window.RC_ldbw.buildDbUpdate({
+        manifestBytes: data.manifestBytes, manifestName: data.manifestName,
+        nextFile: data.nextFile, lastSeq: data.lastSeq, logNumber: data.logNumber, ops: col.ops
+      });
+      return window.RC_dbx.assemble(data, upd.newManifestBytes, upd.logName, upd.logBytes).then(function (b2) {
+        return { blob: b2, col: col };
+      });
+    }).then(function (r) {
+      return r.blob.arrayBuffer().then(function (ab) {
+        return window.RC_dbx.openFromBlob(new Blob([ab])).then(function (db2) {
+          var left = 0;
+          for (var kv of db2.keys.values()) {
+            if (!kv || kv === false) continue;
+            var vs = window.RC_dbx.keyVariants(kv);
+            for (var q = 0; q < vs.length; q++) {
+              if (r.col.targetHex[hexOf(vs[q])]) { left++; break; }
+            }
+          }
+          if (left) throw new Error("validação falhou (" + left + " chaves restaram).");
+          return { blob: r.blob, delCount: r.col.ops.length, vilDel: r.col.vilDel, nChunks: sel.size };
+        });
+      });
+    });
+  }
+  window.RC_reset = {
+    preflight: preflightChunks, applyToBlob: applyToBlobChunks,
+    selCount: selCount, useFree: function () { try { window.RC_dbx.useFreeReset(); } catch (e) {} }
+  };
+
   function doReset() {
     if (!curFile) { status("Escolha o <b>.mcworld</b> primeiro (passo 1)."); return; }
     if (!selCount()) return;
@@ -602,7 +739,7 @@
         var mp = $("mapPreview");
         if (mp) mp.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (e2) {}
-      status("Modo <b>▦ Selecionar</b> ativado no mapa: <b>clique</b> alterna um chunk, <b>arraste</b> marca a área. Depois rode <b>Analisar</b> (grátis).");
+      status("Pincel ativado: <b>toque ou arraste</b> no mapa. A análise roda sozinha.");
     });
     var cl = $("selClearBtn");
     if (cl) cl.addEventListener("click", function () {

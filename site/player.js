@@ -9,6 +9,7 @@
   "use strict";
 
   var curFile = null, dbData = null, pKey = null, pBytes = null, tree = null;
+  var playerDirty = false; // true após qualquer toque do usuário (p/ o botão único)
   var model = null; // {inv:[36], armor:[5], ender:[27], off:[?] , selected, level, dirtyLists}
   var orig = null;  // nós originais p/ recodificar slots intocados
   var itemDB = null, editSlot = null; // {area, idx}
@@ -164,6 +165,7 @@
     pKey = c.sk;
     var pr = N.parse(pBytes);
     tree = pr.root;
+    playerDirty = false;
     model = { inv: [], armor: [], ender: [], off: null, selected: 0, level: 0, gameMode: null };
     orig = { inv: null, armor: null, ender: null, off: null, mainhand: null };
     var g;
@@ -345,6 +347,7 @@
     else if (area === "ender") model.ender[idx] = it;
     else if (area === "off") model.off[0] = it;
     it._node = null; // recodificar do zero
+    playerDirty = true;
     paintAll();
   }
 
@@ -505,6 +508,7 @@
     status("Kit aplicado no rascunho" + (skipped ? " (hotbar grátis; <b>armadura do kit é VIP</b>)" : "") + ". Confira os slots e aperte <b>Salvar player</b> para gravar no mundo.");
   }
   function setSlotRaw(area, idx, it) {
+    playerDirty = true;
     it._node = null;
     if (area === "inv") model.inv[idx] = it;
     else if (area === "armor") model.armor[idx] = it;
@@ -678,6 +682,97 @@
     });
   }
 
+  /* ---------- núcleo reutilizável (botão único) ---------- */
+  function hasEdits() { return !!(model && playerDirty); }
+  function preflightPlayer() {
+    if (!curFile || !model) return "Escolha o <b>.mcworld</b> e monte o player.";
+    if (!window.RC_ldbw || !window.RC_dbx) return "Módulos ainda carregando. Aguarde e toque de novo.";
+    var vip = window.RC_dbx.vipOk();
+    if (!vip) {
+      var armorUsed = model.armor.slice(0, 4).some(function (x) { return x.name; });
+      var enderUsed = model.ender.some(function (x) { return x.name; });
+      var lvlChanged = model.level !== (orig.level || 0);
+      if (armorUsed || enderUsed || lvlChanged) {
+        return window.RC_dbx.vipNeed("Grátis: hotbar completa. Armadura, ender chest e nível de XP são VIP.").html;
+      }
+      for (var s = 0; s < 36; s++) {
+        if (model.inv[s].name) {
+          var oe = overEnchant(model.inv[s]);
+          if (oe) return window.RC_dbx.vipNeed("Grátis: encantos até o máximo vanilla (" + esc(enchName(oe.id)) + " " + oe.mx + "). Nv " + oe.lvl + " é VIP (até 255).").html;
+        }
+      }
+      if (window.RC_dbx.freePlayerLeft() <= 0) {
+        return window.RC_dbx.vipNeed("Você usou seus 2 saves grátis de player hoje. O VIP salva sem limite.").html;
+      }
+    }
+    var ack = $("playerAck");
+    if (ack && !ack.checked) return "Marque <b>“Backup feito”</b> no player.";
+    return null;
+  }
+  function playerKeyBytesIn(data) {
+    for (var e of data.db.keys) {
+      if (e[0] === pKey) {
+        try { return e[1].keyBytes.slice(); } catch (x) { break; }
+      }
+    }
+    var b = new Uint8Array(pKey.length);
+    for (var i = 0; i < pKey.length; i++) b[i] = pKey.charCodeAt(i);
+    return b;
+  }
+  // monta o put do player a partir do rascunho (mesma lógica do salvar avulso)
+  function buildPlayerPut() {
+    var N = T(), nb;
+    try { nb = buildNewPlayerBytes(); }
+    catch (e) { throw new Error("montagem: " + e.message); }
+    var out = pBytes;
+    var pr = N.parse(out).root;
+    out = spliceOrInsert(out, pr, "Inventory", nb.inv); pr = N.parse(out).root;
+    out = spliceOrInsert(out, pr, "Armor", nb.armor); pr = N.parse(out).root;
+    out = spliceOrInsert(out, pr, "EnderChestInventory", nb.ender); pr = N.parse(out).root;
+    if (nb.off) { out = spliceOrInsert(out, pr, "OffHand", nb.off); pr = N.parse(out).root; }
+    if (orig.mainhand) { out = spliceOrInsert(out, pr, "Mainhand", nb.mainhand); pr = N.parse(out).root; }
+    var lv = N.get(pr, "PlayerLevel");
+    if (lv && lv.v !== model.level) {
+      var lvB = N.encodeNamed({ t: 3, n: "PlayerLevel", v: model.level | 0 });
+      out = N.splice(out, lv, lvB); pr = N.parse(out).root;
+    }
+    N.parse(out);
+    var chk = N.parse(out).root;
+    var invN = N.get(chk, "Inventory");
+    var occ = invN.v.items.filter(function (it) { return it.v.map.Name && it.v.map.Name.v; }).length;
+    return { bytes: out, occ: occ };
+  }
+  // aplica o rascunho em cima de um blob (pós-conversor/pós-chunks) — sem baixar
+  function applyToBlob(blob) {
+    var data;
+    return window.RC_dbx.openFromBlob(blob).then(function (d) {
+      data = d;
+      var put = buildPlayerPut();
+      var ops = [{ t: "put", k: playerKeyBytesIn(data), v: put.bytes }];
+      var upd = window.RC_ldbw.buildDbUpdate({
+        manifestBytes: data.manifestBytes, manifestName: data.manifestName,
+        nextFile: data.nextFile, lastSeq: data.lastSeq, logNumber: data.logNumber, ops: ops
+      });
+      return window.RC_dbx.assemble(data, upd.newManifestBytes, upd.logName, upd.logBytes).then(function (b2) {
+        return { blob: b2, occ: put.occ };
+      });
+    }).then(function (r) {
+      return r.blob.arrayBuffer().then(function (ab) {
+        return window.RC_dbx.openFromBlob(new Blob([ab])).then(function (db2) {
+          var found = null;
+          for (var e of db2.keys) { if (e[0] === pKey) { found = e[1]; break; } }
+          if (!found || found === false) throw new Error("player sumiu na validação.");
+          var live1 = 0, live2 = 0;
+          data.db.keys.forEach(function (v) { if (v) live1++; });
+          db2.keys.forEach(function (v) { if (v) live2++; });
+          if (live2 !== live1) throw new Error("contagem mudou na validação.");
+          return { blob: r.blob, occ: r.occ };
+        });
+      });
+    });
+  }
+  window.RC_player = { preflight: preflightPlayer, applyToBlob: applyToBlob, hasEdits: hasEdits };
+
   function dbDataKeyBytes() {
     // chave exata do player (bytes originais do banco)
     for (var e of dbData.db.keys) {
@@ -739,6 +834,7 @@
       var id = +($("ieEnchSel").value || 9), lv = Math.max(1, Math.min(255, +($("ieEnchLvl").value || 1) | 0));
       var ex = it.ench.find(function (e) { return e.id === id; });
       if (ex) ex.lvl = lv; else it.ench.push({ id: id, lvl: lv });
+      playerDirty = true;
       paintEnch(it);
     });
     var ap = $("ieApply");
@@ -780,12 +876,14 @@
     if (ss) ss.addEventListener("change", function () {
       if (!model) return;
       model.selected = Math.max(0, Math.min(8, +ss.value || 0));
+      playerDirty = true;
       paintAll();
     });
     var lv = $("xpLevel");
     if (lv) lv.addEventListener("change", function () {
       if (!model) return;
       model.level = Math.max(0, Math.min(10000, +lv.value || 0));
+      playerDirty = true;
     });
     var sv = $("playerSaveBtn");
     if (sv) sv.addEventListener("click", doSave);
@@ -846,6 +944,9 @@
     return g;
   }
   function quickAssign(area, idx, fullId) {
+    // BUGFIX: toque na paleta chegava sem "minecraft:" e o jogo ignorava o item.
+    // Normaliza aqui (cobre arrasto, toque e qualquer chamador futuro).
+    if (fullId && fullId.indexOf(":") < 0) fullId = "minecraft:" + fullId;
     var withSlot = !(area === "armor" || area === "off");
     var it = {
       name: fullId, count: 1, damage: 0, slot: withSlot ? idx : -1, picked: 0,

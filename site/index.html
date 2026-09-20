@@ -325,29 +325,17 @@
       <details class="acc" id="accChunks" open>
         <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Reset de chunks <span class="lock">VIP</span></summary>
         <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Apaga área p/ <b>regenerar do seed</b> (ideal p/ corrompidos). A análise detecta suspeitos. <b>Grátis: 8/dia.</b></p>
-          <div class="steps-mini"><span><b>1</b>Selecione</span><span>→</span><span><b>2</b>Analise</span><span>→</span><span><b>3</b>Baixe</span></div>
-          <div class="map-actions coord-row">
-            <label>X <input type="number" id="coordX" placeholder="0" inputmode="numeric"></label>
-            <label>Z <input type="number" id="coordZ" placeholder="0" inputmode="numeric"></label>
-            <button type="button" class="btn-ghost btn-mini" id="coordGo">Ir até</button>
-            <button type="button" class="btn-ghost btn-mini" id="coordSel">Selecionar chunk</button>
-            <button type="button" class="btn-ghost btn-mini" id="coordSpawn">Área do spawn +2</button>
-          </div>
+          <p class="sub" style="margin:6px 0 10px">Pinte no mapa p/ <b>regenerar do seed</b>. Grátis 8/dia.</p>
           <div class="map-actions" style="margin-top:0">
-            <button type="button" class="btn-ghost" id="selModeBtn">▦ Selecionar no mapa</button>
+            <button type="button" class="btn-ghost" id="selModeBtn">🖌 Pintar no mapa</button>
             <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar</button>
-            <span id="selCount" style="font-size:13px;align-self:center">nenhum chunk selecionado</span>
-          </div>
-          <div class="map-actions">
-            <button type="button" class="btn-ghost" id="analyzeBtn" disabled>Analisar seleção (grátis)</button>
+            <span id="selCount" style="font-size:13px;align-self:center">nada pintado ainda</span>
           </div>
           <div id="analysisBox" class="worldinfo" hidden style="margin-top:10px"></div>
           <label class="accept" style="margin-top:10px">
             <input type="checkbox" id="resetAck">
-            <span>Fiz <b>backup do mundo original</b> e entendo que o reset é <b>irreversível</b> (construções na área somem).</span>
+            <span>Backup feito, pode apagar.</span>
           </label>
-          <button type="button" class="primary" id="resetBtn" disabled style="margin-top:8px"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Apagar e regenerar</button>
           <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
         </div>
       </details>
@@ -355,14 +343,14 @@
       <details class="acc" id="accPlayer" open>
         <summary><span class="acc-n">6</span><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Entrar gemado <span class="lock">VIP</span></summary>
         <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px"><b>Grátis: hotbar (2/dia).</b> Full + encantos 255 = VIP. Arraste ou toque: item → slot.</p>
+          <p class="sub" style="margin:6px 0 10px">Toque no item, depois no slot. Grátis: hotbar 2/dia.</p>
           <div class="map-actions" style="margin-top:0">
             <select id="playerSel" hidden style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px"></select>
           </div>
           <div id="playerGrids" hidden>
-            <div class="pg-sec"><h4>Inventário — igual ao jogo</h4>
+            <div class="pg-sec"><h4>Inventário</h4>
               <div class="mc-scroll"><div class="mc-inv" id="mcInv"></div></div>
-              <div class="slider-row" style="margin-top:8px"><label>Slot selecionado (mão)</label>
+              <div class="slider-row" style="margin-top:8px"><label>Mão</label>
                 <select id="selSlot" style="border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:14px">
                   <option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option><option value="4">5</option><option value="5">6</option><option value="6">7</option><option value="7">8</option><option value="8">9</option>
                 </select>
@@ -371,10 +359,10 @@
             <div class="pg-sec"><h4>Ender chest</h4>
               <div class="mc-scroll"><div class="mc-ender" id="mcEnder"></div></div>
             </div>
-            <div class="pg-sec"><h4>Nível de XP</h4>
+            <div class="pg-sec"><h4>XP</h4>
               <div class="slider-row"><label>Nível</label><input type="number" id="xpLevel" min="0" max="10000" value="0" style="border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:14px;width:120px"></div>
             </div>
-            <div class="pg-sec"><h4>Kits prontos (1 clique)</h4>
+            <div class="pg-sec"><h4>Kits</h4>
               <div class="map-actions" style="margin-top:0">
                 <button type="button" class="btn-ghost" data-kit="netherite">Kit Netherite</button>
                 <button type="button" class="btn-ghost" data-kit="diamond">Kit Diamante</button>
@@ -410,9 +398,8 @@
             </div>
             <label class="accept" style="margin-top:10px">
               <input type="checkbox" id="playerAck">
-              <span>Fiz <b>backup do mundo original</b> e entendo que é <b>irreversível</b>.</span>
+              <span>Backup feito.</span>
             </label>
-            <button type="button" class="primary" id="playerSaveBtn" style="margin-top:8px"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Salvar player</button>
           </div>
           <div id="playerStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
         </div>
@@ -425,8 +412,8 @@
         <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. O mundo é meu. Sem garantia da Mojang. <b>Obrigatório.</b></span>
       </label>
 
-      <button id="submit" class="primary" type="submit" disabled>Corrigir meu mundo</button>
-      <p class="cta-sub">Pronto em segundos · 100% no aparelho</p>
+      <button id="submit" class="primary" type="submit" disabled>Gerar e baixar meu mundo</button>
+      <p class="cta-sub">Aplica tudo marcado acima · 1 arquivo só</p>
       <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Só diagnosticar</button>
 </form>
 
