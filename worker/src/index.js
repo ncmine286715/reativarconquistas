@@ -13,10 +13,12 @@
       POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
       GET  /api/premium?email=X -> {premium_until_ms}
       GET  /api/config -> flags públicas
+      POST /api/kiwify/webhook[?secret=...] (Kiwify "Compra aprovada" ->
+                                            libera VIP pelo produto)
     Secrets (via API: nunca neste arquivo nem no git):
-      ABACATEPAY_API_KEY, WEBHOOK_SECRET
+      ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET
     Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_24H,
-      PUBLIC_BASE_URL, ALLOWED_ORIGINS.
+      KIWIFY_PID_24H, KIWIFY_PID_30D, PUBLIC_BASE_URL, ALLOWED_ORIGINS.
     KV: PREMIUM_KV (contas, sessões, pendentes, premium).
 */
 
@@ -326,6 +328,42 @@ export default {
           } catch (e) { console.log("webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
+      }
+
+      // ---------- Kiwify: compra aprovada -> libera VIP ----------
+      // Na Kiwify: produto -> Webhooks -> Adicionar: evento "Compra aprovada",
+      // URL: https://<worker>/api/kiwify/webhook?secret=VALOR (VALOR = secret
+      // KIWIFY_SECRET). Dias pelo produto: KIWIFY_PID_24H = 1, KIWIFY_PID_30D = 30.
+      if (url.pathname === "/api/kiwify/webhook" && req.method === "POST") {
+        if (!env.KIWIFY_SECRET || url.searchParams.get("secret") !== env.KIWIFY_SECRET) {
+          return json({ error: "forbidden" }, 403, cors);
+        }
+        let body = {};
+        try { body = await req.json(); } catch { body = {}; }
+        const evt = String(body.webhook_event_type || body.event || "");
+        const status = String(body.order_status || body.status || "").toLowerCase();
+        const approved = evt === "order_approved" || status === "paid" || status === "approved";
+        const email = String((body.Customer && body.Customer.email) || body.customer_email || body.email || "").trim().toLowerCase();
+        const pid = String((body.Product && body.Product.product_id) || body.product_id || "");
+        const oid = String(body.order_id || body.id || "");
+        // log cru (últimos 50) p/ depurar sem adivinhar formato
+        try {
+          const lst = (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [];
+          lst.unshift({ at: Date.now(), evt, status, email, pid, oid });
+          await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
+        } catch (e) {}
+        if (!approved || !validEmail(email)) return json({ ok: true, granted: false }, 200, cors);
+        if (!env.KIWIFY_PID_24H && !env.KIWIFY_PID_30D) {
+          return json({ ok: true, granted: false, reason: "no_product_map" }, 200, cors);
+        }
+        const days = pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H ? 1 : 30;
+        if (oid) {
+          const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
+          if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
+        }
+        const until = await grantPremium(env, email, "kiwify:" + (oid || Date.now()), days);
+        if (oid) await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
+        return json({ ok: true, granted: true, premium_until_ms: until, plan: days === 1 ? "vip24h" : "vip30" }, 200, cors);
       }
 
       // ---------- premium por e-mail ----------

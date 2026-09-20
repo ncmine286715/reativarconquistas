@@ -14,6 +14,10 @@ preview_id = "acfc4981776e4dd0b8513722597f8f01"
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
 # ID do produto "Passe 24h" (R$ 4,90) no dashboard AbacatePay.
 ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
+# IDs dos produtos na KIWIFY (só quando ligar a Kiwify): produto -> Webhooks.
+# Vazios = Kiwify desligada. Dias: _24H = 1 dia, _30D = 30 dias.
+KIWIFY_PID_24H = ""
+KIWIFY_PID_30D = ""
 # Site público (volta do checkout). Troque pelo seu domínio em produção.
 PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 # Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
