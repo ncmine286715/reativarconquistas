@@ -104,6 +104,18 @@
     return plan === "vip24h" || plan === "vip7" || plan === "vip30" ? plan : "vip30";
   }
 
+  // Oferta comercial orientada ao problema, mantendo os ids antigos apenas
+  // para compatibilidade com links e pagamentos já existentes.
+  PLANS = {
+    world1: { title: "Resolver 1 mundo", price: "R$ 4,90", cta: "Resolver meu mundo por R$ 4,90", sub: "Para um mundo agora: arquivo maior, correções avançadas e 7 dias para reprocessar e baixar." },
+    vip7: { title: "Passe 7 dias", price: "R$ 9,90", cta: "Liberar 7 dias por R$ 9,90", sub: "Até 10 mundos, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
+    vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Até 50 mundos, arquivos grandes, lotes e todas as ferramentas para uso recorrente." },
+    creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador por R$ 39,90", sub: "Até 150 mundos, lotes maiores, addons, chunks e edição avançada para uso pesado." }
+  };
+  function normalizePlan(plan) {
+    return PLANS[plan] ? plan : (plan === "vip24h" ? "world1" : "vip30");
+  }
+
   /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
   function depixEnabled() {
     try { return !!(window.RC_CONFIG && window.RC_CONFIG.DEPIX_ENABLED && base()); } catch (e) { return false; }
@@ -218,6 +230,15 @@
       "</div>" +
       "</div>";
     document.body.appendChild(bg);
+    var planPick = bg.querySelector(".planpick");
+    var legacy = bg.querySelector("input[value='vip24h']");
+    if (legacy && legacy.closest("label")) legacy.closest("label").remove();
+    if (planPick) planPick.insertAdjacentHTML("beforeend",
+      "<label><input type='radio' name='payplan' value='world1'> Resolver 1 mundo — <b>R$ 4,90</b></label>" +
+      "<label><input type='radio' name='payplan' value='vip7'> Passe 7 dias — <b>R$ 9,90</b></label>" +
+      "<label><input type='radio' name='payplan' value='creator'> Criador — <b>R$ 39,90</b></label>");
+    var requested = bg.querySelector("input[value='" + plan + "']");
+    if (requested) requested.checked = true;
     function selPlan() {
       var r = bg.querySelector("input[name='payplan']:checked");
       return r ? normalizePlan(r.value) : "vip30";
@@ -407,6 +428,7 @@
             try {
               if (+r.premium_until_ms > Date.now()) {
                 localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms, email: r.email || "" }));
+                localStorage.setItem("rc_prem_plan", r.plan || plan);
               }
               localStorage.removeItem("rc_pending_depix");
               localStorage.removeItem("rc_pending_billing");
@@ -437,6 +459,7 @@
           try {
             if (+r.premium_until_ms > Date.now()) {
               localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms, email: r.email || "" }));
+              localStorage.setItem("rc_prem_plan", r.plan || plan);
             }
             localStorage.removeItem("rc_pending_billing");
           } catch (e) {}
@@ -496,7 +519,7 @@
 
   function wire() {
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
-      var plan = b.getAttribute("data-pay") === "vip24h" ? "vip24h" : "vip30";
+      var plan = normalizePlan(b.getAttribute("data-pay"));
       if (!depixEnabled() && !kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }
       b.hidden = false;
       b.addEventListener("click", function (e) {

@@ -13,17 +13,17 @@ window.RC_CONFIG = {
      ========================= */
 
   // Limite padrão para usuários grátis.
-  FREE_MAX_MB: 10,
+  FREE_MAX_MB: 25,
 
   // Promoção temporária para usuários grátis.
   PROMO_MAX_MB: 25,
-  PROMO_UNTIL: "2026-09-24T23:59:59-03:00",
+  PROMO_UNTIL: "2099-12-31T23:59:59-03:00",
 
   // Limite técnico máximo aceito pelo sistema.
   PRE_MAX_MB: 500,
 
   // Quantidade de conversões grátis por dia.
-  FREE_DAILY: 2,
+  FREE_DAILY: 3,
 
   // Quantidade máxima de Behavior Packs que o plano grátis pode remover.
   FREE_MAX_PACKS: 1,
@@ -61,16 +61,21 @@ window.RC_CONFIG = {
      ========================= */
 
   // Passe de 24 horas.
-  PASS_24H_PRICE_LABEL: "R$ 5,90",
+  PASS_24H_PRICE_LABEL: "R$ 4,90",
 
   // VIP de 30 dias.
-  PREMIUM_PRICE_LABEL: "R$ 19,90",
+  PREMIUM_PRICE_LABEL: "R$ 24,90",
 
   PREMIUM_DAYS: 30,
 
   // Valores enviados para o Depix em centavos.
-  PASS_24H_CENTS: 590,
-  PREMIUM_CENTS_30D: 1990,
+  PASS_24H_CENTS: 490,
+  PREMIUM_CENTS_30D: 2490,
+
+  PASS_7D_PRICE_LABEL: "R$ 9,90",
+  PASS_7D_CENTS: 990,
+  CREATOR_PRICE_LABEL: "R$ 39,90",
+  CREATOR_CENTS: 3990,
 
 
   /* =========================
@@ -93,7 +98,7 @@ window.RC_CONFIG = {
   // voltar temporariamente para a Kiwify.
   //
   // Com DEPIX_ENABLED = true, o fluxo normal utiliza Depix.
-  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
-  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
+  KIWIFY_URL_24H: "",
+  KIWIFY_URL_30D: ""
 
 };

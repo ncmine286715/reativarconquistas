@@ -1,6 +1,6 @@
 /* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
-   Grátis p/ mundos de até 10 MB (5/dia, até 3 addons). Acima disso
-   (mundos gigantes, mais processamento) é VIP na conta via AbacatePay (Worker).
+   Grátis p/ mundos de até 25 MB (3/dia), com ferramentas simples liberadas.
+   O pagamento entra quando o usuário precisa de mais volume, tamanho ou uma operação avançada.
 */
 (function () {
   "use strict";
@@ -145,7 +145,7 @@
         lb.textContent = it.name;
         b.appendChild(lb);
         b.addEventListener("click", function () {
-          if (!needPremium("Ícones prontos são VIP.")) return;
+          // Presets de ícone também fazem parte da demonstração gratuita.
           iconPreset = it.id;
           presetBytes = null;
           selectedIconBytes = null;
@@ -217,6 +217,17 @@
       var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
       return (r && r.email) || "";
     } catch (e) { return ""; }
+  }
+  function remotePlan() {
+    try {
+      var p = localStorage.getItem("rc_prem_plan") || "vip30";
+      return p === "vip7" || p === "creator" || p === "world1" ? p : "vip30";
+    } catch (e) { return "vip30"; }
+  }
+  function paidSizeLimitMB() {
+    if (!remotePremOk()) return freeLimitMB();
+    var p = remotePlan();
+    return p === "creator" ? PRE_MAX_MB : (p === "vip30" ? 250 : 100);
   }
   function remotePremOk() {
     if (remotePremUntil() <= Date.now()) return false;
@@ -343,14 +354,14 @@
       var lim = freeLimitMB();
       var promoEnd = "";
       try { promoEnd = new Date(CFG.PROMO_UNTIL).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch (e) {}
-      var promoTxt = promoOn() ? " <span class='promo-tag'>PROMO " + lim + "MB até " + promoEnd + "</span>" : "";
+      var promoTxt = "";
       quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" + promoTxt +
         (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
           : ". Mundos gigantes (acima de " + lim + " MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
         "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipClaim'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='vipRefresh'>Verificar de novo</a></span>";
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
-    ["keepOpt", "modeOpt", "timeOpt", "iconOpt", "stripOpt"].forEach(function (id) {
+    ["stripOpt"].forEach(function (id) {
       var el = $(id);
       if (el) el.classList.toggle("locked", !vip);
     });
@@ -411,7 +422,7 @@
     } catch (e) { return false; }
   }
   function freeLimitMB() { return promoOn() ? (CFG.PROMO_MAX_MB || FREE_MAX_MB) : FREE_MAX_MB; }
-  function sizeLimitMB() { return remotePremOk() ? PRE_MAX_MB : freeLimitMB(); }
+  function sizeLimitMB() { return remotePremOk() ? paidSizeLimitMB() : freeLimitMB(); }
   function promoDaysLeft() {
     try {
       var ms = new Date(CFG.PROMO_UNTIL).getTime() - Date.now();
@@ -554,10 +565,10 @@
 
   var gameSel = $("gamemode");
   if (gameSel) gameSel.addEventListener("change", function () {
-    if (gameSel.value !== "keep" && !needPremium("Mudar o modo de jogo é VIP.")) gameSel.value = "keep";
+      // Modo de jogo fica livre; o paywall acontece por volume e tamanho.
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
-    if (wantIcon.checked && !needPremium("Trocar a foto do mundo é VIP.")) wantIcon.checked = false;
+    // A foto do mundo é uma ferramenta simples e permanece gratuita.
   });
   var stripCb = $("stripPacks");
   // O limite grátis real é validado no processamento via FREE_MAX_PACKS.
@@ -617,7 +628,7 @@
     });
   }
   if (iconBtn) iconBtn.addEventListener("click", function () {
-    if (!needPremium("Trocar a foto do mundo é VIP.")) return;
+    // Foto do mundo é gratuita; não interromper a seleção.
     iconFile.click();
   });
   if (iconFile) iconFile.addEventListener("change", function () {
@@ -771,20 +782,18 @@
     });
   });
 
-  // Travas VIP nos selects (manter inventário, dia/noite + clima).
-  [["keepinv", "Manter inventário ao morrer é VIP."], ["daycycle", "Travar o ciclo dia/noite é VIP."], ["weather", "Travar o clima é VIP."]].forEach(function (pair) {
-    var el = $(pair[0]);
-    if (!el) return;
-    el.addEventListener("change", function () {
-      if (el.value !== "-1" && !needPremium(pair[1])) el.value = "-1";
-    });
-  });
+  // Inventário, tempo e clima são ferramentas simples e ficam livres.
 
   /* ---------- conversão local ---------- */
   function selRule(el) {
     if (!el) return null;
     var v = parseInt(el.value, 10);
     return (v === 0 || v === 1) ? v : null;
+  }
+  function batchLimit() {
+    if (!isPremiumAny()) return 2;
+    var p = remotePlan();
+    return p === "creator" ? 20 : (p === "vip30" ? 10 : 5);
   }
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -797,8 +806,7 @@
     var mode = "survival";
     try {
       var gs = $("gamemode");
-      if (gs && premUnlimited && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
-      if (mode === "keep" && !premUnlimited) mode = "survival";
+      if (gs && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
     } catch (e2) { mode = "survival"; }
     var rules = {
       keepinventory: selRule(keepSel),
@@ -813,7 +821,7 @@
     var wantsTime = rules.dodaylightcycle !== null || rules.doweathercycle !== null;
     var wantsKeep = rules.keepinventory !== null;
     var iconBytes = (wantIcon.checked && (selectedIconBytes || presetBytes)) || null;
-    var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime || wantsKeep;
+    var wantsPrem = false;
     var wantsHardcore = !!(recoverHardcore && recoverHardcore.checked);
     wantsPrem = wantsPrem || wantsHardcore;
     if (wantsPrem && !prem) {
@@ -830,9 +838,7 @@
     var diffSel = $("difficulty");
     var difficulty = diffSel ? parseInt(diffSel.value, 10) : -1;
     if (!(difficulty >= 0 && difficulty <= 3)) difficulty = null; // conquistas exigem Sobrevivência
-    if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é VIP."); return; }
-    if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é VIP."); return; }
-    if (wantsKeep && !prem) { lockedHint("Manter inventário ao morrer é VIP."); return; }
+    // Foto, tempo, clima e inventário são liberados no plano gratuito.
     if (wantsHardcore && !prem) { lockedHint("Recuperar mundo Hardcore é um recurso VIP.", "vip30"); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
@@ -843,13 +849,16 @@
       return;
     }
 
-    if (batch && !premUnlimited) { lockedHint("Converter vários arquivos de uma vez é VIP. No grátis, converta um por vez."); return; }
+    if (batch && selectedList.length > batchLimit()) {
+      lockedHint("Seu acesso permite até " + batchLimit() + " mundos por lote. Escolha um plano maior para processar mais arquivos.", remotePlan() === "vip7" ? "vip30" : "creator");
+      return;
+    }
     // tamanho vale na hora do clique (o VIP pode ter expirado depois da seleção)
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
       if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). O VIP aceita arquivos de até " + PRE_MAX_MB + " MB e libera os recursos avançados.");
-      else setStatus("err", "Arquivo grande até para o navegador (máx. <b>500 MB</b>): " + escapeHtml(tooBig[0].name));
+      else setStatus("err", "Arquivo acima do limite deste plano (máx. <b>" + paidSizeLimitMB() + " MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }
     if (typeof window.RC_convert === "undefined" || ((batch || /\.dat$/i.test(selected.name || "")) && typeof window.RC_local === "undefined")) {
