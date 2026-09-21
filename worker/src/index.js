@@ -31,6 +31,7 @@
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "ACTIVE", "PAYMENT_CONFIRMED", "CONFIRMED"]);
+const TERMS_VERSION = "2026-09-20-v1.6";
 
 function json(data, status = 200, cors = {}) {
   return new Response(JSON.stringify(data), {
@@ -424,7 +425,7 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
       }
 
       // ---------- Depix: criar checkout Pix ----------
@@ -441,7 +442,7 @@ export default {
         const payerEmail = String(body.payer_email || "").trim().toLowerCase().slice(0, 120);
         if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
         if (!validEmail(payerEmail)) return json({ error: "Preencha um e-mail válido para o Pix." }, 400, cors);
-        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.6") {
+        if (body.terms_accepted !== true) {
           return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
         }
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
@@ -454,7 +455,7 @@ export default {
           const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req);
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan, via: "depix",
-            terms_version: "2026-09-20-v1.6", terms_accepted_at: Date.now()
+            terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
           }), { expirationTtl: 86400 }).catch(() => {});
           return json(r, 200, cors);
         } catch (e) {
@@ -672,7 +673,7 @@ export default {
         if (providerPlan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
-        if (body.terms_accepted !== true || String(body.terms_version || "") !== "2026-09-20-v1.6") {
+        if (body.terms_accepted !== true) {
           return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
         }
         const email = fb.email;
@@ -686,7 +687,7 @@ export default {
         const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", providerPlan);
         await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
           uid, email, at: Date.now(), plan: requestedPlan, via: "abacate",
-          terms_version: "2026-09-20-v1.6", terms_accepted_at: Date.now()
+          terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
         }), { expirationTtl: 86400 }).catch(() => {});
         return json({ ...r, plan: requestedPlan }, 200, cors);
       }
