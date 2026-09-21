@@ -48,6 +48,19 @@
     });
   }
 
+  var telemetryId = "";
+  try {
+    telemetryId = localStorage.getItem("rc_telemetry_id") || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+    localStorage.setItem("rc_telemetry_id", telemetryId);
+  } catch (e) { telemetryId = "anonymous"; }
+  function track(event, data) {
+    try {
+      var body = Object.assign({ event: String(event || "").slice(0, 40), session_id: telemetryId, page: location.pathname }, data || {});
+      fetch(base() + "/api/telemetry", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: true }).catch(function () {});
+    } catch (e) {}
+  }
+  track("visit");
+
   // Telemetria de erro: o navegador conta o que travou (leitura só com segredo).
   function logClient(step, message) {
     try {
@@ -100,9 +113,9 @@
   // Oferta comercial orientada ao problema, mantendo os ids antigos apenas
   // para compatibilidade com links e pagamentos já existentes.
   PLANS = {
-    world1: { title: "Resolver 1 mundo", price: "R$ 5,99", cta: "Resolver meu mundo · R$ 5,99 · 7 dias", sub: "Para um mundo agora: até 150 MB, correções avançadas e 7 dias para reprocessar e baixar." },
+    world1: { title: "Resolver 1 mundo", price: "R$ 5,99", cta: "Resolver meu mundo · R$ 5,99", sub: "Crédito para exatamente 1 mundo de até 150 MB. O benefício é consumido quando a operação premium termina com sucesso." },
     vip7: { title: "Passe 7 dias", price: "R$ 7,99", cta: "Liberar 7 dias por R$ 7,99", sub: "Até 500 MB, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
-    vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Até 50 mundos, arquivos grandes, lotes e todas as ferramentas para uso recorrente." },
+    vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Acesso recorrente por 30 dias, arquivos grandes, lotes de até 10 arquivos e ferramentas avançadas." },
     creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador · R$ 39,90 · 30 dias", sub: "Lotes maiores, addons e edição avançada para criadores e donos de Realms." }
   };
   function normalizePlan(plan) {
@@ -151,15 +164,30 @@
         terms_accepted: true,
         terms_version: "2026-09-20-v1.5"
       })
-    });
+    }).then(function (r) { track("pix_created", { plan: normalizePlan(plan) }); return r; });
   }
   function depixStatus(id) {
-    return req("/api/depix/status?id=" + encodeURIComponent(id));
+    return authReq("/api/depix/status?id=" + encodeURIComponent(id));
+  }
+  function entitlements() { return authReq("/api/entitlements"); }
+  function authorizeOperation(worlds, sizeBytes) {
+    return authReq("/api/entitlements/check", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ worlds: worlds, size_bytes: sizeBytes }) });
+  }
+  function consumeOperation(operationId, worlds) {
+    return authReq("/api/entitlements/consume", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ operation_id: operationId, worlds: worlds }) }).then(function (r) {
+      try {
+        var cur = JSON.parse(localStorage.getItem("rc_prem_remote") || "{}");
+        cur.world_credits = +r.world_credits || 0;
+        localStorage.setItem("rc_prem_remote", JSON.stringify(cur));
+      } catch (e) {}
+      return r;
+    });
   }
 
   function openPayModal(notice, plan) {
     if (!enabled()) return;
     plan = normalizePlan(plan);
+    track("checkout_opened", { plan: plan });
     closePay();
     var user = currentUser();
     if (!user || !user.email) {
@@ -243,7 +271,7 @@
       document.getElementById("payGo").textContent = p.cta;
     }
     Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) {
-      r.addEventListener("change", paintPlan);
+      r.addEventListener("change", function () { paintPlan(); track("plan_selected", { plan: normalizePlan(r.value) }); });
     });
     paintPlan();
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
@@ -418,17 +446,18 @@
       return depixStatus(did).then(function (r) {
         if (box) {
           if (r.paid) {
+            track("pix_paid", { plan: normalizePlan(r.plan) });
             try {
-              if (+r.premium_until_ms > Date.now()) {
-                localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms, email: r.email || "" }));
-                localStorage.setItem("rc_prem_plan", r.plan || plan);
-              }
+              localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
+              localStorage.setItem("rc_prem_plan", r.plan || plan);
               localStorage.removeItem("rc_pending_depix");
               localStorage.removeItem("rc_pending_billing");
             } catch (e) {}
-            var untilTxt = +r.premium_until_ms > Date.now()
+            var untilTxt = +r.world_credits > 0
+              ? "1 crédito de mundo liberado"
+              : (+r.premium_until_ms > Date.now()
               ? "VIP liberado até <b>" + new Date(+r.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
-              : "VIP liberado";
+              : "VIP liberado");
             box.className = "status ok";
             box.innerHTML = "Pix confirmado. " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
           } else {
@@ -445,20 +474,21 @@
     }
     if (!id || !enabled()) return Promise.resolve(null);
     if (box) { box.hidden = false; box.className = "status"; box.textContent = "Confirmando pagamento…"; }
-    return req("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
+    return authReq("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
       if (box) {
         if (r.paid) {
+          track("pix_paid", { plan: normalizePlan(r.plan) });
           // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
           try {
-            if (+r.premium_until_ms > Date.now()) {
-              localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms, email: r.email || "" }));
-              localStorage.setItem("rc_prem_plan", r.plan || plan);
-            }
+            localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
+            localStorage.setItem("rc_prem_plan", r.plan || plan);
             localStorage.removeItem("rc_pending_billing");
           } catch (e) {}
-          var untilTxt = +r.premium_until_ms > Date.now()
+          var untilTxt = +r.world_credits > 0
+            ? "1 crédito de mundo liberado"
+            : (+r.premium_until_ms > Date.now()
             ? "VIP liberado até <b>" + new Date(+r.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
-            : "VIP liberado";
+            : "VIP liberado");
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
             ". " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
@@ -542,7 +572,8 @@
     checkout: checkout,
     kiwifyUrl: kiwifyUrl,
     checkReturn: checkReturn,
-    remotePremiumMs: remotePremiumMs
+    remotePremiumMs: remotePremiumMs,
+    track: track, entitlements: entitlements, authorizeOperation: authorizeOperation, consumeOperation: consumeOperation
   };
 
   if (document.readyState === "loading") {

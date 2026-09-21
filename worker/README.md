@@ -46,7 +46,7 @@ AbacatePay (Produtos → Novo produto → pagamento único):
 
 | Plano | Produto sugerido | Preço | Var no `wrangler.toml` | Dias liberados |
 |---|---|---|---|---|
-| Resolver 1 mundo (`world1`) | "Resolver 1 mundo" | R$ 5,99 | `ABACATEPAY_PRODUCT_ID_24H` | 7 |
+| Resolver 1 mundo (`world1`) | "Resolver 1 mundo" | R$ 5,99 | `ABACATEPAY_PRODUCT_ID_24H` | 1 crédito, consumido após 1 operação premium |
 | Passe 7 dias (`vip7`) | "Passe 7 dias" | R$ 7,99 | `ABACATEPAY_PRODUCT_ID_7D` | 7 |
 | Passe 30 dias (`vip30`) | "Passe 30 dias" | R$ 24,90 | `ABACATEPAY_PRODUCT_ID` | 30 |
 | Criador (`creator`) | "Criador" | R$ 39,90 | `ABACATEPAY_PRODUCT_ID_CREATOR` | 30 |
@@ -58,11 +58,14 @@ Var vazia = plano desligado (o site recebe 502 com mensagem clara).
 
 | Método | Rota | O que faz |
 |---|---|---|
-| POST | `/api/abacate/create` | `{email, name, plan?}` → `{url, id, plan}` (`plan` = `vip24h`\|`vip30`, padrão `vip30`) |
+| POST | `/api/abacate/create` | compatibilidade legada; o checkout principal usa `/api/depix/create` |
 | GET | `/api/abacate/status?id=` | `{status, paid, email, plan?, premium_until_ms?}` (libera se pagou, pelos dias do plano) |
 | POST | `/api/abacate/webhook` | AbacatePay avisa → reconfere na API → libera pelos dias do plano |
 | GET | `/api/premium?email=` | `{premium_until_ms}` (lido do KV) |
 | GET | `/api/config` | flags públicas (+ `product24h_configured`) |
+| GET | `/api/entitlements` | saldo de crédito de mundo e validade do plano da conta Google |
+| POST | `/api/entitlements/check` | valida tamanho/lote antes de uma operação premium |
+| POST | `/api/entitlements/consume` | consome atomicamente 1 crédito por `operation_id` |
 
 Segurança: o webhook **nunca** confia só no POST — reconfere cada cobrança
 na API do AbacatePay antes de liberar. Limite: 10 checkouts/hora por IP.

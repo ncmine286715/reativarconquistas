@@ -4,6 +4,14 @@ name = "reativa-pay"
 main = "worker/src/index.js"
 compatibility_date = "2024-11-01"
 
+[[durable_objects.bindings]]
+name = "ENTITLEMENTS"
+class_name = "EntitlementDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EntitlementDO"]
+
 [assets]
 directory = "./site"
 binding = "ASSETS"

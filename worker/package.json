@@ -2,6 +2,7 @@
   "name": "reativa-pay",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Worker Cloudflare do AbacatePay (ReativaConquistas). Sem dependências.",
   "scripts": {
     "deploy": "wrangler deploy",

@@ -21,7 +21,7 @@
   // Leitura informativa p/ diagnóstico (o site não altera travas de pack).
   var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
   // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
-  var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle"];
+  var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle", "doimmediaterespawn", "mobgriefing", "naturalregeneration"];
 
   function Reader(buf) {
     this.view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);

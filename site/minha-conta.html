@@ -79,6 +79,17 @@
     }
     document.getElementById("logout").hidden = false;
     show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando VIP…</p>");
+    if (window.RC_pay && window.RC_pay.entitlements) {
+      window.RC_pay.entitlements().then(function (ent) {
+        var credit = +ent.world_credits || 0;
+        var until = +ent.premium_until_ms || 0;
+        var line = credit > 0
+          ? "Resolver 1 mundo: <b>1 crédito disponível</b> (até 150 MB)"
+          : (until > Date.now() ? "Plano: <b>" + esc(ent.plan || "VIP") + "</b> até " + new Date(until).toLocaleDateString("pt-BR") : "Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)");
+        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p>" + line + "</p>" + (credit || until > Date.now() ? "<p><a href='index.html#converter'><b>Ir converter</b></a></p>" : "<p class='sub'><a href='index.html#planos'><b>Assinar um plano</b></a> para mundos maiores e recursos extras.</p>"));
+      }).catch(function () { show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Sem conexão com o servidor agora. Tente novamente.</p>"); });
+      return;
+    }
     var emails = [];
     try {
       var le = (localStorage.getItem("rc_prem_email") || "").trim().toLowerCase();

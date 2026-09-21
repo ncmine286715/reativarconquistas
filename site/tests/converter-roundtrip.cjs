@@ -26,6 +26,9 @@ function level({ hardcore = true, includeHardcore = true } = {}) {
     named(1, 'PlayerHasDied', Uint8Array.of(hardcore ? 1 : 0)),
     named(3, 'GameType', i32(1)),
     named(3, 'Difficulty', i32(3)),
+    named(1, 'doimmediaterespawn', Uint8Array.of(0)),
+    named(1, 'mobgriefing', Uint8Array.of(1)),
+    named(1, 'naturalregeneration', Uint8Array.of(1)),
     named(8, 'LevelName', str('Fixture world')),
     named(4, 'RandomSeed', i64(123456789)),
     named(7, 'FutureBytes', cat(i32(3), Uint8Array.of(9, 8, 7))),
@@ -44,7 +47,7 @@ function hits(body) { const h = {}; RC_nbt.walkCollect(body, h); return h; }
   zip.file('custom/unknown.bin', untouched);
   const input = await zip.generateAsync({ type: 'arraybuffer', compression: 'STORE' });
 
-  const out = await RC_convert(input, { gameMode: 'keep', recoverHardcore: true, paidEntitlement: true });
+  const out = await RC_convert(input, { gameMode: 'keep', recoverHardcore: true, paidEntitlement: true, rules: { doimmediaterespawn: 1, mobgriefing: 0, naturalregeneration: 0 } });
   const zout = await JSZip.loadAsync(out.blob);
   const outputLevel = new Uint8Array(await zout.file('level.dat').async('uint8array'));
   const body = RC_nbt.splitLevelDat(outputLevel).body;
@@ -54,6 +57,9 @@ function hits(body) { const h = {}; RC_nbt.walkCollect(body, h); return h; }
   assert.equal(h.PlayerHasDied[0].val, 0);
   assert.equal(h.GameType[0].val, 1, 'Hardcore recovery must not rewrite unrelated GameType');
   assert.equal(h.Difficulty[0].val, 3);
+  assert.equal(h.doimmediaterespawn[0].val, 1);
+  assert.equal(h.mobgriefing[0].val, 0);
+  assert.equal(h.naturalregeneration[0].val, 0);
   assert.deepEqual(Array.from(await zout.file('custom/unknown.bin').async('uint8array')), Array.from(untouched));
   assert.ok(out.changes.some(x => /IsHardcore/.test(x)));
 

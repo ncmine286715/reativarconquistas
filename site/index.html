@@ -308,6 +308,24 @@
         </span>
       </label>
 
+      <label class="opt" id="rulesOpt">
+        <span style="flex:1">
+          <b>Regras de sobrevivência</b>
+          <em>Altera somente gamerules existentes no <code>level.dat</code></em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="immediaterespawn" style="flex:1;min-width:180px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Renascimento: manter</option><option value="1">Renascimento imediato</option><option value="0">Tela de morte normal</option>
+            </select>
+            <select id="mobgriefing" style="flex:1;min-width:180px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Mobs: manter</option><option value="1">Mobs alteram o cenário</option><option value="0">Mobs não alteram o cenário</option>
+            </select>
+            <select id="naturalregeneration" style="flex:1;min-width:180px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Regeneração: manter</option><option value="1">Ligar regeneração natural</option><option value="0">Desligar regeneração natural</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
       <label class="opt locked" id="iconOpt">
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
@@ -451,11 +469,11 @@
         <div class="price">R$ 5,99<small> · 1 mundo / 150 MB</small></div>
         <ul>
           <li class="yes">Um mundo de até <b>150 MB</b></li>
-          <li class="yes">Acesso operacional por até <b>7 dias</b></li>
-            <li class="yes">Modo de jogo, foto, clima e inventário</li>
+          <li class="yes">Crédito consumido em <b>1 operação premium</b></li>
+          <li class="yes">Modo de jogo, foto, clima e inventário</li>
           <li class="yes"><b>Recuperação Hardcore</b> quando o marcador existir</li>
         </ul>
-        <a class="btn-plan btn-pay" data-pay="world1" href="#">Resolver este mundo · R$ 5,99 · 7 dias</a>
+        <a class="btn-plan btn-pay" data-pay="world1" href="#">Resolver este mundo · R$ 5,99</a>
         <p class="plan-note">Para uma necessidade pontual.</p>
       </div>
       <div class="plan plan-weekly">
@@ -502,7 +520,7 @@
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
-      <div class="step"><b>1.</b> Limpamos os flags de cheat no <code>level.dat</code>. Vai p/ Survival.</div>
+      <div class="step"><b>1.</b> Você escolhe as alterações; manter o modo atual é grátis e mudar o modo exige plano pago.</div>
       <div class="step"><b>2.</b> Só isso muda. Mapa e itens intactos.</div>
       <div class="step"><b>3.</b> Abra no Survival, sem cheats. Vale a regra da Mojang.</div>
     </div>

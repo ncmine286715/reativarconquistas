@@ -83,7 +83,7 @@
       wantIcon = $("wantIcon"), iconFile = $("iconFile"), iconBtn = $("iconBtn"),
       iconPreview = $("iconPreview"), iconName = $("iconName"),
       wantRename = $("wantRename"), renameInput = $("renameInput"),
-      keepSel = $("keepinv"), coordSel = $("showcoords"),
+      keepSel = $("keepinv"), coordSel = $("showcoords"), immediateSel = $("immediaterespawn"), mobGriefSel = $("mobgriefing"), naturalRegenSel = $("naturalregeneration"),
       daySel = $("daycycle"), weatherSel = $("weather"),
       badgeFile = $("badgeFile"), recoverHardcore = $("recoverHardcore");
 
@@ -224,18 +224,23 @@
       return p === "vip7" || p === "creator" || p === "world1" ? p : "vip30";
     } catch (e) { return "vip30"; }
   }
+  function remoteWorldCredits() {
+    try {
+      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
+      return Math.max(0, +(r && r.world_credits) || 0);
+    } catch (e) { return 0; }
+  }
   function paidSizeLimitMB() {
     if (!remotePremOk()) return freeLimitMB();
     var p = remotePlan();
     return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 500 : 150);
   }
   function remotePremOk() {
-    if (remotePremUntil() <= Date.now()) return false;
     var cached = remotePremEmail().trim().toLowerCase();
     var account = googleEmail();
     var linked = linkedEmail();
     // O cache e apenas uma copia visual; nunca autoriza outro usuario.
-    return !!cached && ((account && cached === account) || (linked && cached === linked));
+    return !!cached && ((account && cached === account) || (linked && cached === linked)) && (remoteWorldCredits() > 0 || remotePremUntil() > Date.now());
   }
   function isPremiumAny() { return remotePremOk(); }
   // Consulta o servidor para TODOS os e-mails conhecidos e guarda o melhor.
@@ -243,6 +248,15 @@
   function refreshRemotePrem() {
     paintQuota();
     try {
+      if (window.RC_pay && window.RC_pay.entitlements && loggedIn()) {
+        window.RC_pay.entitlements().then(function (e) {
+          var u = +e.premium_until_ms || 0, c = +e.world_credits || 0;
+          if (u > Date.now() || c > 0) localStorage.setItem(LS_PREM, JSON.stringify({ until: u, world_credits: c, email: e.account_email || googleEmail() }));
+          else if (remotePremUntil() <= Date.now() && remoteWorldCredits() <= 0) localStorage.removeItem(LS_PREM);
+          if (e.plan) localStorage.setItem("rc_prem_plan", e.plan);
+          paintQuota();
+        }).catch(function () {});
+      }
       var emails = vipEmails();
       if (!emails.length || !window.RC_pay || !window.RC_pay.enabled()) return;
       var pending = emails.length, best = 0, bestEmail = "", okAny = false;
@@ -358,7 +372,7 @@
       quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" + promoTxt +
         (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
           : ". Mundos gigantes (acima de " + lim + " MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
-        "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipClaim'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='vipRefresh'>Verificar de novo</a></span>";
+        "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipRefresh'><b>Verificar de novo</b></a>. Use a mesma conta Google da compra.</span>";
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
     ["stripOpt"].forEach(function (id) {
@@ -367,8 +381,6 @@
     });
     var r1 = $("vipRefresh");
     if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(); });
-    var r2 = $("vipClaim");
-    if (r2) r2.addEventListener("click", function (e) { e.preventDefault(); askClaimEmail(); });
     updateSubmit();
   }
 
@@ -394,6 +406,7 @@
     lockedHint(msg, plan); return false;
   }
   function lockedHint(msg, plan) {
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("paywall_shown", { plan: plan || "" }); } catch (e0) {}
     // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
     // Sem Kiwify: abre o modal AbacatePay como antes.
     var kw = "";
@@ -532,6 +545,7 @@
     }
     selectedList = files;
     selected = files[0];
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length }); } catch (e0) {}
     if (files.length > 1) {
       fileName.textContent = files.length + " arquivos selecionados (lote = VIP)";
       fileName.hidden = false;
@@ -798,7 +812,7 @@
   function batchLimit() {
     if (!isPremiumAny()) return 2;
     var p = remotePlan();
-    return p === "creator" ? 20 : (p === "vip30" ? 10 : 5);
+    return p === "creator" ? 20 : (p === "vip30" ? 10 : (p === "vip7" ? 5 : 1));
   }
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -821,7 +835,10 @@
       keepinventory: selRule(keepSel),
       showcoordinates: selRule(coordSel),
       dodaylightcycle: null,
-      doweathercycle: null
+      doweathercycle: null,
+      doimmediaterespawn: selRule(immediateSel),
+      mobgriefing: selRule(mobGriefSel),
+      naturalregeneration: selRule(naturalRegenSel)
     };
     var dv = selRule(daySel);
     if (dv !== null) rules.dodaylightcycle = dv === 0 ? 0 : 1; // travar = dodaylightcycle 0
@@ -835,9 +852,8 @@
     wantsPrem = wantsPrem || wantsHardcore;
     if (wantsPrem && !prem) {
       if (!loggedIn()) {
-        setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine. <a href='#' id='claimLink'><b>Já paguei com outro e-mail</b></a>");
+        setStatus("err", "Essa função é paga. <a href='minha-conta.html'><b>Entre com a mesma conta Google usada na compra</b></a> primeiro.");
         var cl = $("claimLink");
-        if (cl) cl.addEventListener("click", function (e) { e.preventDefault(); askClaimEmail(); });
         try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e3) {}
         return;
       }
@@ -882,6 +898,15 @@
     // Botão único: chunks + player entram no MESMO arquivo, se marcados
     var wantChunks = !!(window.RC_reset && window.RC_reset.selCount() > 0);
     var wantPlayer = !!(window.RC_player && window.RC_player.hasEdits());
+    // Resolver 1 mundo is a single-world entitlement, so any generated world
+    // consumes it. Time-based plans only need this gate for premium features.
+    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore || addPacks.length > FREE_INSTALL_PACKS;
+    var operationId = "";
+    try { operationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); } catch (eop) { operationId = String(Date.now()) + Math.random(); }
+    var entitlementCheck = Promise.resolve(null);
+    if (premiumRequested && window.RC_pay && window.RC_pay.authorizeOperation) {
+      entitlementCheck = window.RC_pay.authorizeOperation(selectedList.length, Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; }))).catch(function (err) { throw err; });
+    }
     if ((wantChunks || wantPlayer) && (batch || /\.dat$/i.test(selected.name || ""))) {
       setStatus("err", "Reset de chunks e player gemado funcionam com <b>1 .mcworld por vez</b> (não no lote nem em level.dat avulso).");
       return;
@@ -936,11 +961,11 @@
     });
     var GMN = ["Sobrevivência", "Criativo", "Aventura"];
     out.push(gm === null ? "modo Sobrevivência confirmado" : ("modo " + (GMN[gm] || gm) + " aplicado"));
-    var RULE_TXT = { keepinventory: "manter inventário", showcoordinates: "coordenadas na tela", dodaylightcycle: "ciclo dia/noite", doweathercycle: "clima" };
+      var RULE_TXT = { keepinventory: "manter inventário", showcoordinates: "coordenadas na tela", dodaylightcycle: "ciclo dia/noite", doweathercycle: "clima", doimmediaterespawn: "renascimento imediato", mobgriefing: "dano de mobs ao cenário", naturalregeneration: "regeneração natural" };
     list.forEach(function (c) {
       var dm = /\(Difficulty\) = \d+ -> (\d)/.exec(c);
       if (dm) { out.push("dificuldade " + diffName(+dm[1])); return; }
-      var rl = /\((keepinventory|showcoordinates|dodaylightcycle|doweathercycle)\) = \d+ -> (\d)/.exec(c);
+      var rl = /\((keepinventory|showcoordinates|dodaylightcycle|doweathercycle|doimmediaterespawn|mobgriefing|naturalregeneration)\) = \d+ -> (\d)/.exec(c);
       if (rl) { out.push((RULE_TXT[rl[1]] || rl[1]) + (rl[2] === "1" ? " ligado" : " desligado")); return; }
       if (/foto do mundo|world_icon/.test(c)) { out.push("foto do mundo atualizada"); return; }
       if (/addons removidos/.test(c)) { out.push("addons removidos (conquistas desbloqueadas dos packs)"); return; }
@@ -952,9 +977,14 @@
   }
 
     function finishSingle(outName, f, res, iconBytes, extras) {
-      downloadBlob(res.blob, outName);
-      if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
-      paintQuota();
+      var consume = premiumRequested && remotePlan() === "world1" && window.RC_pay && window.RC_pay.consumeOperation
+        ? window.RC_pay.consumeOperation(operationId, 1)
+        : Promise.resolve(null);
+      return consume.then(function () {
+        downloadBlob(res.blob, outName);
+        if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
+        paintQuota();
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("processing_completed", { worlds: 1 }); } catch (e0) {}
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
       var warn = "";
@@ -969,15 +999,16 @@
         "</b><br>" + escapeHtml(summarizeChanges(res.changes)) + extraTxt +
         ". Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde o original</b>." + warn + nudge);
       submit.disabled = false;
+      });
     }
 
     // level.dat direto (1 arquivo): foto não existe avulsa,
     // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem });
+        return entitlementCheck.then(function () { return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem }); });
       }).then(function (res) {
-        finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
+        return finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
         setStatus("err", friendlyFileErr(err));
         submit.disabled = false;
@@ -992,7 +1023,7 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
+      entitlementCheck.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }); }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -1001,6 +1032,7 @@
         var bpacks = results.filter(function (r) { return (r.warnings || []).length; }).length;
         if (bpacks > 0 && !stripPacks) bwarn = "<br><span style='font-size:13px'>Atenção: <b>" + bpacks + " arquivo(s) têm addons (pacotes de comportamento)</b> que bloqueiam conquistas no jogo. Marque <b>“Remover addons”</b> no passo 2 e converta de novo.</span>";
         if (stripPacks) bwarn = "<br><span style='font-size:13px'>Addons (pacotes de comportamento) removidos dos arquivos.</span>";
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("processing_completed", { worlds: results.length }); } catch (e0) {}
         setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {
@@ -1011,7 +1043,7 @@
       return;
     }
 
-    Promise.all([selected.arrayBuffer(), iconPromise]).then(function (arr) {
+    entitlementCheck.then(function () { return Promise.all([selected.arrayBuffer(), iconPromise]); }).then(function (arr) {
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
@@ -1044,7 +1076,7 @@
       return chain.then(function (finalBlob) {
         if (!premUnlimited) { if (wantChunks) window.RC_reset.useFree(); if (wantPlayer) window.RC_dbx.useFreePlayer(); }
         both.res.blob = finalBlob;
-        finishSingle(baseName(selected.name), selected, both.res, both.iconBytes, extras);
+        return finishSingle(baseName(selected.name), selected, both.res, both.iconBytes, extras);
       });
     }).catch(function (err) {
       if (packLimitHint(err)) return;
