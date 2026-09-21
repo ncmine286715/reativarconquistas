@@ -1,5 +1,5 @@
 /* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
-   Grátis p/ mundos de até 25 MB (3/dia), com ferramentas simples liberadas.
+   Grátis p/ mundos de até 10 MB (3/dia), com ferramentas simples liberadas.
    O pagamento entra quando o usuário precisa de mais volume, tamanho ou uma operação avançada.
 */
 (function () {
@@ -405,8 +405,9 @@
     }
     lockedHint(msg, plan); return false;
   }
-  function lockedHint(msg, plan) {
-    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("paywall_shown", { plan: plan || "" }); } catch (e0) {}
+  function lockedHint(msg, plan, context) {
+    context = context || {};
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("paywall_shown", Object.assign({ plan: plan || "", source: context.source || "feature_paywall" }, context)); } catch (e0) {}
     // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
     // Sem Kiwify: abre o modal AbacatePay como antes.
     var kw = "";
@@ -416,7 +417,7 @@
       return;
     }
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
-    try { if (window.RC_pay && !window.RC_pay.kiwifyUrl(plan) && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan); } catch (e) {}
+    try { if (window.RC_pay && !window.RC_pay.kiwifyUrl(plan) && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan, context); } catch (e) {}
   }
 
   /* ---------- arquivo ---------- */
@@ -498,6 +499,7 @@
     f.arrayBuffer().then(function (ab) { return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
       if (my !== raioXSeq) return;
       if (!rep.ok) { box.hidden = true; paintWorldInfo(null); return; }
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("world_analyzed", { worlds: selectedList.length || 1, world_size_mb: +(f.size / 1048576).toFixed(1), addons: packCount(rep) }); } catch (e0) {}
       paintWorldInfo(rep, selectedList.length > 1 ? selectedList.length : 0);
       var df = (rep.difficulty && rep.difficulty.length === 1) ? diffName(rep.difficulty[0]) : null;
       var t = "Raio-X: " + (rep.alreadyClean ? "já limpo" : (rep.wouldChange.length + " ajustes pendentes"));
@@ -529,23 +531,11 @@
       setStatus("err", "O arquivo <b>" + escapeHtml(empty[0].name) + "</b> está <b>vazio</b> (0 bytes). Exporte o mundo de novo.");
       return;
     }
-    var maxB = sizeLimitMB() * 1024 * 1024;
-    var big = files.filter(function (f) { return f.size > maxB; });
-    if (big.length) {
-      selected = null; selectedList = [];
-      fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
-      if (!remotePremOk()) {
-        // gatilho contextual: mundo gigante bloqueado abre a oferta VIP na hora
-        // (Passe 24h pré-selecionado: entrada mais barata p/ um mundo só)
-        lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + big[0].name + "). Mundos gigantes são VIP — conversão ilimitada, sem limite de tamanho.", "vip24h");
-      } else {
-        setStatus("err", "Arquivo grande para a capacidade deste navegador: " + escapeHtml(big[0].name));
-      }
-      return;
-    }
     selectedList = files;
     selected = files[0];
-    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length }); } catch (e0) {}
+    var maxB = sizeLimitMB() * 1024 * 1024;
+    var big = files.filter(function (f) { return f.size > maxB; });
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), file_too_large: !!big.length }); } catch (e0) {}
     if (files.length > 1) {
       fileName.textContent = files.length + " arquivos selecionados (lote = VIP)";
       fileName.hidden = false;
@@ -556,6 +546,15 @@
       setStatus(null);
     }
     raioX();
+    // Analisa localmente antes da oferta. O mundo nunca é enviado ao servidor.
+    if (big.length && !remotePremOk()) {
+      setTimeout(function () {
+        if (selected !== big[0]) return;
+        var mb = (big[0].size / 1048576).toFixed(1);
+        var suggested = files.length > 1 ? "vip7" : "world1";
+        lockedHint("Seu mundo tem " + mb + " MB. O modo grátis aceita mundos de até " + freeLimitMB() + " MB. " + (files.length > 1 ? "Para este lote, o Passe 7 dias é a opção mais prática." : "Resolva este mundo agora ou veja os outros planos."), suggested, { world_size_mb: +mb, worlds: files.length, source: "world_size_paywall" });
+      }, 350);
+    }
     updateSubmit();
   }
 
@@ -816,6 +815,7 @@
   }
   form.addEventListener("submit", function (e) {
     e.preventDefault();
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_started", { worlds: selectedList.length || 1 }); } catch (e0) {}
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
 
@@ -984,7 +984,7 @@
         downloadBlob(res.blob, outName);
         if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
         paintQuota();
-        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("processing_completed", { worlds: 1 }); } catch (e0) {}
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1 }); } catch (e0) {}
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
       var warn = "";
@@ -1032,7 +1032,7 @@
         var bpacks = results.filter(function (r) { return (r.warnings || []).length; }).length;
         if (bpacks > 0 && !stripPacks) bwarn = "<br><span style='font-size:13px'>Atenção: <b>" + bpacks + " arquivo(s) têm addons (pacotes de comportamento)</b> que bloqueiam conquistas no jogo. Marque <b>“Remover addons”</b> no passo 2 e converta de novo.</span>";
         if (stripPacks) bwarn = "<br><span style='font-size:13px'>Addons (pacotes de comportamento) removidos dos arquivos.</span>";
-        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("processing_completed", { worlds: results.length }); } catch (e0) {}
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: results.length }); } catch (e0) {}
         setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {

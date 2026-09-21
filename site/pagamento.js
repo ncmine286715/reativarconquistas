@@ -59,7 +59,7 @@
       fetch(base() + "/api/telemetry", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: true }).catch(function () {});
     } catch (e) {}
   }
-  track("visit");
+  track("page_view");
 
   // Telemetria de erro: o navegador conta o que travou (leitura só com segredo).
   function logClient(step, message) {
@@ -85,6 +85,19 @@
       return "O Pix está temporariamente indisponível. Tente novamente mais tarde.";
     }
     return "Não deu: " + m;
+  }
+  function classifyError(err) {
+    var m = String((err && err.message) || err || "").toLowerCase();
+    if (/cpf|cnpj|documento/.test(m)) return "document_invalid";
+    if (/e-mail|email/.test(m)) return "email_invalid";
+    if (/401|conta google|autentic/.test(m)) return "unauthenticated";
+    if (/429|muitas tentativas|rate/.test(m)) return "rate_limited";
+    if (/api key|invalid_api_key/.test(m)) return "api_key";
+    if (/compliance|pagador/.test(m)) return "compliance";
+    if (/timeout|timed out/.test(m)) return "timeout";
+    if (/fetch|network|conexão/.test(m)) return "network";
+    if (/5\d\d|depix recusou/.test(m)) return "provider";
+    return "internal";
   }
   function closePay() {
     var m = document.getElementById("payModal");
@@ -153,7 +166,7 @@
     if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato OK (a receita valida no QR)
     return false;
   }
-  function depixCreate(plan, doc, payerEmail) {
+  function depixCreate(plan, doc, payerEmail, source) {
     return authReq("/api/depix/create", {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
@@ -161,10 +174,11 @@
         plan: normalizePlan(plan),
         payer_tax_number: cleanDoc(doc),
         payer_email: String(payerEmail || "").trim().toLowerCase(),
+        source: String(source || "").slice(0, 40),
         terms_accepted: true,
         terms_version: "2026-09-20-v1.6"
       })
-    }).then(function (r) { track("pix_created", { plan: normalizePlan(plan) }); return r; });
+    }).then(function (r) { return r; });
   }
   function depixStatus(id) {
     return authReq("/api/depix/status?id=" + encodeURIComponent(id));
@@ -184,10 +198,11 @@
     });
   }
 
-  function openPayModal(notice, plan) {
+  function openPayModal(notice, plan, context) {
     if (!enabled()) return;
     plan = normalizePlan(plan);
-    track("checkout_opened", { plan: plan });
+    context = context || {};
+    track("checkout_opened", Object.assign({ plan: plan }, context));
     closePay();
     var user = currentUser();
     if (!user || !user.email) {
@@ -271,7 +286,7 @@
       document.getElementById("payGo").textContent = p.cta;
     }
     Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) {
-      r.addEventListener("change", function () { paintPlan(); track("plan_selected", { plan: normalizePlan(r.value) }); });
+      r.addEventListener("change", function () { paintPlan(); track("plan_viewed", { plan: normalizePlan(r.value) }); });
     });
     paintPlan();
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
@@ -334,18 +349,22 @@
       var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
       var pixEmailConfirm = String((document.getElementById("payPixEmailConfirm") || {}).value || "").trim().toLowerCase();
       if (!validEmail(pixEmail)) {
+        track("checkout_validation_failed", { plan: selPlan(), reason: "email" });
         payStatus("Preencha um e-mail válido para o Pix.", "err");
         return;
       }
       if (!validEmail(pixEmailConfirm)) {
+        track("checkout_validation_failed", { plan: selPlan(), reason: "email_confirmation" });
         payStatus("Confirme o e-mail usado no Pix.", "err");
         return;
       }
       if (pixEmail !== pixEmailConfirm) {
+        track("checkout_validation_failed", { plan: selPlan(), reason: "email_mismatch" });
         payStatus("Os dois e-mails não são iguais. Confira antes de continuar.", "err");
         return;
       }
       if (!document.getElementById("payTerms").checked) {
+        track("checkout_validation_failed", { plan: selPlan(), reason: "terms" });
         payStatus("Para continuar, leia e aceite os Termos de Uso, a Política de Reembolso e a Política de Privacidade.", "err");
         return;
       }
@@ -373,15 +392,18 @@
         if (depixEnabled()) {
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
-          if (!validDoc(doc)) { go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
-          depixCreate(plan, doc, pixEmail).then(function (r) {
+          if (!validDoc(doc)) { track("checkout_validation_failed", { plan: plan, reason: "document" }); go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
+          track("pix_create_clicked", Object.assign({ plan: plan }, context));
+          depixCreate(plan, doc, pixEmail, context.source).then(function (r) {
             var url = r.url || r.payment_url;
             if (!url) throw new Error("Resposta sem link de pagamento.");
             try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
             try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e2) {}
+            track("pix_checkout_redirect", Object.assign({ plan: plan }, context));
             payStatus("Abrindo o checkout Pix…");
             location.href = url;
           }).catch(function (err) {
+            track("pix_create_error", { plan: plan, error_type: classifyError(err) });
             logClient("depix-create", (err && err.message) || err);
             go.disabled = false;
             go.textContent = PLANS[plan].cta;
@@ -446,7 +468,6 @@
       return depixStatus(did).then(function (r) {
         if (box) {
           if (r.paid) {
-            track("pix_paid", { plan: normalizePlan(r.plan) });
             try {
               localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
               localStorage.setItem("rc_prem_plan", r.plan || plan);
@@ -477,7 +498,6 @@
     return authReq("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
       if (box) {
         if (r.paid) {
-          track("pix_paid", { plan: normalizePlan(r.plan) });
           // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
           try {
             localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
@@ -547,6 +567,8 @@
       b.hidden = false;
       b.addEventListener("click", function (e) {
         e.preventDefault();
+        var source = b.getAttribute("data-source") || "pricing_card";
+        track("buy_clicked", { plan: plan, price_cents: ({ world1: 599, vip7: 799, vip30: 2490, creator: 3990 })[plan], source: source });
         checkout(plan, null);
       });
     });

@@ -13,11 +13,11 @@ window.RC_CONFIG = {
      ========================= */
 
   // Limite padrão para usuários grátis.
-  FREE_MAX_MB: 25,
+  FREE_MAX_MB: 10,
 
   // Promoção temporária para usuários grátis.
-  PROMO_MAX_MB: 25,
-  PROMO_UNTIL: "2099-12-31T23:59:59-03:00",
+  PROMO_MAX_MB: 10,
+  PROMO_UNTIL: "",
 
   // Limite técnico máximo aceito pelo sistema.
   PRE_MAX_MB: Infinity,

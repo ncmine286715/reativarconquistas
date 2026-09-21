@@ -74,6 +74,33 @@ const PLAN_LIMITS = {
   vip30: { maxMb: Infinity, batch: 10, kind: "time" },
   creator: { maxMb: Infinity, batch: 20, kind: "time" },
 };
+const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired"]);
+const PLAN_PRICES = { world1: 599, vip7: 799, vip30: 2490, creator: 3990 };
+function analyticsDay(ms = Date.now()) { return new Date(ms).toISOString().slice(0, 10); }
+function cleanDimension(value, max = 40) { return String(value || "").replace(/[^a-zA-Z0-9_:\-.]/g, "_").slice(0, max); }
+function deviceType(ua) { return /mobile|android|iphone|ipad/i.test(ua || "") ? "mobile" : "desktop"; }
+function browserType(ua) { ua = ua || ""; return /edg\//i.test(ua) ? "edge" : /firefox/i.test(ua) ? "firefox" : /chrome|crios/i.test(ua) ? "chrome" : /safari/i.test(ua) ? "safari" : "other"; }
+async function metric(env, event, data = {}, req = null) {
+  if (!ANALYTICS_EVENTS.has(event)) return;
+  const day = analyticsDay(); const key = "analytics:" + day;
+  const current = (await env.PREMIUM_KV.get(key, "json").catch(() => null)) || { events: {}, plans: {}, sources: {}, devices: {}, filters: {}, errors: {}, revenue_cents: 0 };
+  current.events[event] = (+current.events[event] || 0) + 1;
+  const plan = cleanDimension(data.plan, 20);
+  const source = cleanDimension(data.source, 40);
+  const device = req ? deviceType(req.headers.get("User-Agent")) : "";
+  if (plan) { current.plans[plan] = current.plans[plan] || {}; current.plans[plan][event] = (+current.plans[plan][event] || 0) + 1; }
+  if (source) { current.sources[source] = current.sources[source] || {}; current.sources[source][event] = (+current.sources[source][event] || 0) + 1; }
+  if (device) { current.devices[device] = current.devices[device] || {}; current.devices[device][event] = (+current.devices[device][event] || 0) + 1; }
+  const filterKeys = new Set([
+    [plan || "*", "*", "*"].join("|"), ["*", device || "*", "*"].join("|"), ["*", "*", source || "*"].join("|"),
+    [plan || "*", device || "*", "*"].join("|"), [plan || "*", "*", source || "*"].join("|"), ["*", device || "*", source || "*"].join("|"),
+    [plan || "*", device || "*", source || "*"].join("|")
+  ]);
+  for (const filterKey of filterKeys) { current.filters[filterKey] = current.filters[filterKey] || {}; current.filters[filterKey][event] = (+current.filters[filterKey][event] || 0) + 1; }
+  if (event === "payment_paid" && PLAN_PRICES[plan]) current.revenue_cents = (+current.revenue_cents || 0) + PLAN_PRICES[plan];
+  if (event === "pix_create_error" || event === "checkout_validation_failed") { const ek = cleanDimension(data.error_type || data.reason || "unknown", 40); current.errors[ek] = (current.errors[ek] || 0) + 1; }
+  await env.PREMIUM_KV.put(key, JSON.stringify(current), { expirationTtl: 400 * 86400 }).catch(() => {});
+}
 
 function b64(bytes) {
   let s = "";
@@ -433,6 +460,7 @@ export default {
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const plan = normalizeDepixPlan(body.plan);
+        const source = cleanDimension(body.source, 40);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
         const email = fb.email;
@@ -454,9 +482,11 @@ export default {
         try {
           const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req);
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
-            uid, email, at: Date.now(), plan, via: "depix",
+            uid, email, at: Date.now(), plan, source, via: "depix",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
           }), { expirationTtl: 86400 }).catch(() => {});
+          await metric(env, "payment_pending", { plan, source }, req);
+          await metric(env, "pix_create_success", { plan, source }, req);
           return json(r, 200, cors);
         } catch (e) {
           return json({ error: String((e && e.message) || e) }, 502, cors);
@@ -485,6 +515,8 @@ export default {
           if (email) out.email = email;
           if (info.paid && email) {
             const grant = await grantPurchase(env, email, id, plan, uid);
+            await metric(env, "payment_paid", { plan, source: pend && pend.source }, req);
+            await metric(env, "plan_granted", { plan, source: pend && pend.source }, req);
             out.premium_until_ms = grant.premium_until_ms;
             out.world_credits = grant.world_credits;
             await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
@@ -498,11 +530,12 @@ export default {
       // ---------- Depix: webhook (Depix -> Worker; verifica HMAC) ----------
       if (url.pathname === "/api/depix/webhook" && req.method === "POST") {
         const raw = await req.text();
+        await metric(env, "webhook_received", {}, req);
         const sig = req.headers.get("X-DePix-Signature") || req.headers.get("x-depix-signature") || "";
-        if (env.DEPIX_WEBHOOK_SECRET) {
-          const ok = await verifyDepixSignature(raw, sig, env.DEPIX_WEBHOOK_SECRET);
-          if (!ok) return json({ error: "forbidden" }, 403, cors);
-        }
+        if (!env.DEPIX_WEBHOOK_SECRET) return json({ error: "webhook não configurado" }, 503, cors);
+        const ok = await verifyDepixSignature(raw, sig, env.DEPIX_WEBHOOK_SECRET);
+        if (!ok) return json({ error: "forbidden" }, 403, cors);
+        await metric(env, "webhook_verified", {}, req);
         let evt = {};
         try { evt = raw ? JSON.parse(raw) : {}; } catch { evt = {}; }
         const data = evt.data || evt.checkout || evt;
@@ -523,7 +556,7 @@ export default {
             if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             if (pend && pend.uid && !uid) uid = String(pend.uid);
             const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
-            if (info.paid && email) await grantPurchase(env, email, bid, plan, uid);
+            if (info.paid && email) { await grantPurchase(env, email, bid, plan, uid); await metric(env, "payment_paid", { plan, source: pend && pend.source }, req); await metric(env, "plan_granted", { plan, source: pend && pend.source }, req); }
           } catch (e) { console.log("depix webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
@@ -581,33 +614,17 @@ export default {
         return json({ items: (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [] }, 200, cors);
       }
 
-      // Funil comercial agregado: não recebe o mundo nem dados de pagamento.
+      // Funil comercial agregado: nunca recebe CPF/CNPJ, e-mail, conteúdo de mundo ou tokens.
       if (url.pathname === "/api/telemetry" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
         if (!(await rlTake(env, "rl-tel:" + ip, 120, 3600))) return json({ ok: false }, 429, cors);
         let body = {};
         try { body = await req.json(); } catch { body = {}; }
-        const allowed = new Set(["visit", "file_selected", "processing_completed", "paywall_shown", "checkout_opened", "pix_created", "pix_paid", "plan_selected"]);
         const event = String(body.event || "").trim().slice(0, 40);
-        if (!allowed.has(event)) return json({ ok: false }, 400, cors);
-        const day = new Date().toISOString().slice(0, 10);
-        const key = "telemetry:" + day;
-        const current = (await env.PREMIUM_KV.get(key, "json").catch(() => null)) || {};
-        current[event] = (+current[event] || 0) + 1;
-        const plan = String(body.plan || "").slice(0, 20);
-        if (plan) {
-          current.plans = current.plans || {};
-          current.plans[plan] = (+current.plans[plan] || 0) + 1;
-        }
-        await env.PREMIUM_KV.put(key, JSON.stringify(current), { expirationTtl: 400 * 86400 });
+        if (!ANALYTICS_EVENTS.has(event)) return json({ ok: false }, 400, cors);
+        await metric(env, event, { plan: body.plan, source: body.source, reason: body.reason, error_type: body.error_type }, req);
         return json({ ok: true }, 200, cors);
       }
-      if (url.pathname === "/api/telemetry" && req.method === "GET") {
-        if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) return json({ error: "forbidden" }, 403, cors);
-        const day = url.searchParams.get("day") || new Date().toISOString().slice(0, 10);
-        return json({ day, counts: (await env.PREMIUM_KV.get("telemetry:" + day, "json").catch(() => null)) || {} }, 200, cors);
-      }
-
       // ---------- contas: registro ----------
       if (url.pathname === "/api/auth/register" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
