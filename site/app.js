@@ -9,7 +9,8 @@
   var FREE_MAX_MB = CFG.FREE_MAX_MB || 10;
   var PRE_MAX_MB = CFG.PRE_MAX_MB || 500;
   var FREE_DAILY = CFG.FREE_DAILY || 5;
-  var FREE_MAX_PACKS = CFG.FREE_MAX_PACKS || 3;
+  var FREE_MAX_PACKS = CFG.FREE_MAX_PACKS == null ? 1 : Number(CFG.FREE_MAX_PACKS);
+  if (!isFinite(FREE_MAX_PACKS) || FREE_MAX_PACKS < 0) FREE_MAX_PACKS = 1;
 
   /* ---------- quota grátis: N conversões por dia (VIP = ilimitado) ---------- */
   function freeDay() {
@@ -558,7 +559,7 @@
   });
   var stripCb = $("stripPacks");
   if (stripCb) stripCb.addEventListener("change", function () {
-    if (stripCb.checked && !remotePremOk()) {
+    if (stripCb.checked && false) {
       stripCb.checked = false;
       needPremium("Remover addons para voltar as conquistas é 100% VIP.");
     }
@@ -839,7 +840,7 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
-    if (stripPacks && !prem) { lockedHint("Remover addons para voltar as conquistas é 100% VIP."); return; }
+    if (stripPacks && !prem && false) { lockedHint("Remover addons é grátis até 1 addon; acima disso o VIP libera sem limite."); return; }
     var addPacks = selectedPacks.map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
     if (addPacks.length && !prem && addPacks.length > FREE_PACKS) {
       lockedHint("Grátis: até " + FREE_PACKS + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
