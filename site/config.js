@@ -20,7 +20,7 @@ window.RC_CONFIG = {
   OPERATOR_DOC: "",
   OPERATOR_CITY_UF: "Terra Roxa/PR",
   // URL do Worker Cloudflare (API de contas + pagamento).
-  // Vazio no modo local: conta e pagamento usam o backend Python estavel.
+  // API usada para consultar VIP e receber webhooks; o checkout é Kiwify.
   WORKER_URL: "",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
   PASS_24H_PRICE_LABEL: "R$ 5,90",
@@ -37,6 +37,6 @@ window.RC_CONFIG = {
   // Checkout Kiwify (venda imediata): links pay.kiwify.com.br de cada plano.
   // BACKUP EM: site/backup-kiwify-2026-09-20/ (versão do PC preservada).
   // Kiwify ativa: cada plano abre seu checkout. Depix desativado.
-  KIWIFY_URL_24H: "",
-  KIWIFY_URL_30D: ""
+  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
+  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
 };
