@@ -208,7 +208,7 @@ function normalizeDepixPlan(plan) {
 }
 function depixAmount(plan) {
   plan = normalizeDepixPlan(plan);
-  return { world1: 499, vip7: 799, vip30: 2490, creator: 3990, vip24h: 590 }[plan];
+  return { world1: 599, vip7: 799, vip30: 2490, creator: 3990, vip24h: 590 }[plan];
 }
 function depixPlanDays(plan) {
   plan = normalizeDepixPlan(plan);
@@ -367,7 +367,7 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), world1_cents: 499, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
       }
 
       // ---------- Depix: criar checkout Pix ----------

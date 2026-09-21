@@ -100,8 +100,8 @@
   // Oferta comercial orientada ao problema, mantendo os ids antigos apenas
   // para compatibilidade com links e pagamentos já existentes.
   PLANS = {
-    world1: { title: "Resolver 1 mundo", price: "R$ 4,99", cta: "Resolver meu mundo por R$ 4,99", sub: "Para um mundo agora: até 100 MB, correções avançadas e 7 dias para reprocessar e baixar." },
-    vip7: { title: "Passe 7 dias", price: "R$ 7,99", cta: "Liberar 7 dias por R$ 7,99", sub: "Até 300 MB, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
+    world1: { title: "Resolver 1 mundo", price: "R$ 5,99", cta: "Resolver meu mundo por R$ 5,99", sub: "Para um mundo agora: até 150 MB, correções avançadas e 7 dias para reprocessar e baixar." },
+    vip7: { title: "Passe 7 dias", price: "R$ 7,99", cta: "Liberar 7 dias por R$ 7,99", sub: "Até 500 MB, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
     vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Até 50 mundos, arquivos grandes, lotes e todas as ferramentas para uso recorrente." },
     creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador por R$ 39,90", sub: "Até 150 mundos, lotes maiores, addons, chunks e edição avançada para uso pesado." }
   };
@@ -187,8 +187,8 @@
       (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
       "<div class='vip-assurance'><b>VIP automático:</b> cai nesta conta Google assim que o Pix for confirmado.</div>" +
       "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'>" +
-        "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 4,99</b><small>100 MB</small></span></label>" +
-        "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>300 MB</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 5,99</b><small>150 MB</small></span></label>" +
+        "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>500 MB</small></span></label>" +
         "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 24,90</b><small>Sem limite comercial</small></span></label>" +
         "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>" +
       "</div>" +
@@ -226,8 +226,8 @@
     document.body.appendChild(bg);
     var planPick = bg.querySelector(".planpick");
     if (planPick) planPick.innerHTML =
-      "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 4,99</b><small>100 MB</small></span></label>" +
-      "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>300 MB</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 5,99</b><small>150 MB</small></span></label>" +
+      "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>500 MB</small></span></label>" +
       "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 24,90</b><small>Sem limite comercial</small></span></label>" +
       "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>";
     var requested = bg.querySelector("input[value='" + plan + "']");

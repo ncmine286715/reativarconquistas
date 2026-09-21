@@ -227,7 +227,7 @@
   function paidSizeLimitMB() {
     if (!remotePremOk()) return freeLimitMB();
     var p = remotePlan();
-    return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 300 : 100);
+    return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 500 : 150);
   }
   function remotePremOk() {
     if (remotePremUntil() <= Date.now()) return false;

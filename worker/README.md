@@ -46,7 +46,7 @@ AbacatePay (Produtos → Novo produto → pagamento único):
 
 | Plano | Produto sugerido | Preço | Var no `wrangler.toml` | Dias liberados |
 |---|---|---|---|---|
-| Resolver 1 mundo (`world1`) | "Resolver 1 mundo" | R$ 4,99 | `ABACATEPAY_PRODUCT_ID_24H` | 7 |
+| Resolver 1 mundo (`world1`) | "Resolver 1 mundo" | R$ 5,99 | `ABACATEPAY_PRODUCT_ID_24H` | 7 |
 | Passe 7 dias (`vip7`) | "Passe 7 dias" | R$ 7,99 | `ABACATEPAY_PRODUCT_ID_7D` | 7 |
 | Passe 30 dias (`vip30`) | "Passe 30 dias" | R$ 24,90 | `ABACATEPAY_PRODUCT_ID` | 30 |
 | Criador (`creator`) | "Criador" | R$ 39,90 | `ABACATEPAY_PRODUCT_ID_CREATOR` | 30 |

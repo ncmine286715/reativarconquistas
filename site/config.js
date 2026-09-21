@@ -61,7 +61,7 @@ window.RC_CONFIG = {
      ========================= */
 
   // Passe de 24 horas.
-  PASS_24H_PRICE_LABEL: "R$ 4,99",
+  PASS_24H_PRICE_LABEL: "R$ 5,99",
 
   // VIP de 30 dias.
   PREMIUM_PRICE_LABEL: "R$ 24,90",
@@ -69,7 +69,7 @@ window.RC_CONFIG = {
   PREMIUM_DAYS: 30,
 
   // Valores enviados para o Depix em centavos.
-  PASS_24H_CENTS: 499,
+  PASS_24H_CENTS: 599,
   PREMIUM_CENTS_30D: 2490,
 
   PASS_7D_PRICE_LABEL: "R$ 7,99",
