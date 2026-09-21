@@ -21,7 +21,7 @@ window.RC_CONFIG = {
   OPERATOR_CITY_UF: "Terra Roxa/PR",
   // URL do Worker Cloudflare (API de contas + pagamento).
   // API usada para consultar VIP e receber webhooks; o checkout é Kiwify.
-  WORKER_URL: "",
+  WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
   PASS_24H_PRICE_LABEL: "R$ 5,90",
   PREMIUM_DAYS: 30,
