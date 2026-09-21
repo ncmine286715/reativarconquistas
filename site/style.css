@@ -588,6 +588,8 @@ a.hero-btn.btn-ghost {
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; margin-top: 8px; }
 .map-legend .sq { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: baseline; }
 .map-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+/* A restauração de chunks foi retirada da interface; o mapa permanece somente visual. */
+#accChunks { display: none !important; }
 /* ---------- abas (uma tela por ferramenta) ---------- */
 .tabs { display: flex; gap: 8px; margin: 2px 0 14px; }
 .tabbtn {
