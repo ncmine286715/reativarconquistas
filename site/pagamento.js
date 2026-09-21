@@ -162,7 +162,7 @@
         payer_tax_number: cleanDoc(doc),
         payer_email: String(payerEmail || "").trim().toLowerCase(),
         terms_accepted: true,
-        terms_version: "2026-09-20-v1.5"
+        terms_version: "2026-09-20-v1.6"
       })
     }).then(function (r) { track("pix_created", { plan: normalizePlan(plan) }); return r; });
   }
@@ -404,7 +404,7 @@
           body: JSON.stringify({
             plan: plan,
             terms_accepted: true,
-            terms_version: "2026-09-20-v1.5"
+            terms_version: "2026-09-20-v1.6"
           })
         }).then(function (r) {
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
