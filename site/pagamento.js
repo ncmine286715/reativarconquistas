@@ -395,6 +395,11 @@
   // Backup Kiwify em site/backup-kiwify-2026-09-20/.
   function checkout(plan, notice) {
     plan = plan === "vip24h" ? "vip24h" : "vip30";
+    if (!currentEmail()) {
+      try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
+      if (window.RC_auth) window.RC_auth.openModal();
+      return true;
+    }
     if (depixEnabled()) { openPayModal(notice || null, plan); return true; }
     var kw = kiwifyUrl(plan);
     if (kw) {
@@ -420,6 +425,13 @@
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePay();
+    });
+    document.addEventListener("rc-auth", function () {
+      var em = currentEmail(), plan = "";
+      try { plan = localStorage.getItem("rc_pending_plan") || ""; } catch (e) {}
+      if (!em || !plan) return;
+      try { localStorage.removeItem("rc_pending_plan"); } catch (e2) {}
+      openPayModal(null, plan === "vip24h" ? "vip24h" : "vip30");
     });
   }
 
