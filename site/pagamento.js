@@ -100,10 +100,10 @@
   // Oferta comercial orientada ao problema, mantendo os ids antigos apenas
   // para compatibilidade com links e pagamentos já existentes.
   PLANS = {
-    world1: { title: "Resolver 1 mundo", price: "R$ 5,99", cta: "Resolver meu mundo por R$ 5,99", sub: "Para um mundo agora: até 150 MB, correções avançadas e 7 dias para reprocessar e baixar." },
+    world1: { title: "Resolver 1 mundo", price: "R$ 5,99", cta: "Resolver meu mundo · R$ 5,99 · 7 dias", sub: "Para um mundo agora: até 150 MB, correções avançadas e 7 dias para reprocessar e baixar." },
     vip7: { title: "Passe 7 dias", price: "R$ 7,99", cta: "Liberar 7 dias por R$ 7,99", sub: "Até 500 MB, lotes de até 5 arquivos e ferramentas avançadas durante 7 dias." },
     vip30: { title: "Passe 30 dias", price: "R$ 24,90", cta: "Liberar 30 dias por R$ 24,90", sub: "Até 50 mundos, arquivos grandes, lotes e todas as ferramentas para uso recorrente." },
-    creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador por R$ 39,90", sub: "Até 150 mundos, lotes maiores, addons, chunks e edição avançada para uso pesado." }
+    creator: { title: "Criador", price: "R$ 39,90", cta: "Liberar Criador · R$ 39,90 · 30 dias", sub: "Lotes maiores, addons e edição avançada para criadores e donos de Realms." }
   };
   function normalizePlan(plan) {
     return PLANS[plan] ? plan : (plan === "vip24h" ? "world1" : "vip30");
