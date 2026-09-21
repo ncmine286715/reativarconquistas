@@ -4,6 +4,10 @@ name = "reativa-pay"
 main = "worker/src/index.js"
 compatibility_date = "2024-11-01"
 
+[assets]
+directory = "./site"
+binding = "ASSETS"
+
 [[kv_namespaces]]
 binding = "PREMIUM_KV"
 id = "acfc4981776e4dd0b8513722597f8f01"
