@@ -11,7 +11,12 @@
   var TAG_FLOAT = 5, TAG_DOUBLE = 6, TAG_BYTE_ARRAY = 7, TAG_STRING = 8;
   var TAG_LIST = 9, TAG_COMPOUND = 10, TAG_INT_ARRAY = 11, TAG_LONG_ARRAY = 12;
   var FLAGS = ["commandsEnabled", "cheatsEnabled", "hasBeenLoadedInCreative"];
-  var HARDCORE_FLAGS = ["hardcore", "isHardcore", "hardcoreEnabled", "hasHardcore"];
+  // Bedrock usa IsHardcore (I maiúsculo) no level.dat. Mantemos aliases
+  // para versões/editores que gravam o marcador com outra capitalização.
+  var HARDCORE_FLAGS = ["IsHardcore", "hardcore", "isHardcore", "hardcoreEnabled", "hasHardcore"];
+  // Ao recuperar Hardcore, o mundo também precisa deixar de forçar o estado
+  // de morte e o modo original; só limpar o nome do marcador não basta.
+  var HARDCORE_RECOVERY_FLAGS = ["PlayerHasDied", "ForceGameType"];
   // Leitura informativa p/ diagnóstico (o site não altera travas de pack).
   var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
   // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
@@ -206,6 +211,12 @@
       });
       (hits.GameType || []).forEach(function (h) {
         if (h.tag === TAG_INT && h.val !== 0) { dv.setInt32(h.off, 0, true); changes.push("int " + h.path + " (GameType) = " + h.val + " -> 0"); }
+      });
+      HARDCORE_RECOVERY_FLAGS.forEach(function (name) {
+        (hits[name] || []).forEach(function (h) {
+          if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
+          else if (h.tag === TAG_INT && h.val !== 0) { dv.setInt32(h.off, 0, true); changes.push("int " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
+        });
       });
     }
     if (gameMode !== "keep") {
@@ -456,5 +467,5 @@
 
   window.RC_convert = convertMcworld;
   // Internos p/ ferramentas-local.js (diagnóstico --check, level.dat direto, lote). Mesma implementação, sem duplicar.
-  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, patchLevelName: patchLevelName, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS, HARDCORE_FLAGS: HARDCORE_FLAGS, LOCK_FLAGS: LOCK_FLAGS, RULES: RULES, DIFF_NAMES: DIFF_NAMES, isJpeg: isJpeg };
+  window.RC_nbt = { Reader: Reader, walkCollect: walkCollect, splitLevelDat: splitLevelDat, patchBody: patchBody, patchLevelName: patchLevelName, validateBody: validateBody, packBody: packBody, gunzipAsync: gunzipAsync, gzipAsync: gzipAsync, FLAGS: FLAGS, HARDCORE_FLAGS: HARDCORE_FLAGS, HARDCORE_RECOVERY_FLAGS: HARDCORE_RECOVERY_FLAGS, LOCK_FLAGS: LOCK_FLAGS, RULES: RULES, DIFF_NAMES: DIFF_NAMES, isJpeg: isJpeg };
 })();

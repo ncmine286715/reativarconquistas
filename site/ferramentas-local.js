@@ -56,7 +56,7 @@
   function summarizeHits(hits) {
     var NBT = needNbt();
     var flags = {};
-    NBT.FLAGS.forEach(function (name) {
+    NBT.FLAGS.concat(NBT.HARDCORE_FLAGS || [], NBT.HARDCORE_RECOVERY_FLAGS || []).forEach(function (name) {
       var list = hits[name] || [];
       var vals = list.map(function (h) { return h.tag === 1 ? h.val : ("tag" + h.tag); });
       flags[name] = vals;
@@ -81,7 +81,7 @@
       gamerules[name] = l.length ? l[0].val : null;
     });
     var would = [];
-    NBT.FLAGS.forEach(function (name) {
+    NBT.FLAGS.concat(NBT.HARDCORE_FLAGS || [], NBT.HARDCORE_RECOVERY_FLAGS || []).forEach(function (name) {
       (hits[name] || []).forEach(function (h) {
         if (h.tag === 1 && h.val !== 0) would.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
       });
@@ -164,7 +164,7 @@
     if (wasGzip) raw = await NBT.gunzipAsync(raw);
     var split = NBT.splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
-    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null });
+    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null, recoverHardcore: !!opts.recoverHardcore });
     var changes = patched.changes.slice();
     if (opts.worldName && NBT.patchLevelName) {
       var renamed = NBT.patchLevelName(patched.buf, opts.worldName);

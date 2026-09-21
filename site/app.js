@@ -966,7 +966,7 @@
     // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName });
+        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore });
       }).then(function (res) {
         finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
