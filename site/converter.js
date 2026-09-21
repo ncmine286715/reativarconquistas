@@ -11,12 +11,13 @@
   var TAG_FLOAT = 5, TAG_DOUBLE = 6, TAG_BYTE_ARRAY = 7, TAG_STRING = 8;
   var TAG_LIST = 9, TAG_COMPOUND = 10, TAG_INT_ARRAY = 11, TAG_LONG_ARRAY = 12;
   var FLAGS = ["commandsEnabled", "cheatsEnabled", "hasBeenLoadedInCreative"];
-  // Bedrock usa IsHardcore (I maiúsculo) no level.dat. Mantemos aliases
-  // para versões/editores que gravam o marcador com outra capitalização.
-  var HARDCORE_FLAGS = ["IsHardcore", "hardcore", "isHardcore", "hardcoreEnabled", "hasHardcore"];
-  // Ao recuperar Hardcore, o mundo também precisa deixar de forçar o estado
-  // de morte e o modo original; só limpar o nome do marcador não basta.
-  var HARDCORE_RECOVERY_FLAGS = ["PlayerHasDied", "ForceGameType"];
+  // The current Bedrock world marker is the root byte `IsHardcore`.
+  // Do not treat Java/legacy aliases as evidence: that could edit an
+  // unrelated/future tag and falsely report a recovery.
+  var HARDCORE_FLAGS = ["IsHardcore"];
+  // Some dead Hardcore saves also carry this byte. Change it only when it is
+  // present; every unknown/future tag remains untouched.
+  var HARDCORE_RECOVERY_FLAGS = ["PlayerHasDied"];
   // Leitura informativa p/ diagnóstico (o site não altera travas de pack).
   var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
   // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
@@ -203,19 +204,17 @@
       });
     });
     if (recoverHardcore) {
+      var hardcoreHits = (hits.IsHardcore || []).filter(function (h) { return h.tag === TAG_BYTE; });
+      if (!hardcoreHits.length) throw new Error("HARDCORE_NOT_DETECTED|O marcador Bedrock IsHardcore não foi encontrado.");
+      if (!hardcoreHits.some(function (h) { return h.val !== 0; })) throw new Error("HARDCORE_NOT_ACTIVE|O mundo já está com IsHardcore=0.");
       HARDCORE_FLAGS.forEach(function (name) {
         (hits[name] || []).forEach(function (h) {
           if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
-          else if (h.tag === TAG_INT && h.val !== 0) { dv.setInt32(h.off, 0, true); changes.push("int " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
         });
-      });
-      (hits.GameType || []).forEach(function (h) {
-        if (h.tag === TAG_INT && h.val !== 0) { dv.setInt32(h.off, 0, true); changes.push("int " + h.path + " (GameType) = " + h.val + " -> 0"); }
       });
       HARDCORE_RECOVERY_FLAGS.forEach(function (name) {
         (hits[name] || []).forEach(function (h) {
           if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
-          else if (h.tag === TAG_INT && h.val !== 0) { dv.setInt32(h.off, 0, true); changes.push("int " + h.path + " (" + name + ") = " + h.val + " -> 0"); }
         });
       });
     }
@@ -324,6 +323,16 @@
     return true;
   }
 
+  function assertHardcoreRecovered(body) {
+    var hits = {};
+    walkCollect(body, hits);
+    var h = (hits.IsHardcore || []).filter(function (x) { return x.tag === TAG_BYTE; });
+    if (!h.length || h.some(function (x) { return x.val !== 0; })) throw new Error("Validação Hardcore falhou: IsHardcore não ficou 0.");
+    (hits.PlayerHasDied || []).forEach(function (x) {
+      if (x.tag === TAG_BYTE && x.val !== 0) throw new Error("Validação Hardcore falhou: PlayerHasDied não ficou 0.");
+    });
+  }
+
   function packBody(buf, meta) {
     var out = buf;
     if (meta.header) {
@@ -374,6 +383,9 @@
   async function convertMcworld(arrayBuffer, opts) {
     opts = opts || {};
     var gameMode = opts.gameMode || "survival";
+    if (gameMode !== "keep" && opts.paidEntitlement !== true) {
+      throw new Error("PAID_GAME_MODE|Alterar o modo de jogo exige um plano pago.");
+    }
     var iconBytes = opts.iconBytes || null; // Uint8Array em JPEG (world_icon.jpeg)
     var worldName = (opts.worldName || "").replace(/\s+/g, " ").trim().slice(0, 60);
     var difficultyOpt = (opts.difficulty >= 0 && opts.difficulty <= 3) ? opts.difficulty : null;
@@ -413,6 +425,7 @@
     patched.buf = renamed.buf;
     renamed.changes.forEach(function (c) { changes.push(c); });
     validateBody(patched.buf);
+    if (opts.recoverHardcore) assertHardcoreRecovered(patched.buf);
     var packed = await packBody(patched.buf, split.meta);
 
     // Ícone do MUNDO Bedrock = world_icon.jpeg em JPEG na raiz.
@@ -462,6 +475,18 @@
       if (!renamed.oldName && !renamed.changes.length) changes.push("nome em levelname.txt (LevelName não estava na raiz)");
     }
     var blob = await out.generateAsync({ type: "blob", compression: "STORE" });
+    // Re-open the generated artifact before exposing it to the user. This
+    // catches bad ZIP output and proves the requested level.dat state survived
+    // the header/gzip/ZIP round-trip.
+    var checkZip = await JSZip.loadAsync(blob);
+    var checkRel = findLevelName(checkZip);
+    if (!checkRel) throw new Error("Validação falhou: level.dat sumiu do .mcworld.");
+    var checkRaw = new Uint8Array(await checkZip.file(checkRel).async("uint8array"));
+    if (checkRaw.length >= 2 && checkRaw[0] === 0x1f && checkRaw[1] === 0x8b) checkRaw = await gunzipAsync(checkRaw);
+    var checkSplit = splitLevelDat(checkRaw);
+    validateBody(checkSplit.body);
+    if (opts.recoverHardcore) assertHardcoreRecovered(checkSplit.body);
+    if (iconBytes && !checkZip.file("world_icon.jpeg")) throw new Error("Validação falhou: ícone não foi preservado.");
     return { blob: blob, changes: changes, warnings: warnings, packInfo: packInfo };
   }
 

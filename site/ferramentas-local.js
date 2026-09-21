@@ -71,6 +71,7 @@
     var seed = (hits.RandomSeed || []).filter(function (h) { return h.tag === 4; }).map(function (h) { return String(h.val); });
     if (!seed.length) seed = (hits.LevelSeed || []).filter(function (h) { return h.tag === 4; }).map(function (h) { return String(h.val); });
     var nm = (hits.LevelName || []).filter(function (h) { return h.tag === 8; }).map(function (h) { return h.val; });
+    var hardcore = (hits.IsHardcore || []).filter(function (h) { return h.tag === 1; }).map(function (h) { return h.val !== 0; });
     var spawn = ["SpawnX", "SpawnY", "SpawnZ"].map(function (n) {
       var l = (hits[n] || []).filter(function (h) { return h.tag === 3; });
       return l.length ? l[0].val : null;
@@ -89,7 +90,7 @@
     (hits.GameType || []).forEach(function (h) {
       if (h.tag === 3 && h.val !== 0) would.push("int " + h.path + " (GameType) = " + h.val + " -> 0");
     });
-    return { flags: flags, locked: locked, gameType: gt, difficulty: df, seed: seed, levelName: nm, spawn: spawn, gamerules: gamerules, wouldChange: would };
+    return { flags: flags, locked: locked, hardcore: hardcore.length ? hardcore[0] : null, hardcoreDetected: hardcore.length > 0, gameType: gt, difficulty: df, seed: seed, levelName: nm, spawn: spawn, gamerules: gamerules, wouldChange: would };
   }
 
   // Dry-run do --check: NÃO altera nada, só relata o que mudaria.
@@ -113,6 +114,8 @@
       header: !!split.meta.header,
       flags: s.flags,
       locked: s.locked,
+      hardcore: s.hardcore,
+      hardcoreDetected: s.hardcoreDetected,
       gameType: s.gameType,
       difficulty: s.difficulty,
       seed: s.seed,
@@ -145,6 +148,7 @@
         behaviorPacks: { folders: [], active: 0 },
         header: !!split.meta.header,
         flags: s.flags, locked: s.locked, gameType: s.gameType, difficulty: s.difficulty,
+        hardcore: s.hardcore, hardcoreDetected: s.hardcoreDetected,
         seed: s.seed, worldName: s.levelName, spawn: s.spawn, gamerules: s.gamerules,
         wouldChange: s.wouldChange, alreadyClean: s.wouldChange.length === 0
       };
@@ -159,6 +163,9 @@
     var NBT = needNbt();
     gameMode = gameMode || "survival";
     opts = opts || {};
+    if (gameMode !== "keep" && opts.paidEntitlement !== true) {
+      throw new Error("PAID_GAME_MODE|Alterar o modo de jogo exige um plano pago.");
+    }
     var raw = u8(arrayBuffer);
     var wasGzip = raw.length >= 2 && raw[0] === 0x1f && raw[1] === 0x8b;
     if (wasGzip) raw = await NBT.gunzipAsync(raw);

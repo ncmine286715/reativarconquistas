@@ -565,7 +565,12 @@
 
   var gameSel = $("gamemode");
   if (gameSel) gameSel.addEventListener("change", function () {
-      // Modo de jogo fica livre; o paywall acontece por volume e tamanho.
+    // Any explicit mode change is a paid operation. `keep` is the no-op/free
+    // choice and remains available so the rest of the free tools work.
+    if (gameSel.value !== "keep" && !remotePremOk()) {
+      lockedHint("Alterar o modo de jogo é uma função paga.", "world1");
+      gameSel.value = "keep";
+    }
   });
   if (wantIcon) wantIcon.addEventListener("change", function () {
     // A foto do mundo é uma ferramenta simples e permanece gratuita.
@@ -808,6 +813,10 @@
       var gs = $("gamemode");
       if (gs && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
     } catch (e2) { mode = "survival"; }
+    if (mode !== "keep" && !prem) {
+      lockedHint("Alterar o modo de jogo é uma função paga. O plano grátis pode manter o modo atual.", "world1");
+      return;
+    }
     var rules = {
       keepinventory: selRule(keepSel),
       showcoordinates: selRule(coordSel),
@@ -966,7 +975,7 @@
     // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore });
+        return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem });
       }).then(function (res) {
         finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
@@ -983,7 +992,7 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -1006,7 +1015,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
