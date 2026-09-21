@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. Mundos de até 10 MB: grátis todo dia. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light"){t="dark";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
 </head>
 <body>
@@ -514,10 +514,11 @@
 </div>
 
 <script src="vendor/jszip.min.js?v=14"></script>
-<script src="vendor/leveldb-reader.js?v=1"></script>
+<script src="vendor/leveldb-reader.js?v=2"></script>
+<script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=19"></script>
 <script src="converter.js?v=16"></script>
-<script src="pixel-icons.js?v=13"></script>
+<script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=14"></script>
 <script src="mapa-2d.js?v=6"></script>
 <script src="mapa-terreno.js?v=2"></script>
