@@ -10,9 +10,10 @@
 
   function base() {
     var u = ((window.RC_CONFIG || {}).WORKER_URL || "").replace(/\/+$/, "");
-    return u;
+    // Em produção o site e a API vivem no mesmo Worker; vazio significa mesma origem.
+    return u || (location.origin || "");
   }
-  function enabled() { return !!base(); }
+  function enabled() { return !!base() && !!window.fetch; }
 
   function req(path, opts) {
     opts = opts || {};
@@ -229,6 +230,11 @@
       if (window.RC_auth) window.RC_auth.openModal("login", "Entre para pagar com sua conta (ou pague só com o e-mail).");
     });
     document.getElementById("payGo").addEventListener("click", function () {
+      if (!currentEmail()) {
+        closePay();
+        if (window.RC_auth) window.RC_auth.openModal();
+        return;
+      }
       var email = (document.getElementById("payEmail").value || "").trim();
       if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
       // já é VIP? redireciona em vez de cobrar de novo (trava final)
