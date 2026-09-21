@@ -196,7 +196,7 @@
       });
     } catch (e) {}
     // trava anti-compra-dupla: e-mail que já tem VIP ativo não gera cobrança
-    var vipLockUntil = 0;
+    var vipLockUntil = 0, vipOverride = false;
     function showVipOwner(ms) {
       vipLockUntil = ms;
       var m = document.getElementById("payMsg");
@@ -206,7 +206,7 @@
         m.innerHTML = "Este e-mail já tem <b>VIP até " + new Date(ms).toLocaleDateString("pt-BR") + "</b>. Não precisa pagar de novo.";
       }
       var go = document.getElementById("payGo");
-      if (go) { go.disabled = false; go.textContent = "Ir converter"; }
+      if (go) { go.disabled = false; go.textContent = "Comprar mais dias"; }
     }
     function refreshVipLock() {
       if (!document.getElementById("payModal")) return;
@@ -218,7 +218,7 @@
     }
     var emailTimer = null;
     document.getElementById("payEmail").addEventListener("input", function () {
-      vipLockUntil = 0;
+      vipLockUntil = 0; vipOverride = false;
       if (emailTimer) clearTimeout(emailTimer);
       emailTimer = setTimeout(refreshVipLock, 700);
     });
@@ -238,7 +238,7 @@
       var email = (document.getElementById("payEmail").value || "").trim();
       if (!/[^@\s]+@[^@\s]+\.[^@\s]+/.test(email)) { payStatus("Informe um e-mail válido.", "err"); return; }
       // já é VIP? redireciona em vez de cobrar de novo (trava final)
-      if (vipLockUntil > Date.now()) { location.href = "index.html#converter"; return; }
+      if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. O novo pagamento será somado após a confirmação da Kiwify.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
       var go = document.getElementById("payGo");
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
