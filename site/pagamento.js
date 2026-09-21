@@ -440,7 +440,6 @@
           payStatus(friendlyErr(err), "err");
         });
       }
-      attempt(1);
     });
   }
 
