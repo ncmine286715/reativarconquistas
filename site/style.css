@@ -399,7 +399,7 @@ a.hero-btn.btn-ghost {
 
 @media (max-width: 720px) {
   .hamb { display: flex; }
-  .nav a.hide-m, .nav #navAuth { display: none; }
+  .nav a.hide-m { display: none; }
   .wi-row > span:first-child { flex-basis: 96px; }
 }
 
