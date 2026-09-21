@@ -25,9 +25,12 @@ ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
 # ID do produto de entrada "Resolver 1 mundo" (R$ 5,99) no dashboard AbacatePay.
 ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
 # IDs dos produtos na KIWIFY (só quando ligar a Kiwify): produto -> Webhooks.
-# Vazios = Kiwify desligada. Dias: _24H = 1 dia, _30D = 30 dias.
+# Vazios = opcional; o Worker também reconhece os nomes dos quatro produtos.
+KIWIFY_PID_WORLD1 = ""
+KIWIFY_PID_7D = ""
 KIWIFY_PID_24H = ""
 KIWIFY_PID_30D = ""
+KIWIFY_PID_CREATOR = ""
 # Site público (volta do checkout). Troque pelo seu domínio em produção.
 PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 # Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
@@ -37,9 +40,12 @@ PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 
 # SEGREDOS (nunca neste arquivo! cada um via `wrangler secret put NOME`):
+#   wrangler secret put SECURITY_REWARD_EMAIL -> e-mail único do pesquisador reconhecido (9.999 dias)
 #   wrangler secret put DEPIX_API_KEY        -> sk_test_... (teste) ou sk_live_... (produção)
 #   wrangler secret put DEPIX_WEBHOOK_SECRET -> whsec_... (painel Depix > My Business > Webhooks)
 #   wrangler secret put ABACATEPAY_API_KEY   -> abc_dev_... (dev) ou abc_... (produção, reserva)
+#   wrangler secret put KIWIFY_SECRET        -> segredo presente no ?secret= da URL do webhook
+#   wrangler secret put KIWIFY_TOKEN         -> token do header Kiwify, se o painel o enviar
 # e cole cada valor quando o wrangler pedir (não aparece no terminal).
 #
 # MODO TESTE: com sk_test_ no DEPIX_API_KEY, o Worker já responde

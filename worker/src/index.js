@@ -23,40 +23,62 @@
     Secrets (via API: nunca neste arquivo nem no git):
       DEPIX_API_KEY (sk_test_ p/ teste, sk_live_ p/ produção),
       DEPIX_WEBHOOK_SECRET (whsec_... do painel Depix > My Business),
-      ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET
+      ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET, KIWIFY_TOKEN
     Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_24H,
-      KIWIFY_PID_24H, KIWIFY_PID_30D, PUBLIC_BASE_URL, ALLOWED_ORIGINS,
+      KIWIFY_PID_WORLD1, KIWIFY_PID_7D, KIWIFY_PID_30D, KIWIFY_PID_CREATOR,
+      PUBLIC_BASE_URL, ALLOWED_ORIGINS,
       DEPIX_TEST_MODE ("1" = teste).
     KV: PREMIUM_KV (contas, sessões, pendentes, premium).
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "ACTIVE", "PAYMENT_CONFIRMED", "CONFIRMED"]);
 const TERMS_VERSION = "2026-09-20-v1.6";
+const FREE_DAILY = 3;
+const SECURITY_REWARD_DAYS = 9999;
 
 function json(data, status = 200, cors = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...cors },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...securityHeaders(), ...cors },
   });
 }
 
-function corsHeaders(req, env) {
+export function corsHeaders(req, env) {
   const origin = req.headers.get("Origin") || "";
   const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
   const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  const ok = allowed.includes("*") || (origin && (allowed.includes(origin) ||
-    allowed.some((a) => a.startsWith("*.") && origin.endsWith(a.slice(1))) || local));
-  // file:// manda Origin "null": permitido para criar checkout (sem custo e com
-  // rate-limit; a liberação do Premium sempre reconfere no AbacatePay).
-  const o = origin || "null";
-  if (ok || o === "null") {
+  const ok = origin && (allowed.includes(origin) ||
+    allowed.some((a) => a.startsWith("*.") && origin.endsWith(a.slice(1))) || local);
+  // file:// manda Origin "null"; não é uma origem confiável e não recebe CORS.
+  if (origin && ok) {
     return {
-      "Access-Control-Allow-Origin": o === "null" ? "*" : o,
+      "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Max-Age": "600",
+      "Vary": "Origin",
     };
   }
   return {};
+}
+
+function securityHeaders() {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; frame-src https://*.firebaseapp.com https://accounts.google.com;",
+  };
+}
+
+function withSecurityHeaders(response) {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(securityHeaders())) headers.set(key, value);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120));
@@ -163,6 +185,11 @@ async function rlTake(env, key, limit, ttl) {
   await env.PREMIUM_KV.put(key, String(n + 1), { expirationTtl: ttl }).catch(() => {});
   return true;
 }
+
+function quotaIdentity(req, fb) {
+  if (fb && fb.uid) return "uid:" + fb.uid;
+  return "ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80);
+}
 async function premiumUntil(env, email) {
   const rec = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
   return rec && rec.until > Date.now() ? rec.until : 0;
@@ -176,6 +203,11 @@ async function premiumUntilAccount(env, uid, email) {
     await env.PREMIUM_KV.put(premUidKey(uid), JSON.stringify({ until, email, plan: (byEmail && byEmail.plan) || "vip30", migrated_at: Date.now() })).catch(() => {});
   }
   return until > Date.now() ? until : 0;
+}
+
+export function isSecurityResearcherReward(env, email) {
+  const configured = String(env.SECURITY_REWARD_EMAIL || "").trim().toLowerCase();
+  return !!configured && configured === String(email || "").trim().toLowerCase();
 }
 
 async function abacateCreate(env, email, name, uid, origin, plan) {
@@ -254,6 +286,29 @@ function depixPlanLabel(plan) {
   plan = normalizeDepixPlan(plan);
   return ({ world1: "Resolver 1 mundo", vip7: "Passe 7 dias", vip30: "Passe 30 dias", creator: "Criador" })[plan];
 }
+
+// Kiwify envia o produto no webhook. IDs configurados no Worker têm
+// prioridade; os nomes abaixo existem para permitir ativação imediata sem
+// confiar em um produto desconhecido como se fosse VIP30.
+export function normalizeKiwifyPlan(body, env) {
+  const product = body && (body.Product || body.product || {}) || {};
+  const pid = String(product.product_id || product.id || body.product_id || body.productId || "").trim();
+  const rawName = product.product_name || product.name || body.product_name || body.productName || "";
+  const name = String(rawName).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const ids = [
+    [env.KIWIFY_PID_WORLD1 || env.KIWIFY_PID_24H, "world1"],
+    [env.KIWIFY_PID_7D, "vip7"],
+    [env.KIWIFY_PID_30D, "vip30"],
+    [env.KIWIFY_PID_CREATOR, "creator"]
+  ];
+  for (const [configured, plan] of ids) if (configured && pid && pid === String(configured).trim()) return plan;
+  if (/\b(1|um)\s*mundo\b|resolver/.test(name)) return "world1";
+  if (/\b7\s*dias?\b|passe\s*7/.test(name)) return "vip7";
+  if (/\b30\s*dias?\b|vip\s*30/.test(name)) return "vip30";
+  if (/\bcriador\b/.test(name)) return "creator";
+  return "";
+}
+
 function cleanDoc(s) {
   return String(s || "").replace(/\D/g, "").slice(0, 14);
 }
@@ -357,8 +412,11 @@ async function grantPremium(env, email, billingId, days, uid = "", plan = "") {
   // novamente quando o ID da cobrança/pedido já foi processado.
   if (billingId) {
     const previous = await env.PREMIUM_KV.get(grantKey(billingId), "json").catch(() => null);
-    if (previous && +previous.until > 0 &&
-        ((!uid && previous.email === email) || (uid && previous.uid === uid))) return +previous.until;
+    // Um ID de cobrança só pode conceder benefício uma vez, mesmo se o
+    // provedor repetir o webhook ou retornar metadata diferente.
+    if (previous && (+previous.until > 0 || +previous.world_credits > 0)) {
+      return +previous.until || 0;
+    }
   }
 
   const curEmail = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
@@ -386,6 +444,22 @@ async function entitlementStub(env, uid, email) {
   return env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName(name));
 }
 
+// Compras Kiwify antigas podem chegar antes de existir um UID Firebase e,
+// nesse caso, o crédito fica inicialmente indexado pelo e-mail. Ao consultar
+// a conta, aceitamos o mesmo e-mail como identidade legada; compras novas
+// autenticadas continuam usando o UID.
+async function worldCreditState(env, fb) {
+  if (!env.ENTITLEMENTS) return { stub: null, worldCredits: 0 };
+  const uidStub = await entitlementStub(env, fb.uid, fb.email);
+  const uidRes = await uidStub.fetch("https://entitlements/state");
+  const uidCredits = uidRes.ok ? +((await uidRes.json()).world_credits || 0) : 0;
+  if (uidCredits > 0 || !fb.email || fb.email === fb.uid) return { stub: uidStub, worldCredits: uidCredits };
+  const emailStub = await entitlementStub(env, "", fb.email);
+  const emailRes = await emailStub.fetch("https://entitlements/state");
+  const emailCredits = emailRes.ok ? +((await emailRes.json()).world_credits || 0) : 0;
+  return emailCredits > 0 ? { stub: emailStub, worldCredits: emailCredits } : { stub: uidStub, worldCredits: 0 };
+}
+
 async function grantPurchase(env, email, billingId, plan, uid = "") {
   plan = normalizeDepixPlan(plan);
   if (plan === "world1") {
@@ -403,24 +477,38 @@ async function grantPurchase(env, email, billingId, plan, uid = "") {
 }
 
 async function accountEntitlements(env, fb) {
-  const until = await premiumUntilAccount(env, fb.uid, fb.email);
-  let worldCredits = 0;
-  if (env.ENTITLEMENTS) {
-    const stub = await entitlementStub(env, fb.uid, fb.email);
-    const r = await stub.fetch("https://entitlements/state");
-    if (r.ok) worldCredits = +((await r.json()).world_credits || 0);
-  }
-  const rec = await env.PREMIUM_KV.get(premUidKey(fb.uid), "json").catch(() => null);
-  const plan = rec && rec.plan && PLAN_LIMITS[rec.plan] ? rec.plan : (until > Date.now() ? "vip30" : (worldCredits > 0 ? "world1" : ""));
+  const reward = isSecurityResearcherReward(env, fb.email);
+  const rewardUntil = reward ? Date.now() + SECURITY_REWARD_DAYS * 86400000 : 0;
+  const until = Math.max(await premiumUntilAccount(env, fb.uid, fb.email), rewardUntil);
+  const creditState = await worldCreditState(env, fb);
+  const worldCredits = creditState.worldCredits;
+  const recUid = await env.PREMIUM_KV.get(premUidKey(fb.uid), "json").catch(() => null);
+  const recEmail = await env.PREMIUM_KV.get(premKey(fb.email), "json").catch(() => null);
+  const rec = recUid || recEmail;
+  const plan = reward ? "creator" : (rec && rec.plan && PLAN_LIMITS[rec.plan] ? rec.plan : (until > Date.now() ? "vip30" : (worldCredits > 0 ? "world1" : "")));
   return { premium_until_ms: until, world_credits: worldCredits, plan };
 }
 
-export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now()) {
+export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), features = {}) {
   worlds = Math.max(1, Math.min(100, Number(worlds) || 1));
   sizeBytes = Math.max(0, Number(sizeBytes) || 0);
+  const mode = String(features.mode || "keep").toLowerCase();
+  const hardcore = features.hardcore === true;
+  const advancedRules = features.advanced_rules === true;
+  const advancedTools = features.advanced_tools === true;
+  const removePacks = features.remove_behavior_packs === true;
+  const addPacks = Math.max(0, Math.min(1000, Number(features.add_packs) || 0));
+  const rename = features.rename === true;
+  const icon = features.icon === true;
+  // Derive the paid requirement on the server. A client-provided premium
+  // flag is intentionally ignored.
+  const hasFeatureRequest = Object.keys(features).length > 0;
+  const premiumFeature = !hasFeatureRequest || mode !== "keep" || hardcore || advancedRules || advancedTools || removePacks ||
+    addPacks > 1 || rename || icon || worlds > 1 || sizeBytes > 10 * 1024 * 1024;
   let plan = ent && ent.plan || "";
   const activeTimePlan = (+((ent && ent.premium_until_ms) || 0) > now) && plan !== "world1";
   if (!activeTimePlan && +(ent && ent.world_credits || 0) > 0 && worlds === 1 && sizeBytes <= PLAN_LIMITS.world1.maxMb * 1024 * 1024) plan = "world1";
+  if (!premiumFeature) return { allowed: true, plan: "free", max_batch: 1, max_mb: 10 };
   const lim = PLAN_LIMITS[plan];
   if (!lim || (!activeTimePlan && plan !== "world1")) return { allowed: false, code: "NO_ENTITLEMENT" };
   if (plan === "world1" && +(ent && ent.world_credits || 0) < 1) return { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" };
@@ -441,18 +529,54 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     const cors = corsHeaders(req, env);
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    if (req.method === "OPTIONS") {
+      if (!req.headers.get("Origin") || !cors["Access-Control-Allow-Origin"]) {
+        return withSecurityHeaders(new Response(null, { status: 403, headers: securityHeaders() }));
+      }
+      return withSecurityHeaders(new Response(null, { status: 204, headers: { ...securityHeaders(), ...cors } }));
+    }
 
     // O mesmo Worker tambem pode servir o frontend quando o dominio aponta
     // diretamente para ele. Rotas /api/* continuam sendo tratadas abaixo.
     if (!url.pathname.startsWith("/api/") && env.ASSETS) {
-      return env.ASSETS.fetch(req);
+      return withSecurityHeaders(await env.ASSETS.fetch(req));
     }
 
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
         return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
+      }
+
+      // The browser may display quota locally, but it cannot be the authority
+      // for the free-operation count. This endpoint is a defense-in-depth
+      // gate for the official UI; truly unforgeable billing still requires
+      // paid processing to happen on a server.
+      if (url.pathname === "/api/free-quota" && req.method === "POST") {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-free-quota:" + ip, 120, 86400))) return json({ error: "Muitas consultas de quota." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { body = {}; }
+        const fb = await firebaseUser(req, env).catch(() => null);
+        const day = new Date().toISOString().slice(0, 10);
+        const identity = quotaIdentity(req, fb);
+        if (env.ENTITLEMENTS) {
+          const stub = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + identity));
+          const result = await stub.fetch("https://entitlements/free-quota", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ day, consume: body.consume === true })
+          });
+          return json(await result.json(), result.status, cors);
+        }
+        const key = "freequota:" + day + ":" + encodeURIComponent(identity);
+        let used = parseInt((await env.PREMIUM_KV.get(key).catch(() => null)) || "0", 10);
+        if (!Number.isFinite(used) || used < 0) used = 0;
+        if (body.consume === true) {
+          if (used >= FREE_DAILY) return json({ allowed: false, code: "QUOTA_EXCEEDED", used, remaining: 0 }, 402, cors);
+          used += 1;
+          await env.PREMIUM_KV.put(key, String(used), { expirationTtl: 2 * 86400 });
+        }
+        return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, used >= FREE_DAILY ? 402 : 200, cors);
       }
 
       // ---------- Depix: criar checkout Pix ----------
@@ -500,6 +624,10 @@ export default {
         try {
           const fb = await firebaseUser(req, env);
           if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
+          const statusIp = req.headers.get("CF-Connecting-IP") || "unknown";
+          if (!(await rlTake(env, "rl-depix-status:" + fb.uid + ":" + statusIp, 60, 900))) {
+            return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
+          }
           const info = await depixStatus(env, id);
           const out = { status: info.status, paid: info.paid, email: info.email, plan: info.plan };
           let email = info.email;
@@ -715,6 +843,10 @@ export default {
         if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
+        const statusIp = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-abacate-status:" + fb.uid + ":" + statusIp, 60, 900))) {
+          return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
+        }
         const info = await abacateStatus(env, id);
         const out = { status: info.status, paid: info.paid, email: info.email };
         let email = info.email;
@@ -741,7 +873,7 @@ export default {
 
       // ---------- webhook (AbacatePay -> Worker; nunca confia só no POST) ----------
       if (url.pathname === "/api/abacate/webhook" && req.method === "POST") {
-        if (env.WEBHOOK_SECRET && url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
+        if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
           return json({ error: "forbidden" }, 403, cors);
         }
         let evt = {};
@@ -768,7 +900,10 @@ export default {
       // URL: https://<worker>/api/kiwify/webhook?secret=VALOR (VALOR = secret
       // KIWIFY_SECRET). Dias pelo produto: KIWIFY_PID_24H = 1, KIWIFY_PID_30D = 30.
       if (url.pathname === "/api/kiwify/webhook" && req.method === "POST") {
-        if (!env.KIWIFY_SECRET || url.searchParams.get("secret") !== env.KIWIFY_SECRET) {
+        const querySecretOk = !!env.KIWIFY_SECRET && url.searchParams.get("secret") === env.KIWIFY_SECRET;
+        const headerToken = req.headers.get("x-kiwify-token") || req.headers.get("x-webhook-token") || req.headers.get("x-token") || "";
+        const headerTokenOk = !!env.KIWIFY_TOKEN && headerToken === env.KIWIFY_TOKEN;
+        if (!querySecretOk && !headerTokenOk) {
           return json({ error: "forbidden" }, 403, cors);
         }
         let body = {};
@@ -779,30 +914,24 @@ export default {
         const email = String((body.Customer && body.Customer.email) || (body.customer && body.customer.email) || (body.Client && body.Client.email) || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
         const pid = String((body.Product && (body.Product.product_id || body.Product.id)) || body.product_id || body.productId || "");
         const oid = String(body.order_id || body.orderId || body.id || body.code || "");
+        const plan = normalizeKiwifyPlan(body, env);
         // log cru (últimos 50) p/ depurar sem adivinhar formato
         try {
           const lst = (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [];
-          lst.unshift({ at: Date.now(), evt, status, email, pid, oid });
+          lst.unshift({ at: Date.now(), evt, status, email, pid, oid, plan });
           await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
         } catch (e) {}
-        if (!approved || !validEmail(email)) return json({ ok: true, granted: false }, 200, cors);
-        // Dias pelo ID do produto quando KIWIFY_PID_* estão configurados;
-        // senão cai no NOME do produto ("24h"/"24 h"/"passe" = 1 dia, resto = 30).
-        // (Antes havia um early-return "no_product_map" aqui que impedia
-        //  qualquer liberação quando os PIDs não estavam configurados —
-        //  ou seja, quem pagava na Kiwify nunca virava VIP. Removido.)
-        const pname = String((body.Product && (body.Product.product_name || body.Product.name)) || body.product_name || body.productName || "").toLowerCase();
-        let days = 30;
-        if (pid && env.KIWIFY_PID_24H && pid === env.KIWIFY_PID_24H) days = 1;
-        else if (pid && env.KIWIFY_PID_30D && pid === env.KIWIFY_PID_30D) days = 30;
-        else if (/24\s*h|passe|di[aá]ria|avulso/.test(pname)) days = 1;
+        if (!approved || !validEmail(email) || !plan || !oid) {
+          return json({ ok: true, granted: false, reason: !plan ? "unmapped_product" : (!oid ? "missing_order_id" : "not_approved") }, 200, cors);
+        }
+        // Produto desconhecido nunca recebe um plano por fallback.
         if (oid) {
           const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
         }
-        const until = await grantPremium(env, email, "kiwify:" + (oid || Date.now()), days);
-        if (oid) await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
-        return json({ ok: true, granted: true, premium_until_ms: until, plan: days === 1 ? "vip24h" : "vip30" }, 200, cors);
+        const grant = await grantPurchase(env, email, "kiwify:" + oid, plan);
+        await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, plan, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
+        return json({ ok: true, granted: true, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits, plan }, 200, cors);
       }
       // Visor do log Kiwify (só com o segredo): ver o que chegou.
       if (url.pathname === "/api/kiwify/log" && req.method === "GET") {
@@ -825,7 +954,8 @@ export default {
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const ent = await accountEntitlements(env, fb);
-        const decision = checkEntitlement(ent, body.worlds, body.size_bytes);
+        const features = body.features && typeof body.features === "object" ? body.features : {};
+        const decision = checkEntitlement(ent, body.worlds, body.size_bytes, Date.now(), features);
         return json({ ...decision, world_credits: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
       }
 
@@ -839,7 +969,8 @@ export default {
         if (!operationId) return json({ error: "operation_id obrigatório." }, 400, cors);
         const ent = await accountEntitlements(env, fb);
         if (ent.plan !== "world1" && ent.world_credits <= 0) return json({ consumed: true, plan: ent.plan || "time" }, 200, cors);
-        const stub = await entitlementStub(env, fb.uid, fb.email);
+        const creditState = await worldCreditState(env, fb);
+        const stub = creditState.stub || await entitlementStub(env, fb.uid, fb.email);
         const r = await stub.fetch("https://entitlements/consume", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ operation_id: operationId, worlds })
@@ -857,7 +988,8 @@ export default {
 
       return json({ error: "rota desconhecida" }, 404, cors);
     } catch (e) {
-      return json({ error: String((e && e.message) || e) }, 502, cors);
+      console.error("request failed", e && e.message ? e.message : e);
+      return json({ error: "Erro interno ao processar a solicitaÃ§Ã£o." }, 500, cors);
     }
   },
 };
@@ -874,6 +1006,18 @@ export class EntitlementDO {
     if (url.pathname === "/state") return json({ world_credits: data.world_credits || 0 });
     let body = {};
     try { body = await req.json(); } catch { body = {}; }
+    if (url.pathname === "/free-quota") {
+      const day = String(body.day || "").replace(/[^0-9-]/g, "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: "Dia invÃ¡lido." }, 400);
+      const key = "freequota:" + day;
+      let used = +(await this.state.storage.get(key)) || 0;
+      if (body.consume === true) {
+        if (used >= FREE_DAILY) return json({ allowed: false, code: "QUOTA_EXCEEDED", used, remaining: 0 }, 402);
+        used += 1;
+        await this.state.storage.put(key, used);
+      }
+      return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, used >= FREE_DAILY ? 402 : 200);
+    }
     if (url.pathname === "/grant") {
       const bid = String(body.billing_id || "").slice(0, 180);
       if (bid && data.purchases[bid]) return json({ world_credits: data.world_credits || 0 });

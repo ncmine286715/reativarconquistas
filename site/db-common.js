@@ -263,12 +263,8 @@
   /* ---------- VIP (mesma chave do app.js) ---------- */
   function vipOk() {
     try {
-      var r = JSON.parse(localStorage.getItem("rc_prem_remote") || "null");
-      var u = window.RC_auth && window.RC_auth.user ? window.RC_auth.user() : null;
-      var email = String((u && u.email) || "").trim().toLowerCase();
-      var linked = String(localStorage.getItem("rc_prem_email") || "").trim().toLowerCase();
-      var cached = String((r && r.email) || "").trim().toLowerCase();
-      return !!(r && +r.until > Date.now() && cached && ((email && cached === email) || (linked && cached === linked)));
+      var r = window.RC_entitlementState || {};
+      return !!(r.ready && ((+r.until || 0) > Date.now() || (+r.world_credits || 0) > 0));
     } catch (e) { return false; }
   }
   function vipNeed(msg) {

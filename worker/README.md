@@ -76,11 +76,16 @@ na API do AbacatePay antes de liberar. Limite: 10 checkouts/hora por IP.
    produto** (UUID na página do produto, ex.: `93081353-...`).
 2. Em cada produto: **Webhooks → Adicionar** → evento **Compra aprovada** →
    URL `https://<worker>/api/kiwify/webhook?secret=VALOR` (invente o VALOR).
-3. No Worker, grave o segredo e os IDs (dashboard → Variables, ou):
-   `wrangler secret put KIWIFY_SECRET` (o mesmo VALOR), e nas vars
-   `KIWIFY_PID_24H` / `KIWIFY_PID_30D` com os UUIDs. Depois `wrangler deploy`.
-4. No `site/config.js`, preencha `KIWIFY_URL_24H` / `KIWIFY_URL_30D` com os
-   links `pay.kiwify.com.br/...` — os botões passam a ir direto pra Kiwify.
+3. No Worker, grave o segredo sem colocá-lo no git:
+   `wrangler secret put KIWIFY_SECRET` (o mesmo valor usado em `?secret=`).
+   Se o painel enviar o token em header, grave também `wrangler secret put KIWIFY_TOKEN`.
+   IDs opcionais: `KIWIFY_PID_WORLD1`, `KIWIFY_PID_7D`, `KIWIFY_PID_30D` e
+   `KIWIFY_PID_CREATOR`. Sem IDs, o Worker reconhece somente os nomes exatos
+   dos quatro produtos configurados no site e rejeita qualquer outro produto.
+   Depois `wrangler deploy`.
+4. Em `site/config.js`, escolha `PAYMENT_PROVIDER: "kiwify"` ou `"depix"`;
+   `"hybrid"` mantém Depix como principal. Os quatro links Kiwify são:
+   `KIWIFY_URL_WORLD1`, `KIWIFY_URL_7D`, `KIWIFY_URL_30D` e `KIWIFY_URL_CREATOR`.
 5. **Importante:** peça pro cliente pagar com o **mesmo e-mail da conta
    Google** dele — é pelo e-mail que o VIP é liberado (webhook → KV).
 

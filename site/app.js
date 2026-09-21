@@ -18,15 +18,13 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
   function freeUsed() {
-    try {
-      var r = JSON.parse(localStorage.getItem("rc_free_used") || "null");
-      if (r && r.day === freeDay()) return +r.count || 0;
-    } catch (e) {}
     return 0;
   }
-  function freeLeft() { return Math.max(0, FREE_DAILY - freeUsed()); }
+  function freeLeft() {
+    return serverFreeQuota.ready ? Math.max(0, serverFreeQuota.remaining) : Math.max(0, FREE_DAILY - freeUsed());
+  }
   function consumeFree() {
-    try { localStorage.setItem("rc_free_used", JSON.stringify({ day: freeDay(), count: freeUsed() + 1 })); } catch (e) {}
+    // The authoritative counter is maintained by /api/free-quota.
   }
 
   /* ---------- tema claro/escuro (sem flash: <head> já aplicou) ---------- */
@@ -88,6 +86,12 @@
       badgeFile = $("badgeFile"), recoverHardcore = $("recoverHardcore");
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
+
+  // localStorage is not an authority. It may contain stale UI data, but only
+  // a fresh entitlement response from the Worker can enable a paid operation.
+  var serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+  window.RC_entitlementState = serverEntitlement;
+  var serverFreeQuota = { ready: false, remaining: FREE_DAILY };
 
   /* ---------- addons: pacotes de comportamento bloqueiam conquistas ---------- */
   function packCount(rep) {
@@ -185,50 +189,24 @@
   // (quem pagou sem login libera neste navegador via sucesso.html).
   // E-mail vinculado: o usuário pode ter pago com um e-mail diferente do
   // Google — dá para vincular esse e-mail de pagamento manualmente.
-  var LS_PREM = "rc_prem_remote", LS_LINKED = "rc_prem_email";
-  function linkedEmail() {
-    try { return (localStorage.getItem(LS_LINKED) || "").trim().toLowerCase(); }
-    catch (e) { return ""; }
-  }
   function googleEmail() {
     try {
       var u = (window.RC_auth && window.RC_auth.user()) || null;
       return ((u && u.email) || "").trim().toLowerCase();
     } catch (e) { return ""; }
   }
-  function vipEmails() {
-    var out = [], g = googleEmail(), l = linkedEmail();
-    if (g && out.indexOf(g) < 0) out.push(g);
-    if (l && out.indexOf(l) < 0) out.push(l);
-    try {
-      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
-      if (r && r.email && out.indexOf(String(r.email).toLowerCase()) < 0) out.push(String(r.email).toLowerCase());
-    } catch (e) {}
-    return out;
-  }
   function remotePremUntil() {
-    try {
-      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
-      return (r && +r.until) || 0;
-    } catch (e) { return 0; }
+    return serverEntitlement.ready ? (+serverEntitlement.until || 0) : 0;
   }
   function remotePremEmail() {
-    try {
-      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
-      return (r && r.email) || "";
-    } catch (e) { return ""; }
+    return serverEntitlement.ready ? String(serverEntitlement.email || "") : "";
   }
   function remotePlan() {
-    try {
-      var p = localStorage.getItem("rc_prem_plan") || "vip30";
-      return p === "vip7" || p === "creator" || p === "world1" ? p : "vip30";
-    } catch (e) { return "vip30"; }
+    var p = serverEntitlement.ready ? serverEntitlement.plan : "";
+    return p === "vip7" || p === "creator" || p === "world1" ? p : "vip30";
   }
   function remoteWorldCredits() {
-    try {
-      var r = JSON.parse(localStorage.getItem(LS_PREM) || "null");
-      return Math.max(0, +(r && r.world_credits) || 0);
-    } catch (e) { return 0; }
+    return serverEntitlement.ready ? Math.max(0, +serverEntitlement.world_credits || 0) : 0;
   }
   function paidSizeLimitMB() {
     if (!remotePremOk()) return freeLimitMB();
@@ -236,55 +214,56 @@
     return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 500 : 150);
   }
   function remotePremOk() {
-    var cached = remotePremEmail().trim().toLowerCase();
-    var account = googleEmail();
-    var linked = linkedEmail();
-    // O cache e apenas uma copia visual; nunca autoriza outro usuario.
-    return !!cached && ((account && cached === account) || (linked && cached === linked)) && (remoteWorldCredits() > 0 || remotePremUntil() > Date.now());
+    return !!serverEntitlement.ready &&
+      (remoteWorldCredits() > 0 || remotePremUntil() > Date.now());
   }
   function isPremiumAny() { return remotePremOk(); }
   // Consulta o servidor para TODOS os e-mails conhecidos e guarda o melhor.
   // Em falha total de rede, MANTÉM o cache (nunca apaga VIP de quem pagou).
   function refreshRemotePrem() {
+    serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+    window.RC_entitlementState = serverEntitlement;
     paintQuota();
-    try {
-      if (window.RC_pay && window.RC_pay.entitlements && loggedIn()) {
-        window.RC_pay.entitlements().then(function (e) {
-          var u = +e.premium_until_ms || 0, c = +e.world_credits || 0;
-          if (u > Date.now() || c > 0) localStorage.setItem(LS_PREM, JSON.stringify({ until: u, world_credits: c, email: e.account_email || googleEmail() }));
-          else if (remotePremUntil() <= Date.now() && remoteWorldCredits() <= 0) localStorage.removeItem(LS_PREM);
-          if (e.plan) localStorage.setItem("rc_prem_plan", e.plan);
-          paintQuota();
-        }).catch(function () {});
-      }
-      var emails = vipEmails();
-      if (!emails.length || !window.RC_pay || !window.RC_pay.enabled()) return;
-      var pending = emails.length, best = 0, bestEmail = "", okAny = false;
-      emails.forEach(function (em) {
-        window.RC_pay.remotePremiumMs(em).then(function (ms) {
-          okAny = true;
-          if (+ms > best) { best = +ms; bestEmail = em; }
-        }).catch(function () {
-          // falha de rede neste e-mail: ignora, tenta os outros
-        }).then(function () {
-          if (--pending) return;
-          // todas as consultas responderam (ou falharam)
-          if (!okAny) { paintQuota(); return; } // sem nenhuma resposta: mantém cache
-          try {
-            if (best > Date.now()) {
-              localStorage.setItem(LS_PREM, JSON.stringify({ until: best, email: bestEmail }));
-            } else if (remotePremUntil() <= Date.now()) {
-              localStorage.removeItem(LS_PREM);
-            }
-            // se o cache local ainda é melhor que o servidor, preserva
-          } catch (e) {}
-          paintQuota();
-        });
-      });
-    } catch (e) {}
+    if (!loggedIn() || !window.RC_pay || !window.RC_pay.entitlements) return;
+    window.RC_pay.entitlements().then(function (e) {
+      // This is the only state that can authorize the UI. Do not persist it
+      // as a bearer value in localStorage.
+      serverEntitlement = {
+        ready: true,
+        until: +e.premium_until_ms || 0,
+        world_credits: Math.max(0, +e.world_credits || 0),
+        plan: String(e.plan || ""),
+        email: String(e.account_email || googleEmail() || "").toLowerCase()
+      };
+      window.RC_entitlementState = serverEntitlement;
+      paintQuota();
+    }).catch(function () {
+      // Fail closed if the entitlement server cannot be reached.
+      serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+      window.RC_entitlementState = serverEntitlement;
+      paintQuota();
+    });
+  }
+  function refreshFreeQuota() {
+    if (!window.RC_pay || !window.RC_pay.freeQuota) return;
+    window.RC_pay.freeQuota(false).then(function (q) {
+      serverFreeQuota = { ready: true, remaining: Math.max(0, +q.remaining || 0) };
+      paintQuota();
+    }).catch(function () {
+      // Keep the local display only as a fallback for a temporary outage;
+      // submit() still attempts the server gate before processing.
+      serverFreeQuota = { ready: false, remaining: FREE_DAILY };
+      paintQuota();
+    });
   }
   // Vincula um e-mail de pagamento (ex.: pagou na Kiwify com outro e-mail)
   function claimWithEmail(email) {
+    // Never turn a user-supplied e-mail into an entitlement. The Worker
+    // binds benefits to the verified Google UID/e-mail.
+    setStatus("", "O VIP Ã© liberado somente na conta Google usada na compra. Verificando a conta atualâ€¦");
+    refreshRemotePrem();
+    return;
+    /* Legacy e-mail linking disabled: entitlements are UID-bound.
     email = String(email || "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setStatus("err", "Informe um e-mail válido para verificar o VIP.");
@@ -312,8 +291,12 @@
     }).catch(function () {
       setStatus("err", "Sem conexão com o servidor de pagamento agora. Confira sua internet e toque em <b>Verificar de novo</b>.");
     });
+    */
   }
   function askClaimEmail() {
+    setStatus("", "O VIP Ã© liberado somente na conta Google usada na compra. Verificando a conta atualâ€¦");
+    refreshRemotePrem();
+    return;
     var cur = linkedEmail() || googleEmail() || "";
     var em = null;
     try { em = window.prompt("Qual e-mail você usou no pagamento? (o VIP vale nele)", cur); } catch (e) {}
@@ -328,6 +311,7 @@
       var p = JSON.parse(localStorage.getItem("rc_pending_kiwify") || "null");
       if (!p || !p.at) return;
       if (Date.now() - (+p.at || 0) > 72 * 3600 * 1000) { localStorage.removeItem("rc_pending_kiwify"); return; }
+      if (loggedIn()) { refreshRemotePrem(); return; }
       if (remotePremOk()) { localStorage.removeItem("rc_pending_kiwify"); return; }
       if ($("kiwifyBanner")) return;
       var conv = $("converter");
@@ -423,6 +407,7 @@
   /* ---------- arquivo ---------- */
   function friendlyFileErr(err) {
     var m = String((err && err.message) || err || "");
+    if (/FREE_QUOTA_EXCEEDED|QUOTA_EXCEEDED/i.test(m)) return "VocÃª usou as conversÃµes grÃ¡tis disponÃ­veis hoje. O VIP libera operaÃ§Ãµes premium.";
     if (/level\.dat n(o|ã)o encontrado/i.test(m)) return "Esse arquivo <b>não parece um mundo válido</b> (falta o level.dat dentro). Exporte de novo pelo jogo — veja <a href='#faq'><b>onde achar o .mcworld</b></a>.";
     if (/NBT|truncado|inválido|root não é|bytes sobrando|não é Compound/i.test(m)) return "Não consegui ler esse mundo (arquivo <b>corrompido ou incompleto</b>). Exporte/baixe de novo e tente.";
     if (/JSZip|central directory|corrupt|encrypted|senha/i.test(m)) return "Esse <b>.zip não abre</b> (corrompido ou com senha). Compacte de novo, sem senha.";
@@ -900,13 +885,40 @@
     var wantPlayer = !!(window.RC_player && window.RC_player.hasEdits());
     // Resolver 1 mundo is a single-world entitlement, so any generated world
     // consumes it. Time-based plans only need this gate for premium features.
-    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore || addPacks.length > FREE_INSTALL_PACKS;
+    var premiumRequested = remotePlan() === "world1" || batch || wantChunks || wantPlayer || mode !== "keep" ||
+      wantsHardcore || wantsKeep || wantsTime || stripPacks || !!(wantIcon && wantIcon.checked) ||
+      addPacks.length > FREE_INSTALL_PACKS || selectedList.some(function (f) { return f.size > freeLimitMB() * 1024 * 1024; });
     var operationId = "";
     try { operationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); } catch (eop) { operationId = String(Date.now()) + Math.random(); }
     var entitlementCheck = Promise.resolve(null);
-    if (premiumRequested && window.RC_pay && window.RC_pay.authorizeOperation) {
-      entitlementCheck = window.RC_pay.authorizeOperation(selectedList.length, Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; }))).catch(function (err) { throw err; });
+    if (premiumRequested) {
+      if (!loggedIn() || !window.RC_pay || !window.RC_pay.authorizeOperation) {
+        setStatus("err", "Esta operação exige uma autorização válida da conta Google. Entre novamente e tente de novo.");
+        return;
+      }
+      entitlementCheck = window.RC_pay.authorizeOperation(
+        selectedList.length,
+        Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
+        { mode: mode, hardcore: wantsHardcore, advanced_rules: wantsKeep || wantsTime,
+          advanced_tools: wantChunks || wantPlayer,
+          remove_behavior_packs: stripPacks,
+          add_packs: addPacks.length, rename: false, icon: !!(wantIcon && wantIcon.checked) }
+      ).catch(function (err) { throw err; });
     }
+    var freeQuotaCheck = Promise.resolve(null);
+    if (!premiumRequested) {
+      if (!window.RC_pay || !window.RC_pay.freeQuota) {
+        setStatus("err", "NÃ£o foi possÃ­vel validar a quota gratuita no servidor. Tente novamente.");
+        return;
+      }
+      freeQuotaCheck = window.RC_pay.freeQuota(false).then(function (q) {
+        serverFreeQuota = { ready: true, remaining: Math.max(0, +q.remaining || 0) };
+        paintQuota();
+        if (!q.allowed) throw new Error("FREE_QUOTA_EXCEEDED");
+        return q;
+      });
+    }
+    var operationGate = Promise.all([entitlementCheck, freeQuotaCheck]);
     if ((wantChunks || wantPlayer) && (batch || /\.dat$/i.test(selected.name || ""))) {
       setStatus("err", "Reset de chunks e player gemado funcionam com <b>1 .mcworld por vez</b> (não no lote nem em level.dat avulso).");
       return;
@@ -980,9 +992,12 @@
       var consume = premiumRequested && remotePlan() === "world1" && window.RC_pay && window.RC_pay.consumeOperation
         ? window.RC_pay.consumeOperation(operationId, 1)
         : Promise.resolve(null);
-      return consume.then(function () {
+      var consumeFreeRemote = !premUnlimited && window.RC_pay && window.RC_pay.freeQuota
+        ? window.RC_pay.freeQuota(true)
+        : Promise.resolve(null);
+      return consume.then(function () { return consumeFreeRemote; }).then(function () {
         downloadBlob(res.blob, outName);
-        if (!isPremiumAny()) consumeFree(); // grátis consome 1 da quota do dia
+        if (!premUnlimited) serverFreeQuota.remaining = Math.max(0, serverFreeQuota.remaining - 1);
         paintQuota();
         try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1 }); } catch (e0) {}
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
@@ -1006,7 +1021,7 @@
     // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return entitlementCheck.then(function () { return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem }); });
+        return operationGate.then(function () { return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem }); });
       }).then(function (res) {
         return finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
@@ -1023,7 +1038,7 @@
         submit.disabled = false;
         return;
       }
-      entitlementCheck.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }); }).then(function (results) {
+      operationGate.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }); }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -1043,7 +1058,7 @@
       return;
     }
 
-    entitlementCheck.then(function () { return Promise.all([selected.arrayBuffer(), iconPromise]); }).then(function (arr) {
+    operationGate.then(function () { return Promise.all([selected.arrayBuffer(), iconPromise]); }).then(function (arr) {
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
@@ -1140,6 +1155,8 @@
   paintPresets();
   paintQuota();
   maybeKiwifyReturn();
+  refreshFreeQuota();
+  document.addEventListener("rc-pay-ready", refreshFreeQuota);
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
   document.addEventListener("rc-auth", function () {
     setTimeout(function () {
@@ -1147,10 +1164,13 @@
       try { u = (window.RC_auth && window.RC_auth.user()) || null; } catch (e) {}
       if (!u) {
         // deslogou: limpa qualquer resto de Premium e volta pro grátis na hora
-        try { localStorage.removeItem("rc_prem_remote"); } catch (e) {}
+        serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+        window.RC_entitlementState = serverEntitlement;
+        serverFreeQuota = { ready: false, remaining: FREE_DAILY };
         paintQuota();
         return;
       }
+      refreshFreeQuota();
       refreshRemotePrem();
     }, 150);
   });

@@ -6,7 +6,8 @@
   "description": "Worker Cloudflare do AbacatePay (ReativaConquistas). Sem dependências.",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+    "dev": "wrangler dev",
+    "test": "node tests/entitlements.mjs"
   },
   "devDependencies": {
     "wrangler": "^3.0.0"

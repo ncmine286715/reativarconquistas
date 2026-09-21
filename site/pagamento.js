@@ -14,6 +14,10 @@
     return u || (location.origin || "");
   }
   function enabled() { return !!base() && !!window.fetch; }
+  function paymentProvider() {
+    var p = String((window.RC_CONFIG || {}).PAYMENT_PROVIDER || "depix").toLowerCase();
+    return p === "kiwify" || p === "hybrid" ? p : "depix";
+  }
 
   function req(path, opts) {
     opts = opts || {};
@@ -137,7 +141,13 @@
 
   /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
   function depixEnabled() {
-    try { return !!(window.RC_CONFIG && window.RC_CONFIG.DEPIX_ENABLED && base()); } catch (e) { return false; }
+    try {
+      var cfg = window.RC_CONFIG || {};
+      return !!(cfg.DEPIX_ENABLED && (paymentProvider() === "depix" || paymentProvider() === "hybrid") && base());
+    } catch (e) { return false; }
+  }
+  function kiwifyEnabled() {
+    try { return !!((window.RC_CONFIG || {}).KIWIFY_ENABLED && (paymentProvider() === "kiwify" || paymentProvider() === "hybrid")); } catch (e) { return false; }
   }
   function depixTestMode() {
     try { return !!(window.RC_CONFIG && window.RC_CONFIG.DEPIX_TEST_MODE); } catch (e) { return false; }
@@ -184,16 +194,17 @@
     return authReq("/api/depix/status?id=" + encodeURIComponent(id));
   }
   function entitlements() { return authReq("/api/entitlements"); }
-  function authorizeOperation(worlds, sizeBytes) {
-    return authReq("/api/entitlements/check", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ worlds: worlds, size_bytes: sizeBytes }) });
+  function freeQuota(consume) {
+    var opts = { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ consume: consume === true }) };
+    // Quota is keyed to the verified UID when logged in and to the edge IP
+    // for guests. It is intentionally not read from localStorage.
+    return currentUser() ? authReq("/api/free-quota", opts) : req("/api/free-quota", opts);
+  }
+  function authorizeOperation(worlds, sizeBytes, features) {
+    return authReq("/api/entitlements/check", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ worlds: worlds, size_bytes: sizeBytes, features: features || {} }) });
   }
   function consumeOperation(operationId, worlds) {
     return authReq("/api/entitlements/consume", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ operation_id: operationId, worlds: worlds }) }).then(function (r) {
-      try {
-        var cur = JSON.parse(localStorage.getItem("rc_prem_remote") || "{}");
-        cur.world_credits = +r.world_credits || 0;
-        localStorage.setItem("rc_prem_remote", JSON.stringify(cur));
-      } catch (e) {}
       return r;
     });
   }
@@ -267,6 +278,14 @@
       "</div>" +
       "</div>";
     document.body.appendChild(bg);
+    if (kiwifyEnabled()) {
+      var pixFields = bg.querySelector(".pay-form-grid");
+      if (pixFields) pixFields.hidden = true;
+      var payNote = bg.querySelector(".pay-mini-note");
+      if (payNote) payNote.innerHTML = "O checkout Kiwify abrirÃ¡ em seguida. Use nele o <b>mesmo e-mail da conta Google</b> para o VIP cair na conta correta.";
+      var payConn = bg.querySelector("#payConn");
+      if (payConn) payConn.textContent = "Checkout seguro Kiwify";
+    }
     var planPick = bg.querySelector(".planpick");
     if (planPick) planPick.innerHTML =
       "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 5,99</b><small>150 MB</small></span></label>" +
@@ -298,7 +317,9 @@
         return r.json();
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
-        if (c) c.textContent = cfg.depix_configured ? "✓ Pagamento Pix disponível" : "✓ Pagamento seguro disponível";
+        if (c) c.textContent = paymentProvider() === "kiwify"
+          ? "Checkout seguro Kiwify"
+          : (cfg.depix_configured ? "✓ Pagamento Pix disponível" : "✓ Pagamento seguro disponível");
         if (cfg && cfg.product24h_configured === false) {
           var radio = bg.querySelector("input[name='payplan'][value='vip24h']");
           if (radio) {
@@ -344,6 +365,25 @@
       if (!currentUser()) {
         closePay();
         if (window.RC_auth) window.RC_auth.openModal();
+        return;
+      }
+      var selectedPlan = selPlan();
+      if (paymentProvider() === "kiwify" && kiwifyEnabled()) {
+        var kwUrl = kiwifyUrl(selectedPlan);
+        if (!kwUrl) {
+          payStatus("Este plano Kiwify estÃ¡ temporariamente indisponÃ­vel.", "err");
+          return;
+        }
+        if (!document.getElementById("payTerms").checked) {
+          track("checkout_validation_failed", { plan: selectedPlan, reason: "terms" });
+          payStatus("Para continuar, leia e aceite os Termos de Uso, a PolÃ­tica de Reembolso e a PolÃ­tica de Privacidade.", "err");
+          return;
+        }
+        try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: selectedPlan, at: Date.now() })); } catch (e) {}
+        track("kiwify_checkout_redirect", Object.assign({ plan: selectedPlan }, context));
+        go.disabled = true;
+        go.textContent = "Abrindo Kiwifyâ€¦";
+        location.href = kwUrl;
         return;
       }
       var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
@@ -468,8 +508,6 @@
         if (box) {
           if (r.paid) {
             try {
-              localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
-              localStorage.setItem("rc_prem_plan", r.plan || plan);
               localStorage.removeItem("rc_pending_depix");
               localStorage.removeItem("rc_pending_billing");
             } catch (e) {}
@@ -499,8 +537,6 @@
         if (r.paid) {
           // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
           try {
-            localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +r.premium_until_ms || 0, world_credits: +r.world_credits || 0, email: r.email || "" }));
-            localStorage.setItem("rc_prem_plan", r.plan || plan);
             localStorage.removeItem("rc_pending_billing");
           } catch (e) {}
           var untilTxt = +r.world_credits > 0
@@ -537,8 +573,13 @@
   }
 
   function kiwifyUrl(plan) {
+    if (!kiwifyEnabled()) return "";
     var cfg = window.RC_CONFIG || {};
-    var u = plan === "vip24h" ? (cfg.KIWIFY_URL_24H || "") : (cfg.KIWIFY_URL_30D || "");
+    plan = normalizePlan(plan);
+    var u = plan === "world1" ? (cfg.KIWIFY_URL_WORLD1 || cfg.KIWIFY_URL_24H || "")
+      : plan === "vip7" ? (cfg.KIWIFY_URL_7D || "")
+      : plan === "creator" ? (cfg.KIWIFY_URL_CREATOR || "")
+      : (cfg.KIWIFY_URL_30D || "");
     return /^https?:\/\//i.test(u) ? u : "";
   }
 
@@ -585,7 +626,9 @@
 
   window.RC_pay = {
     enabled: enabled,
+    paymentProvider: paymentProvider,
     depixEnabled: depixEnabled,
+    kiwifyEnabled: kiwifyEnabled,
     depixCreate: depixCreate,
     depixStatus: depixStatus,
     validDoc: validDoc,
@@ -594,8 +637,9 @@
     kiwifyUrl: kiwifyUrl,
     checkReturn: checkReturn,
     remotePremiumMs: remotePremiumMs,
-    track: track, entitlements: entitlements, authorizeOperation: authorizeOperation, consumeOperation: consumeOperation
+    track: track, entitlements: entitlements, freeQuota: freeQuota, authorizeOperation: authorizeOperation, consumeOperation: consumeOperation
   };
+  try { document.dispatchEvent(new Event("rc-pay-ready")); } catch (e) {}
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wire);

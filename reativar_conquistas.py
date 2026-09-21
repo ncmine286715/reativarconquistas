@@ -94,6 +94,7 @@ PREMIUM_PRODUCT_NAME = os.environ.get(
     "PREMIUM_PRODUCT_NAME", "ReativaConquistas Premium — 30 dias")
 FREE_PER_WEEK = int(os.environ.get("FREE_PER_WEEK", "1"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "100")) * 1024 * 1024
+MAX_UNPACKED_BYTES = int(os.environ.get("MAX_UNPACKED_MB", "300")) * 1024 * 1024
 MAX_JSON_BYTES = 64 * 1024
 CSP_HTML = ("default-src 'self'; img-src 'self' data: blob: https:; "
             "style-src 'self' 'unsafe-inline'; "
@@ -104,6 +105,10 @@ CSP_HTML = ("default-src 'self'; img-src 'self' data: blob: https:; "
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")  # ex.: https://seudominio.com.br
+# Only trust forwarding headers when the deployment explicitly sits behind a
+# proxy that overwrites them. Otherwise a caller can spoof X-Forwarded-For and
+# evade quotas/rate limits.
+TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "0").lower() in ("1", "true", "yes")
 
 SUPPORT_EMAIL = "suporte@seudominio.com.br"
 
@@ -318,6 +323,16 @@ def patch_mcworld_data(zip_bytes, game_mode="survival", strip_behavior_packs=Fal
     zin = zipfile.ZipFile(io.BytesIO(zip_bytes))
     try:
         infos = zin.infolist()
+        unpacked = 0
+        for info in infos:
+            safe_name = str(info.filename).replace("\\", "/")
+            if safe_name.startswith("/") or any(part == ".." for part in safe_name.split("/")):
+                raise ValueError("arquivo compactado com caminho invalido")
+            if info.file_size < 0 or info.file_size > MAX_UNPACKED_BYTES:
+                raise ValueError("entrada compactada grande demais")
+            unpacked += info.file_size
+            if unpacked > MAX_UNPACKED_BYTES:
+                raise ValueError("conteudo descompactado grande demais")
         level_name = "level.dat"
         for i in infos:
             if i.filename.lower() == "level.dat":
@@ -482,8 +497,13 @@ def _read_static(url_path):
     rel = url_path.split("?", 1)[0].lstrip("/")
     if rel in ("", "/"):
         rel = "index.html"
-    target = os.path.normpath(os.path.join(SITE_DIR, rel))
-    if not target.startswith(os.path.abspath(SITE_DIR)):
+    site_root = os.path.abspath(SITE_DIR)
+    target = os.path.abspath(os.path.normpath(os.path.join(site_root, rel)))
+    try:
+        inside = os.path.commonpath((site_root, target)) == site_root
+    except ValueError:
+        inside = False
+    if not inside:
         return None
     if not os.path.isfile(target):
         return None
@@ -561,16 +581,33 @@ def _load_json(name, default):
 
 def _save_json(name, obj):
     try:
-        with open(_store_path(name), "w", encoding="utf-8") as f:
+        target = _store_path(name)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".%s." % name, suffix=".tmp", dir=DATA_DIR)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(obj, f, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, target)
     except Exception as e:
+        try:
+            if 'tmp' in locals() and os.path.exists(tmp):
+                os.unlink(tmp)
+        except Exception:
+            pass
         sys.stderr.write("[store] falha ao salvar %s: %s\n" % (name, e))
 
 
 def _client_ip(handler):
-    fwd = handler.headers.get("X-Forwarded-For")
-    if fwd:
-        return fwd.split(",")[0].strip()[:64]
+    if TRUST_PROXY_HEADERS:
+        cf_ip = handler.headers.get("CF-Connecting-IP")
+        if cf_ip and re.match(r"^[0-9a-fA-F:.]{3,64}$", cf_ip.strip()):
+            return cf_ip.strip()[:64]
+        fwd = handler.headers.get("X-Forwarded-For")
+        if fwd:
+            candidate = fwd.split(",")[0].strip()
+            if re.match(r"^[0-9a-fA-F:.]{3,64}$", candidate):
+                return candidate[:64]
     try:
         return handler.client_address[0]
     except Exception:
@@ -613,23 +650,42 @@ def grant_premium(email, billing_id, days=PREMIUM_DAYS):
 
 
 def check_quota(ip):
-    quotas = _load_json("quota.json", {})
-    key = _ip_key(ip)
-    now = time.time()
-    uses = [t for t in quotas.get(key, []) if now - t < 7 * 86400]
-    quotas[key] = uses
-    _save_json("quota.json", quotas)
-    return len(uses), FREE_PER_WEEK
+    with _LOCK:
+        quotas = _load_json("quota.json", {})
+        key = _ip_key(ip)
+        now = time.time()
+        uses = [t for t in quotas.get(key, []) if now - t < 7 * 86400]
+        quotas[key] = uses
+        _save_json("quota.json", quotas)
+        return len(uses), FREE_PER_WEEK
 
 
 def register_quota(ip):
-    quotas = _load_json("quota.json", {})
-    key = _ip_key(ip)
-    now = time.time()
-    uses = [t for t in quotas.get(key, []) if now - t < 7 * 86400]
-    uses.append(now)
-    quotas[key] = uses
-    _save_json("quota.json", quotas)
+    with _LOCK:
+        quotas = _load_json("quota.json", {})
+        key = _ip_key(ip)
+        now = time.time()
+        uses = [t for t in quotas.get(key, []) if now - t < 7 * 86400]
+        uses.append(now)
+        quotas[key] = uses
+        _save_json("quota.json", quotas)
+
+
+def consume_quota(ip):
+    """Atomically check and consume the anonymous quota."""
+    with _LOCK:
+        quotas = _load_json("quota.json", {})
+        key = _ip_key(ip)
+        now = time.time()
+        uses = [t for t in quotas.get(key, []) if now - t < 7 * 86400]
+        if len(uses) >= FREE_PER_WEEK:
+            quotas[key] = uses
+            _save_json("quota.json", quotas)
+            return False
+        uses.append(now)
+        quotas[key] = uses
+        _save_json("quota.json", quotas)
+        return True
 
 
 def _abacate_headers():
@@ -912,7 +968,8 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
     default_mode = "keep" if keep_game_mode else "survival"
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "ReativaConquistas/2.0"
+        server_version = "ReativaConquistas"
+        sys_version = ""
 
         def log_message(self, fmt, *args):
             sys.stderr.write("[http] %s\n" % (fmt % args))
@@ -927,6 +984,8 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
             self.send_header("Referrer-Policy", "same-origin")
             self.send_header("Permissions-Policy",
                              "camera=(), microphone=(), geolocation=(), payment=()")
+            self.send_header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
             if content_type.startswith("text/html"):
                 self.send_header("Content-Security-Policy", CSP_HTML)
             if self.headers.get("X-Forwarded-Proto", "http") == "https":
@@ -953,6 +1012,14 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
             proprio site) trazem Origin/Referer do mesmo host. Rejeita
             divergentes; requisicoes sem cabecalho (curl, app) passam."""
             host = (self.headers.get("Host") or "").lower()
+            allowed = set()
+            if PUBLIC_BASE_URL:
+                try:
+                    allowed.add(urllib.parse.urlparse(PUBLIC_BASE_URL).netloc.lower())
+                except Exception:
+                    return False
+            if host:
+                allowed.add(host)
             for h in (self.headers.get("Origin"), self.headers.get("Referer")):
                 if not h:
                     continue
@@ -960,7 +1027,7 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                     ohost = urllib.parse.urlparse(h).netloc.lower()
                 except Exception:
                     return False
-                if ohost != host:
+                if ohost not in allowed:
                     return False
             return True
 
@@ -987,6 +1054,9 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 })
                 return
             if path == "/api/captcha/new":
+                if not _rl_allow(_client_ip(self), "captcha", 30, 300):
+                    self._json(429, {"error": "Muitas solicitacoes. Aguarde alguns minutos."})
+                    return
                 cid, question = new_captcha()
                 self._json(200, {"id": cid, "question": question})
                 return
@@ -1016,15 +1086,29 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 if not bid:
                     self._json(400, {"error": "Parametro 'id' obrigatorio."})
                     return
+                auth = self.headers.get("Authorization", "")
+                token = auth[7:] if auth.startswith("Bearer ") else ""
+                account_email = session_email(token)
+                if not account_email:
+                    self._json(401, {"error": "Entre na sua conta para consultar este pagamento."})
+                    return
+                if not _rl_allow(_client_ip(self), "billing_status", 30, 60):
+                    self._json(429, {"error": "Muitas consultas. Aguarde um minuto."})
+                    return
+                pending = _load_json("pending.json", {}).get(bid) or {}
                 try:
                     info = abacate_get_billing(bid)
                 except Exception as e:
                     self._json(502, {"error": str(e)})
                     return
+                owner_email = str(pending.get("email") or info.get("email") or "").strip().lower()
+                if not owner_email or owner_email != account_email:
+                    self._json(403, {"error": "Esta cobranca pertence a outra conta."})
+                    return
                 out = {"status": info["status"], "paid": info["paid"],
-                       "email": info.get("email", "")}
+                       "email": owner_email}
                 if info["paid"] and info.get("email"):
-                    until = grant_premium(info["email"], bid)
+                    until = grant_premium(owner_email, bid)
                     out["premium_until_ms"] = int(until * 1000)
                 self._json(200, out)
                 return
@@ -1213,13 +1297,14 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 self._json(200, {"url": url, "id": bid})
                 return
             if path == "/api/abacate/webhook":
-                # Segredo opcional: se configurado, exige ?secret= correto.
-                if ABACATEPAY_WEBHOOK_SECRET:
-                    qs = urllib.parse.parse_qs(self.path.split("?", 1)[1]
-                                               if "?" in self.path else "")
-                    if (qs.get("secret") or [""])[0] != ABACATEPAY_WEBHOOK_SECRET:
-                        self._json(403, {"error": "forbidden"})
-                        return
+                # Webhook sem autenticaÃ§Ã£o Ã© uma superfÃ­cie de abuso, mesmo
+                # reconferindo o pagamento no provedor. Exija o segredo sempre.
+                qs = urllib.parse.parse_qs(self.path.split("?", 1)[1]
+                                           if "?" in self.path else "")
+                if (not ABACATEPAY_WEBHOOK_SECRET or
+                        (qs.get("secret") or [""])[0] != ABACATEPAY_WEBHOOK_SECRET):
+                    self._json(403, {"error": "forbidden"})
+                    return
                 raw = self._read_capped()
                 if raw is None:
                     self._json(413, {"error": "corpo grande demais"})
@@ -1253,11 +1338,17 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
             if path not in ("/api/fix", "/"):
                 self._json(404, {"error": "rota desconhecida"})
                 return
+            if path == "/api/fix" and not _rl_allow(_client_ip(self), "fix", 30, 3600):
+                self._json(429, {"error": "Muitas conversoes em pouco tempo. Aguarde antes de tentar novamente."})
+                return
             length = int(self.headers.get("Content-Length", 0) or 0)
-            if length > MAX_UPLOAD_BYTES + 8 * 1024 * 1024:
+            if length < 0 or length > MAX_UPLOAD_BYTES + 8 * 1024 * 1024:
                 self._json(413, {"error": "Arquivo grande demais (max. %d MB)." % (MAX_UPLOAD_BYTES // (1024 * 1024))})
                 return
             body = self.rfile.read(length)
+            if len(body) != length:
+                self._json(400, {"error": "Corpo da requisicao incompleto."})
+                return
             fields = _parse_multipart(self.headers.get("Content-Type"), body)
             file_field = fields.get("mcworld")
             if not file_field or not file_field["data"]:
@@ -1269,16 +1360,12 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
             if not fields.get("accept_terms", {}).get("data"):
                 # aceita tambem via campo texto simples
                 pass  # o frontend exige; aqui toleramos p/ compatibilidade CLI
-            premium_email = ""
-            try:
-                premium_email = fields.get("premium_email", {}).get("data", b"").decode("utf-8", "replace").strip().lower()
-            except Exception:
-                premium_email = ""
-            # Conta logada tem prioridade sobre o campo avulso:
+            # Nunca aceite premium_email vindo do multipart: ele Ã© controlado
+            # pelo cliente. Premium sÃ³ pode vir de uma sessÃ£o autenticada do
+            # servidor, vinculada ao registro confirmado no armazenamento.
             _tok, _tok_email = _token_email()
-            if _tok_email:
-                premium_email = _tok_email
-            premium = is_premium_email(premium_email)
+            premium_email = _tok_email if _tok_email else ""
+            premium = bool(premium_email and is_premium_email(premium_email))
             # modo de jogo: free sempre survival; premium pode escolher
             gm_raw = b""
             try:
@@ -1328,9 +1415,10 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
                 self._json(402, {"code": "PREMIUM_REQUIRED",
                                  "error": "Renomear o mundo e funcao Premium."})
                 return
+            quota_reserved = False
             if not premium:
-                used, limit = check_quota(_client_ip(self))
-                if used >= limit:
+                quota_reserved = consume_quota(_client_ip(self))
+                if not quota_reserved:
                     self._json(402, {"code": "QUOTA_EXCEEDED",
                                      "error": "Sua conversao gratis desta semana ja foi usada. O Premium e ilimitado."})
                     return
@@ -1341,8 +1429,6 @@ def run_server(port=8080, keep_game_mode=False, strip_behavior_packs=False,
             except Exception as e:
                 self._json(400, {"error": "Falha ao corrigir: %s" % e})
                 return
-            if not premium:
-                register_quota(_client_ip(self))
             if premium_email:
                 try:
                     _orig = (file_field.get("filename") or "mundo.mcworld")[:80]

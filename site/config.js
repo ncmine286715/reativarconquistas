@@ -12,6 +12,10 @@ window.RC_CONFIG = {
      LIMITES DO SITE
      ========================= */
 
+  // Provedor ativo: "depix", "kiwify" ou "hybrid".
+  // "hybrid" mantém Depix como principal e Kiwify como link alternativo.
+  PAYMENT_PROVIDER: "kiwify",
+
   // Limite padrão para usuários grátis.
   FREE_MAX_MB: 10,
 
@@ -82,7 +86,7 @@ window.RC_CONFIG = {
      DEPIX
      ========================= */
 
-  // Depix é o sistema principal de pagamento Pix.
+  // O provedor ativo é controlado por PAYMENT_PROVIDER acima.
   DEPIX_ENABLED: true,
 
   // false = produção
@@ -91,14 +95,17 @@ window.RC_CONFIG = {
 
 
   /* =========================
-     FALLBACK DE PAGAMENTO
+     KIWIFY
      ========================= */
 
-  // Mantidos apenas como fallback caso seja necessário
-  // voltar temporariamente para a Kiwify.
-  //
-  // Com DEPIX_ENABLED = true, o fluxo normal utiliza Depix.
-  KIWIFY_URL_24H: "",
-  KIWIFY_URL_30D: ""
+  // Os links ficam públicos no checkout; segredos permanecem no Worker.
+  KIWIFY_ENABLED: true,
+  KIWIFY_URL_WORLD1: "https://pay.kiwify.com.br/YfzTiEM",
+  KIWIFY_URL_7D: "https://pay.kiwify.com.br/sBgHQEA",
+  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0",
+  KIWIFY_URL_CREATOR: "https://pay.kiwify.com.br/jmZC3K3",
+
+  // Alias antigo mantido para compatibilidade com páginas/cache antigos.
+  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM"
 
 };

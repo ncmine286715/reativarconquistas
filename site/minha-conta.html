@@ -24,10 +24,10 @@
 </div>
 </div>
 </div>
-<script src="config.js?v=20"></script>
+<script src="config.js?v=21"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=14"></script>
-<script src="pagamento.js?v=14"></script>
+<script src="pagamento.js?v=17"></script>
 <script>
 (function () {
   try {
@@ -90,6 +90,7 @@
       }).catch(function () { show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Sem conexão com o servidor agora. Tente novamente.</p>"); });
       return;
     }
+    /* Legacy e-mail linking was removed: entitlements are UID-bound.
     var emails = [];
     try {
       var le = (localStorage.getItem("rc_prem_email") || "").trim().toLowerCase();
@@ -151,6 +152,7 @@
         });
       });
     });
+    */
   }
   document.getElementById("logout").addEventListener("click", function () {
     if (!window.confirm("Sair da conta?")) return;
