@@ -271,6 +271,12 @@ export default {
     const cors = corsHeaders(req, env);
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 
+    // O mesmo Worker tambem pode servir o frontend quando o dominio aponta
+    // diretamente para ele. Rotas /api/* continuam sendo tratadas abaixo.
+    if (!url.pathname.startsWith("/api/") && env.ASSETS) {
+      return env.ASSETS.fetch(req);
+    }
+
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
