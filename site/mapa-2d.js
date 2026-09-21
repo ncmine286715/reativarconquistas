@@ -317,7 +317,7 @@
       " · " + parts.join(" · ") +
       (bd ? "<br>Visão: <b>" + (DIM_NAMES[state.activeDim] || state.activeDim) + "</b> " + w + "×" + h + " chunks (~" + (w * 16) + "×" + (h * 16) + " blocos)" : "") +
       (state.spawnChunk ? " · spawn no chunk <b>" + state.spawnChunk.cx + ", " + state.spawnChunk.cz + "</b> <span style='color:#b91c1c'>●</span>" : "") +
-      "<br><span style='font-size:12px'>Grátis e universal: arraste p/ mover, roda p/ zoom, <b>▦ Selecionar</b> p/ marcar chunks. Reset grátis até <b>8 chunks/dia</b>.</span>"
+      "<br><span style='font-size:12px'>Arraste p/ mover, roda/pinça p/ zoom. Use <b>▦ Selecionar</b> para marcar áreas com problema e restaurá-las pela seed. O original não é alterado.</span>"
     );
   }
 

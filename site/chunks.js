@@ -376,7 +376,7 @@
       if (window.RC_dbx.freeResetLeft() <= 0) return window.RC_dbx.vipNeed("Você já usou seu reset grátis de hoje. O VIP reseta sem limite, todo dia.").html;
     }
     var ack = $("resetAck");
-    if (ack && !ack.checked) return "Confirme em Regenerar terreno que guardou o original e aceita apagar a área selecionada na cópia.";
+    if (ack && !ack.checked) return "Confirme que fez backup e deseja restaurar a área selecionada pela seed.";
     if (selCount() > MAX_CHUNKS) return "Acima do limite (" + MAX_CHUNKS + "). Divida em partes.";
     return null;
   }
@@ -494,7 +494,7 @@
     if (!curFile) { status("Escolha o <b>.mcworld</b> primeiro (passo 1)."); return; }
     if (!selCount()) return;
     if (!window.RC_dbx || !window.RC_nbt2 || !window.RC_ldbw) { status("Módulos ainda carregando. Aguarde 5s e tente de novo."); return; }
-    if (!analysis) { status("Rode <b>Analisar seleção</b> primeiro — é grátis e mostra o que será apagado."); return; }
+      if (!analysis) { status("Rode <b>Analisar seleção</b> primeiro — ela mostra o estado dos chunks antes da restauração."); return; }
     var vip = window.RC_dbx.vipOk();
     var freeN = window.RC_dbx.limits.freeResetChunks;
     if (!vip) {
@@ -512,7 +512,7 @@
       }
     }
     var ack = $("resetAck");
-    if (ack && !ack.checked) { status("Marque <b>“Fiz backup e entendo que é irreversível”</b> para continuar."); return; }
+    if (ack && !ack.checked) { status("Marque <b>“Fiz backup e quero restaurar pela seed”</b> para continuar."); return; }
     if (selCount() > MAX_CHUNKS) { status("Acima do limite de segurança (" + MAX_CHUNKS + "). Divida em partes."); return; }
     // confirmação em 2 toques: o 1º mostra o resumo do estrago, o 2º executa
     var btn = $("resetBtn");
@@ -533,7 +533,7 @@
       var dims = {};
       window.RC_sel.forEach(function (k) { var d = k.split(":")[0]; dims[d] = (dims[d] || 0) + 1; });
       var dtxt = Object.keys(dims).map(function (d) { return (d === "0" ? "Overworld" : d === "1" ? "Nether" : "End") + " " + dims[d]; }).join(" · ");
-      status("⚠️ <b>Último aviso:</b> <b>" + selCount() + " chunk(s)</b> (" + dtxt + ") serão <b>apagados e regenerados do seed</b>. Construções aí dentro somem para sempre. " + (analysis ? "Confira a análise acima. " : "Rode <b>Analisar</b> para ver o que há dentro. ") + "Para confirmar, toque <b>de novo</b> em <b>Apagar e regenerar</b>.");
+        status("⚠️ <b>Último aviso:</b> <b>" + selCount() + " chunk(s)</b> (" + dtxt + ") serão <b>restaurados pela seed</b>. Construções dentro da área selecionada não entram no novo terreno. " + (analysis ? "Confira a análise acima. " : "Rode <b>Analisar</b> para ver o que há dentro. ") + "Para confirmar, toque <b>de novo</b> em <b>Restaurar chunks</b>.");
       return;
     }
     delete btn.dataset.armed;
@@ -658,7 +658,7 @@
             return { left: left, hasPlayer: hasPlayer, live1: live1, live2: live2 };
         }).then(function (chk) {
           var base = String(curFile.name || "mundo.mcworld").replace(/\.(mcworld|zip)$/i, "");
-          window.RC_dbx.downloadBlob(r.blob, base + "-reset-chunks.mcworld");
+          window.RC_dbx.downloadBlob(r.blob, base + "-chunks-restauradas.mcworld");
           window.RC_dbx.dropCache();
           try { window.RC_modified = new Set(sel); } catch (e) {}
           ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); window.RC_sel.clear(); analysis = null;
@@ -667,7 +667,7 @@
           var wasVip = window.RC_dbx.vipOk();
           if (!wasVip) window.RC_dbx.useFreeReset();
           var tail = wasVip ? "" : "<br>Reset grátis usado hoje. " + (window.RC_dbx.freeResetLeft() > 0 ? "" : "Amanhã libera outro — ou <a href='#planos'><b>VIP é ilimitado</b></a>.");
-          status("Pronto! Download iniciado: <b>" + esc(base) + "-reset-chunks.mcworld</b> — <b>" + delCount + "</b> registros apagados em <b>" + sel.size + "</b> chunk(s)" + (vilDel ? (" + <b>" + vilDel + "</b> de vila") : "") + ". " +
+          status("✅ <b>Restauração concluída!</b> Download iniciado: <b>" + esc(base) + "-chunks-restauradas.mcworld</b> — <b>" + delCount + "</b> registros restaurados pela seed em <b>" + sel.size + "</b> chunk(s)" + (vilDel ? (" + <b>" + vilDel + "</b> de vila") : "") + ". " +
             "Chaves: " + chk.live1 + " → " + chk.live2 + " · player " + (chk.hasPlayer ? "intacto ✓" : "ausente (como no original)") + ". " +
             "<br><b>Para regenerar sem vazio:</b> 1) importe o arquivo novo; 2) abra o <b>mundo novo</b> (mesmo nome — confira); 3) vá até a área e <b>aguarde gerar</b>; 4) se ficar descarregado, <b>feche e reabra</b> o mundo. No celular, regenere em <b>lotes pequenos</b>. Mapas antigos mostram a área velha — explore para atualizar. " +
             "<b>Guarde o original.</b>" + tail);
