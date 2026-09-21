@@ -217,7 +217,14 @@
       return (r && r.email) || "";
     } catch (e) { return ""; }
   }
-  function remotePremOk() { return remotePremUntil() > Date.now(); }
+  function remotePremOk() {
+    if (remotePremUntil() <= Date.now()) return false;
+    var cached = remotePremEmail().trim().toLowerCase();
+    var account = googleEmail();
+    var linked = linkedEmail();
+    // O cache e apenas uma copia visual; nunca autoriza outro usuario.
+    return !!cached && ((account && cached === account) || (linked && cached === linked));
+  }
   function isPremiumAny() { return remotePremOk(); }
   // Consulta o servidor para TODOS os e-mails conhecidos e guarda o melhor.
   // Em falha total de rede, MANTÉM o cache (nunca apaga VIP de quem pagou).
