@@ -588,6 +588,14 @@
   // Backup Kiwify em site/backup-kiwify-2026-09-20/.
   function checkout(plan, notice) {
     plan = normalizePlan(plan);
+    if (paymentProvider() === "kiwify" && kiwifyEnabled()) {
+      var directUrl = kiwifyUrl(plan);
+      if (!directUrl) return false;
+      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
+      track("checkout_opened", { plan: plan, provider: "kiwify" });
+      location.href = directUrl;
+      return true;
+    }
     if (!currentEmail()) {
       try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
       if (window.RC_auth) window.RC_auth.openModal();

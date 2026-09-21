@@ -294,7 +294,7 @@ export function normalizeKiwifyPlan(body, env) {
   const product = body && (body.Product || body.product || {}) || {};
   const pid = String(product.product_id || product.id || body.product_id || body.productId || "").trim();
   const rawName = product.product_name || product.name || body.product_name || body.productName || "";
-  const name = String(rawName).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const name = String(rawName).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const ids = [
     [env.KIWIFY_PID_WORLD1 || env.KIWIFY_PID_24H, "world1"],
     [env.KIWIFY_PID_7D, "vip7"],
@@ -302,10 +302,10 @@ export function normalizeKiwifyPlan(body, env) {
     [env.KIWIFY_PID_CREATOR, "creator"]
   ];
   for (const [configured, plan] of ids) if (configured && pid && pid === String(configured).trim()) return plan;
-  if (/\b(1|um)\s*mundo\b|resolver/.test(name)) return "world1";
-  if (/\b7\s*dias?\b|passe\s*7/.test(name)) return "vip7";
-  if (/\b30\s*dias?\b|vip\s*30/.test(name)) return "vip30";
-  if (/\bcriador\b/.test(name)) return "creator";
+  if (["1 mundo", "resolver 1 mundo"].includes(name)) return "world1";
+  if (["passe 7 dias", "7 dias"].includes(name)) return "vip7";
+  if (["vip 30 dias", "passe 30 dias", "30 dias"].includes(name)) return "vip30";
+  if (name === "criador") return "creator";
   return "";
 }
 
@@ -910,7 +910,9 @@ export default {
         try { body = await req.json(); } catch { body = {}; }
         const evt = String(body.webhook_event_type || body.event || body.type || "");
         const status = String(body.order_status || body.status || body.orderStatus || "").toLowerCase();
-        const approved = /approv/i.test(evt) || ["paid", "approved", "completed", "active", "payment_confirmed", "confirmed"].includes(status);
+        const approvedStatus = ["paid", "approved", "completed", "active", "payment_confirmed", "confirmed"].includes(status);
+        const approvedEvent = /^(order_approved|purchase_approved|compra_aprovada)$/.test(evt.toLowerCase());
+        const approved = approvedEvent || (!evt && approvedStatus);
         const email = String((body.Customer && body.Customer.email) || (body.customer && body.customer.email) || (body.Client && body.Client.email) || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
         const pid = String((body.Product && (body.Product.product_id || body.Product.id)) || body.product_id || body.productId || "");
         const oid = String(body.order_id || body.orderId || body.id || body.code || "");

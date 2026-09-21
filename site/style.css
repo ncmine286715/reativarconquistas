@@ -1141,6 +1141,7 @@ body {
   gap: 9px 10px;
   margin-top: 10px;
 }
+.pay-form-grid[hidden] { display: none !important; }
 .pay-field-full { grid-column: 1 / -1; }
 .pay-modal .pay-field label {
   display: block;

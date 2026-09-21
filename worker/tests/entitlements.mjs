@@ -53,6 +53,7 @@ assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { produ
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "VIP 30 DIAS" } }, {}), "vip30");
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "Criador" } }, {}), "creator");
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "Outro produto" } }, {}), "", "unknown Kiwify products must not become VIP30");
+assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "Outro Resolver de Mundos" } }, {}), "", "product matching must use known product names only");
 const kiwifyKv = new Storage();
 const kiwifyEnv = { PREMIUM_KV: kiwifyKv, KIWIFY_SECRET: "test-secret", ALLOWED_ORIGINS: "https://app.example" };
 const kwReq = (body, secret = "test-secret") => new Request("https://api.example/api/kiwify/webhook?secret=" + secret, {
