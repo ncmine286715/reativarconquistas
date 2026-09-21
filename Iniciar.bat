@@ -1,34 +1,32 @@
 @echo off
+setlocal
 chcp 65001 >nul
-title ReativaConquistas - Servidor local
 cd /d "%~dp0"
-
-REM Carrega o .env se existir (linhas CHAVE=VALOR, ignora #comentarios).
-if exist ".env" (
-  for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do (
-    if not "%%A"=="" set "%%A=%%B"
+if not exist "reativar_conquistas.py" (
+  echo ERRO: reativar_conquistas.py nao foi encontrado.
+  pause
+  exit /b 1
+)
+where py >nul 2>nul
+if errorlevel 1 (
+  where python >nul 2>nul
+  if errorlevel 1 (
+    echo ERRO: Python 3 nao foi encontrado no PATH.
+    pause
+    exit /b 1
   )
+  set "PYTHON_CMD=python"
+) else (
+  set "PYTHON_CMD=py -3"
 )
 if "%PORT%"=="" set "PORT=8080"
-set "SCRIPT=%~dp0reativar_conquistas.py"
-
-echo ============================================
-echo  ReativaConquistas - teste local
-echo  Site: http://localhost:%PORT%/
-echo  (Ctrl+C nesta janela para parar)
-echo ============================================
-
-where py >nul 2>nul
-if not errorlevel 1 (
-  if "%NO_BROWSER%"=="1" (
-    py -3 "%SCRIPT%" --server %PORT%
-  ) else (
-    py -3 "%SCRIPT%" --server %PORT% --open
-  )
-) else (
-  if "%NO_BROWSER%"=="1" (
-    python "%SCRIPT%" --server %PORT%
-  ) else (
-    python "%SCRIPT%" --server %PORT% --open
-  )
+echo ReativaConquistas: http://localhost:%PORT%/
+echo Backend e frontend serao servidos pelo mesmo processo.
+echo Feche esta janela ou pressione Ctrl+C para parar.
+%PYTHON_CMD% reativar_conquistas.py --server %PORT% --open
+if errorlevel 1 (
+  echo.
+  echo ERRO: o servidor encerrou com codigo %errorlevel%.
+  pause
 )
+endlocal

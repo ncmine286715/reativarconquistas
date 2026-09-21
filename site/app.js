@@ -84,7 +84,7 @@
       wantRename = $("wantRename"), renameInput = $("renameInput"),
       keepSel = $("keepinv"), coordSel = $("showcoords"),
       daySel = $("daycycle"), weatherSel = $("weather"),
-      badgeFile = $("badgeFile");
+      badgeFile = $("badgeFile"), recoverHardcore = $("recoverHardcore");
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
 
@@ -382,7 +382,7 @@
       return;
     }
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
-    try { if (window.RC_pay && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan); } catch (e) {}
+    try { if (window.RC_pay && !window.RC_pay.kiwifyUrl(plan) && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan); } catch (e) {}
   }
 
   /* ---------- arquivo ---------- */
@@ -567,7 +567,7 @@
       d.id = "promoBanner";
       d.className = "promo-banner";
       var pd = promoDaysLeft();
-      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (23/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>. Depois volta a 10 MB.";
+      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (24/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>. Depois volta a 10 MB.";
       conv.insertBefore(d, conv.firstChild);
     } catch (e) {}
   })();
@@ -809,6 +809,8 @@
     var wantsKeep = rules.keepinventory !== null;
     var iconBytes = (wantIcon.checked && (selectedIconBytes || presetBytes)) || null;
     var wantsPrem = !!iconBytes || batch || (mode !== "survival" && mode !== "keep") || wantsTime || wantsKeep;
+    var wantsHardcore = !!(recoverHardcore && recoverHardcore.checked);
+    wantsPrem = wantsPrem || wantsHardcore;
     if (wantsPrem && !prem) {
       if (!loggedIn()) {
         setStatus("err", "Essa função é VIP. <a href='minha-conta.html'><b>Entre com Google</b></a> primeiro, depois assine. <a href='#' id='claimLink'><b>Já paguei com outro e-mail</b></a>");
@@ -826,6 +828,7 @@
     if (wantIcon.checked && !prem) { lockedHint("Trocar a foto do mundo é VIP."); return; }
     if (wantsTime && !prem) { lockedHint("Travar dia/noite e clima é VIP."); return; }
     if (wantsKeep && !prem) { lockedHint("Manter inventário ao morrer é VIP."); return; }
+    if (wantsHardcore && !prem) { lockedHint("Recuperar mundo Hardcore é um recurso VIP.", "vip30"); return; }
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
@@ -967,7 +970,7 @@
         submit.disabled = false;
         return;
       }
-      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
+      window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (results) {
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -990,7 +993,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
@@ -1002,7 +1005,7 @@
           return window.RC_reset.applyToBlob(b);
         }).then(function (r) {
           extras.push(r.nChunks + " chunk(s) resetado(s)" + (r.vilDel ? " (+" + r.vilDel + " de vila)" : ""));
-          if (!premUnlimited) window.RC_reset.useFree();
+
           return r.blob;
         });
       }
@@ -1012,11 +1015,12 @@
           return window.RC_player.applyToBlob(b);
         }).then(function (r) {
           extras.push("player com " + r.occ + " item(ns)");
-          if (!premUnlimited) { try { window.RC_dbx.useFreePlayer(); } catch (e) {} }
+
           return r.blob;
         });
       }
       return chain.then(function (finalBlob) {
+        if (!premUnlimited) { if (wantChunks) window.RC_reset.useFree(); if (wantPlayer) window.RC_dbx.useFreePlayer(); }
         both.res.blob = finalBlob;
         finishSingle(baseName(selected.name), selected, both.res, both.iconBytes, extras);
       });
@@ -1078,31 +1082,6 @@
     });
   });
 
-  // TESTE LOCAL: painel dev SÓ em localhost ( Renderiza nada em produção).
-  // Simula o VIP p/ testar todas as funções sem pagar de novo.
-  (function localDevTools() {
-    try {
-      if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return;
-      var d = document.createElement("div");
-      d.id = "localDev";
-      d.innerHTML = "<b>TESTE LOCAL</b><span id='localDevVip'></span>" +
-        "<button type='button' id='localDevOn'>VIP 7 dias</button>" +
-        "<button type='button' id='localDevOff'>sem VIP</button>";
-      document.body.appendChild(d);
-      var vipEl = document.getElementById("localDevVip");
-      if (vipEl) vipEl.textContent = remotePremOk() ? "· VIP ATIVO" : "· sem VIP";
-      document.getElementById("localDevOn").addEventListener("click", function () {
-        try { localStorage.setItem("rc_prem_remote", JSON.stringify({ until: Date.now() + 7 * 86400000, email: "teste@local" })); } catch (e) {}
-        paintQuota();
-        if (vipEl) vipEl.textContent = "· VIP ATIVO";
-      });
-      document.getElementById("localDevOff").addEventListener("click", function () {
-        try { localStorage.removeItem("rc_prem_remote"); } catch (e) {}
-        paintQuota();
-        if (vipEl) vipEl.textContent = "· sem VIP";
-      });
-    } catch (e) {}
-  })();
   paintContact();
   paintPresets();
   paintQuota();

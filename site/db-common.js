@@ -72,7 +72,14 @@
             else if (/\.log$/i.test(f.name)) log.push(f);
           });
           var db = new lib.LevelDb(ldb, log, man, "site", {});
-          return db.init({ unloadFilesAfterParse: true }).then(function () { return db; });
+          return db.init({ unloadFilesAfterParse: true }).then(function () { // The upstream byte getter pads shared prefixes beyond the user-key length.
+            // Its binary string is clamped correctly; reconstruct the exact user key.
+            db.keys.forEach(function(kv,key) {
+              if (!kv) return;
+              var exact = Uint8Array.from(key, function(c){ return c.charCodeAt(0); });
+              Object.defineProperty(kv, "keyBytes", {value: exact, configurable: true});
+            });
+            return db; });
         });
       });
     });
@@ -103,7 +110,7 @@
     if (n === 9) { cx = i32(0); cz = i32(4); dim = 0; tag = b[8]; }
     else if (n === 10) {
       if (b[8] !== 47) return null;
-      cx = i32(0); cz = i32(4); dim = 0; tag = 47; sub = b[9];
+      cx = i32(0); cz = i32(4); dim = 0; tag = 47; sub = dv.getInt8(9);
     } else if (n === 13) {
       cx = i32(0); cz = i32(4); dim = i32(8); tag = b[12];
       if (dim < 0 || dim > 2) return null;
@@ -111,7 +118,7 @@
       if (b[12] !== 47) return null;
       cx = i32(0); cz = i32(4); dim = i32(8);
       if (dim < 0 || dim > 2) return null;
-      tag = 47; sub = b[13];
+      tag = 47; sub = dv.getInt8(13);
     }
     if (!isFinite(cx) || !isFinite(cz)) return null;
     if (cx < -100000 || cx > 100000 || cz < -100000 || cz > 100000) return null;
@@ -191,14 +198,31 @@
           }
         }
         if (!manRel) throw new Error("Cannot find LevelDB files!");
-        return zip.file(manRel).async("uint8array").then(function (manBytes) {
+        return Promise.all([zip.file(manRel).async("uint8array"), Promise.all(rels.filter(function(rel){return /\.log$/i.test(rel);}).map(function(rel){return zip.file(rel).async("uint8array");}))]).then(function (parts) {
+          var manBytes = parts[0], walMax = 0;
+          parts[1].forEach(function(bytes) {
+            for (var off = 0; off + 7 <= bytes.length;) {
+              var remain = 32768 - off % 32768;
+              if (remain < 7) { off += remain; continue; }
+              var len = bytes[off+4] | bytes[off+5] << 8, kind = bytes[off+6];
+              if (off + 7 + len > bytes.length) break;
+              if ((kind === 1 || kind === 2) && len >= 12) {
+                var view = new DataView(bytes.buffer, bytes.byteOffset + off + 7, len);
+                var start = Number(view.getBigUint64(0,true)), count = view.getUint32(8,true);
+                if (count) walMax = Math.max(walMax, start + count - 1);
+              }
+              off += 7 + len;
+            }
+          });
           if (my !== cache.seq) throw new Error("trocou de arquivo");
           return openFromBlob(file).then(function (db) {
             if (my !== cache.seq) throw new Error("trocou de arquivo");
+            var maxFile = 0;
+            rels.forEach(function(rel){ var m = /^(\d+)\.(?:log|ldb)$/.exec(baseOf(rel)); if(m)maxFile = Math.max(maxFile,+m[1]); });
             var data = {
               lib: window.RC_leveldb, db: db, zip: zip,
               manifestName: manRel, manifestBytes: new Uint8Array(manBytes),
-              nextFile: db.nextFileNumber, lastSeq: db.lastSequence >>> 0, logNumber: db.logNumber || 0,
+              nextFile: Math.max(db.nextFileNumber, maxFile + 1), lastSeq: Math.max(db.lastSequence, walMax), logNumber: db.logNumber || 0,
               file: file
             };
             cache.file = file; cache.data = data;
@@ -251,7 +275,7 @@
     html += kw ? '<a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>'
       : '<a href="#planos"><b>Ver planos VIP</b></a>';
     try {
-      if (window.RC_pay && window.RC_pay.enabled && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg);
+      // Upgrade links are explicit; do not open a disabled payment provider.
     } catch (e) {}
     return { html: html };
   }

@@ -70,7 +70,7 @@
     var it = {
       name: str("Name"), count: num("Count", 0), damage: num("Damage", 0),
       slot: (m.Slot !== undefined) ? m.Slot.v : slotFallback,
-      picked: num("WasPickedUp", 0), node: node,
+      picked: num("WasPickedUp", 0), node: node, _original: node,
       ench: [], display: "", unbr: 0, keep: 0, dura: null, repair: null
     };
     var tag = m.tag;
@@ -92,20 +92,22 @@
   }
 
   function itemToNode(it, withSlot) {
-    var N = T(), o = {};
+    var N = T(), o = it._original ? Object.assign({}, it._original.v.map) : {};
     o.Count = N.N(1, "Count", it.count & 255);
     o.Damage = N.N(2, "Damage", it.damage | 0);
     o.Name = N.N(8, "Name", it.name || "");
-    if (withSlot) o.Slot = N.N(1, "Slot", it.slot & 255);
+    if (withSlot) o.Slot = N.N(1, "Slot", it.slot & 255); else delete o.Slot;
     o.WasPickedUp = N.N(1, "WasPickedUp", it.picked ? 1 : 0);
-    if (it.name && (it.ench.length || it.display || it.unbr || it.keep || it.dura !== null || it.repair !== null)) {
-      var tm = {};
+    if (it.name) {
+      var tm = o.tag && o.tag.v ? Object.assign({}, o.tag.v.map) : {};
+      ["ench","Unbreakable","minecraft:keep_on_death","Damage","RepairCost"].forEach(function(k){delete tm[k];});
+      if (tm.display) { var display = Object.assign({},tm.display.v.map); delete display.Name; tm.display = N.N(10,"display",N.compound(display)); }
       if (it.ench.length) {
         tm.ench = N.N(9, "ench", N.listOf(10, it.ench.map(function (e) {
           return { t: 10, n: "", v: N.compound({ id: N.N(2, "id", e.id | 0), lvl: N.N(2, "lvl", e.lvl | 0) }) };
         })));
       }
-      if (it.display) tm.display = N.N(10, "display", N.compound({ Name: N.N(8, "Name", it.display) }));
+      if (it.display) tm.display = N.N(10, "display", N.compound(Object.assign({}, tm.display && tm.display.v.map, {Name:N.N(8,"Name",it.display)})));
       if (it.unbr) tm.Unbreakable = N.N(1, "Unbreakable", 1);
       if (it.keep) tm["minecraft:keep_on_death"] = N.N(1, "minecraft:keep_on_death", 1);
       if (it.dura !== null) tm.Damage = N.N(3, "Damage", it.dura | 0);
@@ -115,14 +117,20 @@
     return { t: 10, n: "", v: N.compound(o) };
   }
 
+  function itemState(it) { return JSON.stringify([it.name, it.count, it.damage, it.ench, it.display, it.unbr, it.keep, it.dura, it.repair]); }
+  function areaChanged(area) { return model[area].some(function(it,i) { return itemState(it) !== orig[area + "State"][i]; }); }
   function isEmpty(it) { return !it.name; }
 
   /* ---------- carregar ---------- */
   function loadPlayer() {
     if (!curFile) return;
     if (!window.RC_dbx || !window.RC_nbt2) { status("Módulos ainda carregando. Aguarde 5s e reenvie o arquivo."); return; }
+    var requestedKey = $("playerSel") && $("playerSel").value;
+    model = null; playerDirty = false; editSlot = null; clearPending();
+    var loadFile = curFile;
     status('<span class="spin"></span> Lendo player <b>sem alterar nada</b>…');
     window.RC_dbx.openWorld(curFile).then(function (data) {
+      if (curFile !== loadFile) return null;
       dbData = data;
       var keys = Array.from(data.db.keys.entries());
       var cands = [];
@@ -141,10 +149,11 @@
         sel.innerHTML = "";
         cands.forEach(function (c, i) {
           var o = document.createElement("option");
-          o.value = i;
+          o.value = c.sk;
           o.textContent = c.sk === "~local_player" ? "Player principal (~local_player)" : ("Visitante " + c.sk);
           sel.appendChild(o);
         });
+        if (cands.some(function(c) { return c.sk === requestedKey; })) sel.value = requestedKey;
         sel.hidden = cands.length < 2;
       }
       return { data: data, cands: cands };
@@ -152,7 +161,7 @@
       if (!r) return;
       var idx = 0;
       var sel = $("playerSel");
-      if (sel) idx = +sel.value || 0;
+      if (sel) idx = r.cands.findIndex(function(c) { return c.sk === sel.value; });
       buildModel(r.cands[idx] || r.cands[0]);
     }).catch(function (err) {
       status("Não deu para ler o player: " + esc(String((err && err.message) || err).slice(0, 200)));
@@ -213,6 +222,10 @@
     if (g) model.gameMode = +g.v;
     g = N.get(tree, "Mainhand");
     orig.mainhand = g;
+    orig.armorState = model.armor.map(itemState);
+    orig.enderState = model.ender.map(itemState);
+    orig.invState = model.inv.map(itemState);
+    orig.offState = (model.off || []).map(itemState);
     var pg = $("playerGrids");
     if (pg) pg.hidden = false;
     paintAll();
@@ -383,7 +396,7 @@
       row.innerHTML = "<b>" + esc(nm) + "</b> <span>nv " + e.lvl + "</span>";
       var x = document.createElement("button");
       x.type = "button"; x.className = "btn-ghost btn-mini"; x.textContent = "×";
-      x.addEventListener("click", function () { it.ench.splice(i, 1); paintEnch(it); });
+      x.addEventListener("click", function () { it.ench.splice(i, 1); it._node = null; playerDirty = true; paintEnch(it); });
       row.appendChild(x);
       el.appendChild(row);
     });
@@ -402,7 +415,7 @@
       display: (($("ieName").value) || "").slice(0, 60),
       unbr: $("ieUnbr").checked ? 1 : 0, keep: $("ieKeep").checked ? 1 : 0,
       repair: it.repair !== undefined ? it.repair : null,
-      ench: it.ench || [], _node: null
+      ench: it.ench || [], _original: id === it.name ? (it._original || it._node) : null, _node: null
     };
   }
 
@@ -419,7 +432,8 @@
       var hay = (it.name + " " + it.id).toLowerCase();
       if (q && hay.indexOf(q) < 0 && (!al || hay.indexOf(al) < 0)) continue;
       (function (def) {
-        var c = document.createElement("div");
+        var c = document.createElement("button");
+        c.type = "button";
         c.className = "item-cell"; c.title = def.name;
         c.dataset.pid = def.id;
         if (def.file && def.file !== "__none__.png") {
@@ -500,12 +514,12 @@
     var vip = window.RC_dbx.vipOk(), skipped = 0;
     KITS[k].forEach(function (e) {
       if (e[0] === "armor" && !vip) { skipped++; return; }
-      var it = e[2];
+      var it = JSON.parse(JSON.stringify(e[2]));
       it.slot = (e[0] === "armor") ? -1 : e[1];
       setSlotRaw(e[0], e[1], it);
     });
     paintAll();
-    status("Kit aplicado no rascunho" + (skipped ? " (hotbar grátis; <b>armadura do kit é VIP</b>)" : "") + ". Confira os slots e aperte <b>Salvar player</b> para gravar no mundo.");
+    status("Kit aplicado no rascunho" + (skipped ? " (hotbar grátis; <b>armadura do kit é VIP</b>)" : "") + ". Confira os slots e aperte <b>Gerar e baixar meu mundo</b> para gravar no mundo.");
   }
   function setSlotRaw(area, idx, it) {
     playerDirty = true;
@@ -567,7 +581,7 @@
     var g = N.get(rootNode, listName);
     if (g) return N.splice(bytes, g, newListBytes);
     // insere antes do END do compound raiz
-    var body = rootParsed.v;
+    var body = rootNode.v;
     var at = body.o + body.l - 1;
     var out = new Uint8Array(bytes.length + newListBytes.length);
     out.set(bytes.subarray(0, at), 0);
@@ -582,18 +596,18 @@
     var vip = window.RC_dbx.vipOk();
     if (!vip) {
       // GRÁTIS: só hotbar, encantos até o máximo vanilla, 2 saves/dia
-      var armorUsed = model.armor.slice(0, 4).some(function (x) { return x.name; });
-      var enderUsed = model.ender.some(function (x) { return x.name; });
+      var armorUsed = areaChanged("armor");
+      var enderUsed = areaChanged("ender");
       var lvlChanged = model.level !== (orig.level || 0);
       if (armorUsed || enderUsed || lvlChanged) {
-        var need = window.RC_dbx.vipNeed("Grátis: hotbar completa. Armadura, ender chest e nível de XP são VIP.");
+        var need = window.RC_dbx.vipNeed("Grátis: edição do inventário. Armadura, ender chest e nível de XP são VIP.");
         status(need.html);
         try { document.getElementById("planos").scrollIntoView({ behavior: "smooth" }); } catch (e) {}
         return;
       }
       var bad = null, badSlot = "";
       for (var s = 0; s < 36 && !bad; s++) {
-        if (model.inv[s].name) {
+        if (model.inv[s].name && itemState(model.inv[s]) !== orig.invState[s]) {
           var oe = overEnchant(model.inv[s]);
           if (oe) { bad = oe; badSlot = "hotbar " + (s + 1); }
         }
@@ -629,10 +643,12 @@
       if (nb.off) { out = spliceOrInsert(out, pr, "OffHand", nb.off); pr = N.parse(out).root; }
       if (orig.mainhand) { out = spliceOrInsert(out, pr, "Mainhand", nb.mainhand); pr = N.parse(out).root; }
       // nível de XP
-      var lv = N.get(pr, "PlayerLevel");
-      if (lv && lv.v !== model.level) {
+      out = spliceOrInsert(out, pr, "SelectedInventorySlot", N.encodeNamed(N.N(3, "SelectedInventorySlot", model.selected)));
+    pr = N.parse(out).root;
+    var lv = N.get(pr, "PlayerLevel");
+      if (!lv || lv.v !== model.level) {
         var lvB = N.encodeNamed({ t: 3, n: "PlayerLevel", v: model.level | 0 });
-        out = N.splice(out, lv, lvB); pr = N.parse(out).root;
+        out = spliceOrInsert(out, pr, "PlayerLevel", lvB); pr = N.parse(out).root;
       }
       // verifica parse final
       N.parse(out);
@@ -689,14 +705,14 @@
     if (!window.RC_ldbw || !window.RC_dbx) return "Módulos ainda carregando. Aguarde e toque de novo.";
     var vip = window.RC_dbx.vipOk();
     if (!vip) {
-      var armorUsed = model.armor.slice(0, 4).some(function (x) { return x.name; });
-      var enderUsed = model.ender.some(function (x) { return x.name; });
+      var armorUsed = areaChanged("armor");
+      var enderUsed = areaChanged("ender");
       var lvlChanged = model.level !== (orig.level || 0);
       if (armorUsed || enderUsed || lvlChanged) {
-        return window.RC_dbx.vipNeed("Grátis: hotbar completa. Armadura, ender chest e nível de XP são VIP.").html;
+        return window.RC_dbx.vipNeed("Grátis: edição do inventário. Armadura, ender chest e nível de XP são VIP.").html;
       }
       for (var s = 0; s < 36; s++) {
-        if (model.inv[s].name) {
+        if (model.inv[s].name && itemState(model.inv[s]) !== orig.invState[s]) {
           var oe = overEnchant(model.inv[s]);
           if (oe) return window.RC_dbx.vipNeed("Grátis: encantos até o máximo vanilla (" + esc(enchName(oe.id)) + " " + oe.mx + "). Nv " + oe.lvl + " é VIP (até 255).").html;
         }
@@ -706,7 +722,7 @@
       }
     }
     var ack = $("playerAck");
-    if (ack && !ack.checked) return "Marque <b>“Backup feito”</b> no player.";
+    if (ack && !ack.checked) return "Confirme no inventário que guardou uma cópia do mundo original.";
     return null;
   }
   function playerKeyBytesIn(data) {
@@ -731,10 +747,12 @@
     out = spliceOrInsert(out, pr, "EnderChestInventory", nb.ender); pr = N.parse(out).root;
     if (nb.off) { out = spliceOrInsert(out, pr, "OffHand", nb.off); pr = N.parse(out).root; }
     if (orig.mainhand) { out = spliceOrInsert(out, pr, "Mainhand", nb.mainhand); pr = N.parse(out).root; }
+    out = spliceOrInsert(out, pr, "SelectedInventorySlot", N.encodeNamed(N.N(3, "SelectedInventorySlot", model.selected)));
+    pr = N.parse(out).root;
     var lv = N.get(pr, "PlayerLevel");
-    if (lv && lv.v !== model.level) {
+    if (!lv || lv.v !== model.level) {
       var lvB = N.encodeNamed({ t: 3, n: "PlayerLevel", v: model.level | 0 });
-      out = N.splice(out, lv, lvB); pr = N.parse(out).root;
+      out = spliceOrInsert(out, pr, "PlayerLevel", lvB); pr = N.parse(out).root;
     }
     N.parse(out);
     var chk = N.parse(out).root;
@@ -742,10 +760,12 @@
     var occ = invN.v.items.filter(function (it) { return it.v.map.Name && it.v.map.Name.v; }).length;
     return { bytes: out, occ: occ };
   }
-  // aplica o rascunho em cima de um blob (pós-conversor/pós-chunks) — sem baixar
+  // aplica o rascunho em cima de um blob (pós-conversor/pós-chunks) — sem baixar.
+  // Usa openWorld (retorna {db, zip, manifest...}); openFromBlob retorna
+  // só o LevelDb e quebrava com "reading 'keys'".
   function applyToBlob(blob) {
     var data;
-    return window.RC_dbx.openFromBlob(blob).then(function (d) {
+    return window.RC_dbx.openWorld(blob).then(function (d) {
       data = d;
       var put = buildPlayerPut();
       var ops = [{ t: "put", k: playerKeyBytesIn(data), v: put.bytes }];
@@ -754,7 +774,7 @@
         nextFile: data.nextFile, lastSeq: data.lastSeq, logNumber: data.logNumber, ops: ops
       });
       return window.RC_dbx.assemble(data, upd.newManifestBytes, upd.logName, upd.logBytes).then(function (b2) {
-        return { blob: b2, occ: put.occ };
+        return { blob: b2, occ: put.occ, expected: put.bytes };
       });
     }).then(function (r) {
       return r.blob.arrayBuffer().then(function (ab) {
@@ -762,6 +782,8 @@
           var found = null;
           for (var e of db2.keys) { if (e[0] === pKey) { found = e[1]; break; } }
           if (!found || found === false) throw new Error("player sumiu na validação.");
+          var expected = r.expected;
+          if (found.value.length !== expected.length || expected.some(function(b,i){return found.value[i] !== b;})) throw new Error("O inventário gravado não corresponde ao rascunho.");
           var live1 = 0, live2 = 0;
           data.db.keys.forEach(function (v) { if (v) live1++; });
           db2.keys.forEach(function (v) { if (v) live2++; });
@@ -831,10 +853,10 @@
     if (ea) ea.addEventListener("click", function () {
       if (!editSlot) return;
       var it = getSlot(editSlot.area, editSlot.idx);
-      var id = +($("ieEnchSel").value || 9), lv = Math.max(1, Math.min(255, +($("ieEnchLvl").value || 1) | 0));
+      var id = +($("ieEnchSel").value || 0), lv = Math.max(1, Math.min(255, +($("ieEnchLvl").value || 1) | 0));
       var ex = it.ench.find(function (e) { return e.id === id; });
       if (ex) ex.lvl = lv; else it.ench.push({ id: id, lvl: lv });
-      playerDirty = true;
+      it._node = null; playerDirty = true;
       paintEnch(it);
     });
     var ap = $("ieApply");
@@ -842,8 +864,9 @@
       if (!editSlot) return;
       var it = curEditItem();
       if (!it.name) { status("Escolha um item (clique no ícone ou digite o ID). Para esvaziar, use <b>Limpar slot</b>."); return; }
+      clearPending();
       setSlot(editSlot.area, editSlot.idx, it);
-      status("Slot atualizado no rascunho. Aperte <b>Salvar player (VIP)</b> para gravar.");
+      status("Slot atualizado no rascunho. Aperte <b>Gerar e baixar meu mundo</b> para gravar.");
     });
     var cl = $("ieClear");
     if (cl) cl.addEventListener("click", function () {
@@ -953,7 +976,7 @@
       ench: [], display: "", unbr: 0, keep: 0, dura: null, repair: null, _node: null
     };
     setSlot(area, idx, it);
-    status("Item colocado no rascunho. Toque no slot p/ ajustar quantidade e encantos, depois <b>Salvar player</b>.");
+    status("No rascunho ✓. Toque no slot p/ ajustar, depois <b>Gerar e baixar</b>.");
   }
   function moveSlot(fa, fi, ta, ti) {
     var a = getSlot(fa, fi), b = getSlot(ta, ti);
@@ -968,7 +991,7 @@
     a.slot = tWith ? ti : -1; b.slot = fWith ? fi : -1;
     setSlotRaw(ta, ti, a); setSlotRaw(fa, fi, b);
     paintAll();
-    status("Item movido no rascunho. Aperte <b>Salvar player</b> para gravar.");
+    status("Movido ✓. Vai junto no <b>Gerar e baixar</b>.");
   }
   function bindDragDrop() {
     document.addEventListener("dragstart", function (e) {
@@ -985,6 +1008,7 @@
       if (!model) return;
       var cell = e.target && e.target.closest ? e.target.closest("#ieGrid .item-cell") : null;
       var slot = e.target && e.target.closest ? e.target.closest(".pslot") : null;
+      if (cell && e.pointerType === "touch") return;
       if (cell) {
         dragSt = { kind: "pal", id: cell.dataset.pid || null, x0: e.clientX, y0: e.clientY, ghost: null, pid: e.pointerId, ptype: e.pointerType };
       } else if (slot && !slot.disabled) {
@@ -1027,12 +1051,6 @@
             suppressClick = true;
           }
         }
-      } else if (d.kind === "pal" && d.id) {
-        // toque simples na paleta = item pendente (toque no slot p/ colocar)
-        pendingId = d.id;
-        document.querySelectorAll(".item-cell.pick-pend").forEach(function (x) { x.classList.remove("pick-pend"); });
-        var cellEl = e.target && e.target.closest ? e.target.closest(".item-cell") : null;
-        if (cellEl) cellEl.classList.add("pick-pend");
       }
     });
     document.addEventListener("pointercancel", function (e) {

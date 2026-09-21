@@ -7,7 +7,7 @@ window.RC_CONFIG = {
   FREE_MAX_MB: 10,
   // PROMOÇÃO: até 23/09/2026, o grátis vale 25 MB (auto-expira, sem deploy)
   PROMO_MAX_MB: 25,
-  PROMO_UNTIL: "2026-09-23T23:59:59-03:00",
+  PROMO_UNTIL: "2026-09-24T23:59:59-03:00",
   PRE_MAX_MB: 500,
   // Limites leves do grátis (margem pro VIP sem forçar):
   // mundos até FREE_MAX_MB (ou PROMO), 1 por vez, FREE_DAILY conversões/dia.
@@ -20,12 +20,23 @@ window.RC_CONFIG = {
   OPERATOR_DOC: "",
   OPERATOR_CITY_UF: "Terra Roxa/PR",
   // URL do Worker Cloudflare (API de contas + pagamento).
-  WORKER_URL: "https://reativa-pay.rosidomingos032.workers.dev",
+  // Vazio no modo local: conta e pagamento usam o backend Python estavel.
+  WORKER_URL: "",
   PREMIUM_PRICE_LABEL: "R$ 19,90",
-  PASS_24H_PRICE_LABEL: "R$ 6,90",
+  PASS_24H_PRICE_LABEL: "R$ 5,90",
   PREMIUM_DAYS: 30,
+  // Preços em centavos (usados pelo Depix p/ teste e produção).
+  // Mínimo do Depix: 500 (R$ 5,00) — 590 e 1990 estão OK.
+  PASS_24H_CENTS: 590,
+  PREMIUM_CENTS_30D: 1990,
+  // Depix (Pix via api.depixapp.com, através do Worker — NENHUM segredo aqui).
+  // true = botão usa Depix primeiro; false = volta p/ Kiwify/Abacate.
+  // Modo teste: use sk_test_ no Worker p/ testar sem dinheiro real.
+  DEPIX_ENABLED: false,
+  DEPIX_TEST_MODE: false,
   // Checkout Kiwify (venda imediata): links pay.kiwify.com.br de cada plano.
-  // Preenchido = botão vai direto p/ a Kiwify. Vazio = usa o modal AbacatePay.
-  KIWIFY_URL_24H: "https://pay.kiwify.com.br/YfzTiEM",
-  KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0"
+  // BACKUP EM: site/backup-kiwify-2026-09-20/ (versão do PC preservada).
+  // Kiwify ativa: cada plano abre seu checkout. Depix desativado.
+  KIWIFY_URL_24H: "",
+  KIWIFY_URL_30D: ""
 };

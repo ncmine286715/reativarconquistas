@@ -140,24 +140,25 @@
     if (!args.ops || !args.ops.length) throw new Error("nada para gravar");
     if (!isFinite(args.nextFile) || !isFinite(args.lastSeq)) throw new Error("MANIFEST ilegível (mundo incompleto?)");
     if (!args.manifestBytes || !args.manifestBytes.length) throw new Error("MANIFEST vazio");
+    if (!Number.isSafeInteger(args.lastSeq) || args.lastSeq < 0 || !Number.isSafeInteger(args.lastSeq + args.ops.length)) throw new Error("Sequência LevelDB inválida");
     var newLogNum = Math.trunc(args.nextFile);
-    var batch = buildBatch(args.ops, (args.lastSeq >>> 0) + 1);
+    var batch = buildBatch(args.ops, args.lastSeq + 1);
     var logFramed = framePayload(batch, 0);
     var edit = buildVersionEdit({
-      logNumber: newLogNum,
-      prevLogNumber: args.logNumber || 0,
+      logNumber: args.logNumber || newLogNum,
+      prevLogNumber: 0,
       nextFileNumber: newLogNum + 1,
-      lastSequence: (args.lastSeq >>> 0) + args.ops.length
+      lastSequence: args.lastSeq + args.ops.length
     });
     var startOff = args.manifestBytes.length % BLOCK;
     var manFramed = framePayload(edit, startOff);
     var nm = concat([args.manifestBytes, manFramed.bytes]);
     return {
-      logName: "db/" + pad6(newLogNum) + ".log",
+      logName: args.manifestName.replace(/[^/\\]+$/, "") + pad6(newLogNum) + ".log",
       logBytes: logFramed.bytes,
       newManifestBytes: nm,
       newManifestName: args.manifestName,
-      newLastSeq: (args.lastSeq >>> 0) + args.ops.length,
+      newLastSeq: args.lastSeq + args.ops.length,
       ops: args.ops.length
     };
   }

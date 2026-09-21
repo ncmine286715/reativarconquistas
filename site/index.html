@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -81,7 +81,7 @@
 
 <div class="sticky-cta" id="stickyCta" hidden>
   <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
-  <span class="sticky-tx"><b>Mundo até 10 MB? É grátis.</b><em>Recupere suas conquistas em segundos</em></span>
+  <span class="sticky-tx"><b>Até 25 MB grátis na promoção.</b><em>Recupere suas conquistas em segundos</em></span>
   <a class="sticky-go" href="#converter">Converter</a>
   <a class="sticky-vip" href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Ser VIP</a>
   <button class="sticky-x" id="stickyX" type="button" aria-label="Fechar aviso">×</button>
@@ -94,7 +94,7 @@
     <p class="kicker">Projeto independente · sem vínculo com Mojang/Microsoft</p>
     <img class="hero-logo" src="hero.png" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
     <h1>Conquistas sumiram?<br><span>Volte a desbloquear</span></h1>
-    <p class="tagline">Solte o <b>.mcworld</b> abaixo. Roda <b>no seu celular/PC</b> · original intacto · <b>até 10 MB grátis</b>.</p>
+    <p class="tagline">Solte o <b>.mcworld</b> abaixo. Roda <b>no seu celular/PC</b> · original intacto · <b>até 25 MB grátis na promoção</b>.</p>
     <div class="hero-cta">
       <a class="primary hero-btn" href="#converter">Corrigir meu mundo grátis</a>
       <a class="btn-ghost hero-btn" href="#planos">Ver o VIP</a>
@@ -132,7 +132,7 @@
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
         <span class="drop-title">Toque p/ escolher ou solte o .mcworld</span>
-        <span class="drop-sub">Até <b>10 MB grátis (2/dia)</b> · maior = <b>VIP</b></span>
+        <span class="drop-sub">Até <b>25 MB grátis na promoção (2/dia)</b> · maior = <b>VIP</b></span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
       </label>
@@ -280,6 +280,14 @@
         </span>
       </label>
 
+      <label class="opt locked" id="hardcoreOpt">
+        <input type="checkbox" id="recoverHardcore">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">VIP</span></b>
+          <em>Tenta remover os marcadores Hardcore e devolver o mundo para Sobrevivência. Faça backup antes.</em>
+        </span>
+      </label>
+
       <label class="opt locked" id="timeOpt">
         <span style="flex:1">
           <b><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Dia/noite + clima <span class="lock">VIP</span></b>
@@ -356,9 +364,6 @@
                 </select>
               </div>
             </div>
-            <div class="pg-sec"><h4>Ender chest</h4>
-              <div class="mc-scroll"><div class="mc-ender" id="mcEnder"></div></div>
-            </div>
             <div class="pg-sec"><h4>XP</h4>
               <div class="slider-row"><label>Nível</label><input type="number" id="xpLevel" min="0" max="10000" value="0" style="border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:14px;width:120px"></div>
             </div>
@@ -423,13 +428,13 @@
   <!-- PLANOS -->
   <section class="section" id="planos">
     <h2>Planos</h2>
-    <p class="plans-sub">Até <b>10 MB grátis (2/dia)</b>. Gigante? <b>Passe 24h</b>. Completo? <b>VIP 30 dias</b>.</p>
+    <p class="plans-sub">Promoção: <b>25 MB grátis por 4 dias</b>. Depois, 10 MB. Gigante? <b>Passe 24h</b>. Completo? <b>VIP 30 dias</b>.</p>
     <div class="plans plans-3">
       <div class="plan">
         <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
         <div class="price">R$ 0<small> · p/ sempre</small></div>
         <ul>
-          <li class="yes">Até <b>10 MB, 2/dia</b></li>
+          <li class="yes">Até <b>25 MB na promoção</b>, 2/dia</li>
           <li class="yes"><b>Renomear</b> + dificuldade + coords</li>
           <li class="yes">Raio-X + <b>mapa 2D</b></li>
           <li class="yes">Reset <b>8 chunks/dia</b></li>
@@ -443,7 +448,8 @@
         <ul>
           <li class="yes">VIP <b>total por 24h</b></li>
           <li class="yes">Mundos <b>gigantes</b></li>
-          <li class="yes">Modo, foto, clima + chunks + gemado</li>
+          <li class="yes">Modo, foto, clima + chunks + inventário</li>
+          <li class="yes"><b>Recuperação Hardcore</b> quando o marcador existir</li>
           <li class="yes">Ideal p/ <b>1 mundo</b></li>
         </ul>
         <a class="btn-plan btn-pay" data-pay="vip24h" href="#">Liberar R$ 5,90</a>
@@ -509,7 +515,7 @@
 
 <script src="vendor/jszip.min.js?v=14"></script>
 <script src="vendor/leveldb-reader.js?v=1"></script>
-<script src="config.js?v=16"></script>
+<script src="config.js?v=19"></script>
 <script src="converter.js?v=16"></script>
 <script src="pixel-icons.js?v=13"></script>
 <script src="ferramentas-local.js?v=14"></script>
@@ -519,7 +525,7 @@
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=4"></script>
 <script src="chunks.js?v=5"></script>
-<script src="player.js?v=5"></script>
+<script src="player.js?v=6"></script>
 <script src="app.js?v=17"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=13"></script>

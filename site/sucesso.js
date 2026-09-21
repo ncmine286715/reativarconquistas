@@ -1,4 +1,4 @@
-/* ReativaConquistas — página de retorno do pagamento (AbacatePay) */
+/* ReativaConquistas — página de retorno do pagamento (Depix + AbacatePay) */
 (function () {
   "use strict";
   function $(id) { return document.getElementById(id); }

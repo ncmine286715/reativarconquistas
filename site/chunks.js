@@ -14,13 +14,13 @@
   var MAX_CHUNKS = 4000;
   window.RC_sel = new Set();
   window.RC_MAX_CHUNKS = MAX_CHUNKS;
-  var curFile = null, analysis = null;
+  var curFile = null, analysis = null, analysisRun = 0;
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return window.RC_dbx ? window.RC_dbx.esc(s) : String(s); }
   function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
 
-  function trackFile(f) { curFile = f; window.RC_file = f; window.RC_sel.clear(); analysis = null; paintSelUI(); }
+  function trackFile(f) { ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); curFile = f; window.RC_file = f; window.RC_sel.clear(); analysis = null; paintSelUI(); }
   function selCount() { return window.RC_sel.size; }
 
   function status(html) {
@@ -41,10 +41,13 @@
     if (an) an.disabled = !selCount();
     if (rs) rs.disabled = !selCount();
     try { if (window.RC_mapDraw) window.RC_mapDraw(); } catch (e) {}
+    // highlight chunks no mapa
+    try { if (window.RC_mapDraw) window.RC_mapDraw(); } catch (e) {}
   }
   // chamado pelo mapa quando a seleção muda (análise automática, sem botão)
   var analyzeTimer = null;
   window.RC_selChanged = function () {
+    ++analysisRun;
     analysis = null;
     var ar = $("analysisBox"); if (ar) { ar.hidden = true; ar.innerHTML = ""; }
     paintSelUI();
@@ -168,8 +171,9 @@
     status('<span class="spin"></span> Analisando a seleção <b>sem alterar nada</b>…');
     var box = $("analysisBox");
     if (box) { box.hidden = true; box.innerHTML = ""; }
-    window.RC_dbx.openWorld(curFile).then(function (data) {
-      var sel = window.RC_sel;
+    var run = ++analysisRun, sourceFile = curFile, selection = new Set(window.RC_sel);
+    return window.RC_dbx.openWorld(sourceFile).then(function (data) {
+      var sel = selection;
       var per = {}, actorsRef = {}, digpKeys = [];
       var villageKeys = [], portalCount = 0, tickCount = 0;
       var i = 0, entries = Array.from(data.db.keys.entries());
@@ -198,7 +202,7 @@
               else if (c.tag === 45) st.has45 = 1;
               else if (c.tag === 51) st.pend = 1;
               else if (c.tag === 46 || c.tag === 48 || c.tag === 50 || c.tag === 52) st.legacy = 1;
-              if (c.tag === 47 && c.sub >= 0) {
+              if (c.tag === 47) {
                 st.subs[c.sub] = 1;
                 if (st.subMin === undefined || c.sub < st.subMin) st.subMin = c.sub;
                 if (st.subMax === undefined || c.sub > st.subMax) st.subMax = c.sub;
@@ -231,57 +235,16 @@
         return Promise.resolve();
       }
       return step().then(function () {
-        // varredura de atores por posição (só Overworld: atores não guardam dimensão)
-        var dim0 = false;
-        sel.forEach(function (k) { if (k.indexOf("0:") === 0) dim0 = true; });
-        var sweep = { inSel: 0, skipped: 0, ids: {} };
-        var jobs = [];
-        if (dim0) {
-          for (var j = 0; j < entries.length; j++) {
-            (function (kv) {
-              if (!kv || kv === false) return;
-              var b = null;
-              try { b = kv.keyBytes; } catch (e) { return; }
-              if (!b || b.length < 12 || b[0] !== 97) return; // 'a' de actorprefix
-              var s = "";
-              try { s = new TextDecoder().decode(b.subarray(0, 11)); } catch (e) { return; }
-              if (s !== "actorprefix") return;
-              jobs.push(kv);
-            })(entries[j][1]);
-          }
-        }
-        var ji = 0;
-        function sweepStep() {
-          var end = Math.min(jobs.length, ji + 200);
-          for (; ji < end; ji++) {
-            var kv2 = jobs[ji];
-            var val = kv2.value;
-            if (!val || !val.length) { sweep.skipped++; continue; }
-            try {
-              var pr = window.RC_nbt2.parse(val);
-              var pos = window.RC_nbt2.get(pr.root, "Pos");
-              if (!pos || pos.t !== 9 || !pos.v.items || pos.v.items.length < 3) { sweep.skipped++; continue; }
-              var px = +pos.v.items[0].v, pz = +pos.v.items[2].v;
-              var ccx = Math.floor(px / 16), ccz = Math.floor(pz / 16);
-              if (sel.has("0:" + ccx + "," + ccz)) {
-                sweep.inSel++;
-                var kb = kv2.keyBytes;
-                sweep.ids[Array.from(kb.subarray(kb.length - 8)).join(",")] = 1;
-              }
-            } catch (e) { sweep.skipped++; }
-          }
-          if (ji < jobs.length) return tick().then(sweepStep);
-          return Promise.resolve();
-        }
-        return sweepStep().then(function () {
+        // Actor positions do not identify dimensions. Use digp ownership only.
+        var sweep = {inSel:0, skipped:0, ids:{}};
           return { per: per, digpKeys: digpKeys, actorsRef: actorsRef, sweep: sweep, villageKeys: villageKeys, portalCount: portalCount, tickCount: tickCount, _zip: data.zip };
-        });
+
       });
     }).then(function (res) {
-      if (!res) return;
+      if (!res || run !== analysisRun || curFile !== sourceFile) return;
       analysis = res;
       return readWorldType(res._zip).then(function (wt) {
-        printReport(res, wt || null);
+        if (run === analysisRun) printReport(res, wt || null);
       });
     }).catch(function (err) {
       status("Não deu para analisar: " + esc(String((err && err.message) || err).slice(0, 220)));
@@ -413,13 +376,13 @@
       if (window.RC_dbx.freeResetLeft() <= 0) return window.RC_dbx.vipNeed("Você já usou seu reset grátis de hoje. O VIP reseta sem limite, todo dia.").html;
     }
     var ack = $("resetAck");
-    if (ack && !ack.checked) return "Marque <b>“Backup feito”</b> no reset.";
+    if (ack && !ack.checked) return "Confirme em Regenerar terreno que guardou o original e aceita apagar a área selecionada na cópia.";
     if (selCount() > MAX_CHUNKS) return "Acima do limite (" + MAX_CHUNKS + "). Divida em partes.";
     return null;
   }
   // coleta ops de delete p/ a seleção (chunks + digp + atores + vilas)
   function collectChunkOps(data, sel) {
-    var ops = [], targetHex = {}, vilKeys = [], vilDel = 0;
+    var ops = [], targetHex = {}, vilKeys = [], vilDel = 0, wantActors = {};
     function delAll(kv) {
       var vs = window.RC_dbx.keyVariants(kv);
       for (var q = 0; q < vs.length; q++) {
@@ -440,19 +403,17 @@
         var c = window.RC_dbx.parseChunkKey(b);
         if (c && sel.has(c.dim + ":" + c.cx + "," + c.cz)) { delAll(kv); continue; }
         var dg = window.RC_dbx.parseDigp(b);
-        if (dg && sel.has(dg.dim + ":" + dg.cx + "," + dg.cz)) { delAll(kv); continue; }
+        if (dg && sel.has(dg.dim + ":" + dg.cx + "," + dg.cz)) {
+          var references = kv.value || new Uint8Array(0);
+          for (var off = 0; off + 8 <= references.length; off += 8) wantActors[Array.from(references.subarray(off, off + 8)).join(",")] = 1;
+          delAll(kv); continue;
+        }
         if (asciiPrefix(b, "village_")) { vilKeys.push(kv); continue; }
       }
       if (i < n) return tick().then(step);
       return null;
     }
-    return step().then(function () {
-      var wantActors = {};
-      ((analysis && analysis.digpKeys) || []).forEach(function (dg) {
-        var v = dg.val || new Uint8Array(0);
-        for (var o = 0; o + 8 <= v.length; o += 8) wantActors[Array.from(v.subarray(o, o + 8)).join(",")] = 1;
-      });
-      Object.keys((analysis && analysis.sweep.ids) || {}).forEach(function (id) { wantActors[id] = 1; });
+    return Promise.resolve(step()).then(function () {
       var ids = Object.keys(wantActors);
       if (ids.length) {
         for (var j = 0; j < entries.length; j++) {
@@ -460,7 +421,7 @@
           if (!kv || kv === false) continue;
           var b = null;
           try { b = kv.keyBytes; } catch (e) { continue; }
-          if (!b || b.length < 19 || b[0] !== 97) continue;
+          if (!b || b.length !== 19 || !asciiPrefix(b, "actorprefix")) continue;
           var tail = Array.from(b.subarray(b.length - 8)).join(",");
           var hit = wantActors[tail] ? tail : null;
           if (!hit) {
@@ -490,10 +451,12 @@
       return { ops: ops, vilDel: vilDel, targetHex: targetHex };
     });
   }
-  // aplica o reset em cima de um blob (pós-conversor) — sem baixar
+  // aplica o reset em cima de um blob (pós-conversor) — sem baixar.
+  // Usa openWorld (retorna {db, zip, manifest...}); openFromBlob retorna
+  // só o LevelDb e quebrava com "reading 'keys'".
   function applyToBlobChunks(blob) {
     var sel = new Set(window.RC_sel), data;
-    return window.RC_dbx.openFromBlob(blob).then(function (d) {
+    return window.RC_dbx.openWorld(blob).then(function (d) {
       data = d;
       return collectChunkOps(data, sel);
     }).then(function (col) {
@@ -698,7 +661,7 @@
           window.RC_dbx.downloadBlob(r.blob, base + "-reset-chunks.mcworld");
           window.RC_dbx.dropCache();
           try { window.RC_modified = new Set(sel); } catch (e) {}
-          window.RC_sel.clear(); analysis = null;
+          ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); window.RC_sel.clear(); analysis = null;
           var ar = $("analysisBox"); if (ar) { ar.hidden = true; ar.innerHTML = ""; }
           var ack2 = $("resetAck"); if (ack2) ack2.checked = false;
           var wasVip = window.RC_dbx.vipOk();
@@ -751,6 +714,20 @@
     if (an) an.addEventListener("click", analyze);
     var rs = $("resetBtn");
     if (rs) rs.addEventListener("click", doReset);
+    // NEW: map analyze button
+    var mapAn = $("mapAnalyzeBtn");
+    if (mapAn) mapAn.addEventListener("click", function () {
+      if (!curFile) { status("Escolha o <b>.mcworld</b> primeiro (passo 1) para ver o mapa."); return; }
+      if (!window.RC_mapState || !window.RC_mapState.chunksByDim) { status("Aguarde o <b>mapa 2D</b> carregar primeiro."); return; }
+      analyze();
+    });
+    var mapRs = $("mapResetSelBtn");
+    if (mapRs) mapRs.addEventListener("click", function () {
+      var panel = $("accChunks");
+      if (panel) { panel.open = true; panel.scrollIntoView({behavior:"smooth", block:"start"}); }
+      if (!selCount()) { status("Ative <b>Selecionar</b> e marque no mapa somente a área que deseja apagar."); return; }
+      status("<b>" + selCount() + " chunks selecionados.</b> Confirme abaixo que guardou o original. Depois use <b>Gerar e baixar meu mundo</b>.");
+    });
     function readCoords() {
       var x = $("coordX") ? +$("coordX").value : NaN;
       var z = $("coordZ") ? +$("coordZ").value : NaN;

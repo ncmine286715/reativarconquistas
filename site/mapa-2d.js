@@ -678,6 +678,7 @@
       rt = setTimeout(function () { if (state.chunksByDim) draw(); }, 200);
     });
     setMode("pan");
+
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
