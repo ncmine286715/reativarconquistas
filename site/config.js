@@ -11,10 +11,10 @@ window.RC_CONFIG = {
   PRE_MAX_MB: 500,
   // Limites leves do grátis (margem pro VIP sem forçar):
   // mundos até FREE_MAX_MB (ou PROMO), 1 por vez, FREE_DAILY conversões/dia.
-  // Remover addons p/ conquistas é 100% VIP (FREE_MAX_PACKS = 0).
+  // Grátis: até 1 addon por mundo; acima disso é VIP.
   // VIP = tudo ilimitado.
   FREE_DAILY: 2,
-  FREE_MAX_PACKS: 0,
+  FREE_MAX_PACKS: 1,
   SUPPORT_EMAIL: "ncmine75@gmail.com",
   OPERATOR_NAME: "ReativaConquistas",
   OPERATOR_DOC: "",
