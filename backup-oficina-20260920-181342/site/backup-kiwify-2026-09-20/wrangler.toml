@@ -1,0 +1,31 @@
+name = "reativa-pay"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# KV com pendentes + premium por e-mail (crie 1x: wrangler kv namespace create PREMIUM_KV).
+# Depois cole o id retornado abaixo (preview_id p/ dev, id p/ produção).
+[[kv_namespaces]]
+binding = "PREMIUM_KV"
+id = "acfc4981776e4dd0b8513722597f8f01"
+preview_id = "acfc4981776e4dd0b8513722597f8f01"
+
+[vars]
+# ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
+ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
+# ID do produto "Passe 24h" (R$ 4,90) no dashboard AbacatePay.
+ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
+# IDs dos produtos na KIWIFY (só quando ligar a Kiwify): produto -> Webhooks.
+# Vazios = Kiwify desligada. Dias: _24H = 1 dia, _30D = 30 dias.
+KIWIFY_PID_24H = ""
+KIWIFY_PID_30D = ""
+# Site público (volta do checkout). Troque pelo seu domínio em produção.
+PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
+# Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
+#   https://<seu-worker>/api/abacate/webhook?secret=VALOR — cadastre no AbacatePay.
+# Origens liberadas p/ o site chamar o Worker (CSV; "*.dominio" cobre previews).
+# Inclui o workers.dev da sua conta (caso acesse o site por lá) — o oficial é o pages.dev.
+ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
+
+# SEGREDO (nunca neste arquivo!):
+#   wrangler secret put ABACATEPAY_API_KEY
+# e cole a chave abc_dev_... (dev) ou abc_... (produção).

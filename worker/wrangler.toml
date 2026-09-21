@@ -26,6 +26,16 @@ PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 # Inclui o workers.dev da sua conta (caso acesse o site por lá) — o oficial é o pages.dev.
 ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 
-# SEGREDO (nunca neste arquivo!):
-#   wrangler secret put ABACATEPAY_API_KEY
-# e cole a chave abc_dev_... (dev) ou abc_... (produção).
+# SEGREDOS (nunca neste arquivo! cada um via `wrangler secret put NOME`):
+#   wrangler secret put DEPIX_API_KEY        -> sk_test_... (teste) ou sk_live_... (produção)
+#   wrangler secret put DEPIX_WEBHOOK_SECRET -> whsec_... (painel Depix > My Business > Webhooks)
+#   wrangler secret put ABACATEPAY_API_KEY   -> abc_dev_... (dev) ou abc_... (produção, reserva)
+# e cole cada valor quando o wrangler pedir (não aparece no terminal).
+#
+# MODO TESTE: com sk_test_ no DEPIX_API_KEY, o Worker já responde
+# depix_test_mode=true no /api/config e o site mostra o aviso de teste.
+# Simular pagamento aprovado: POST /api/depix/simulate {id: "chk_..."}.
+
+[vars]
+# "1" = teste (site mostra aviso); "0"/vazio = produção.
+DEPIX_TEST_MODE = "1"

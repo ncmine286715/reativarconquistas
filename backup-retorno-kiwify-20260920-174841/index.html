@@ -1,0 +1,533 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReativaConquistas — conquistas de volta no seu mundo Minecraft Bedrock</title>
+<meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. Mundos de até 10 MB: grátis todo dia. Arquivo nunca sai do seu PC.">
+<link rel="icon" type="image/png" href="logo.png">
+<meta name="theme-color" content="#5EBB2B">
+<link rel="stylesheet" href="style.css?v=7">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light"){t="dark";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-box" viewBox="0 0 16 16"><path d="M8 1l6 3-6 3-6-3z" fill="#fdba74"/><path d="M2 4l6 3v8l-6-3z" fill="#c2410c"/><path d="M14 4L8 7v8l6-3z" fill="#9a3412"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 16 16"><path d="M2 2h5l7 7-5 5-7-7z" fill="#f97316"/><path d="M8 2h1l5 5-4 4H9l5-5-4-4z" fill="#fdba74"/><path d="M4.5 4.5h3v3h-3z" fill="#7c2d12"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 16 16"><path d="M2 12a6 6 0 0 1 12 0z" fill="#94a3b8"/><path d="M5 12a3 3 0 0 1 6 0z" fill="#f1f5f9"/><path d="M7.4 12L11 5.5l1.2.8L8.6 12z" fill="#ef4444"/><rect x="7" y="11" width="2" height="2" fill="#334155"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 16 16"><path d="M2 4h5v1h2V4h5v4l-1 1v1l-1 1v1l-1 1-1 1v1l-1 1H7l-1-1v-1l-1-1-1-1V9L3 8V7z" fill="#ef4444"/><path d="M8 2h6v6l-6 7z" fill="#b91c1c" opacity=".55"/><rect x="3" y="4" width="2" height="2" fill="#fff" opacity=".75"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#38bdf8"/><circle cx="8" cy="8" r="5" fill="#f0f9ff"/><path d="M11 5L9 9l-4 2 2-4z" fill="#ef4444"/><path d="M11 5L9 9l-2 2z" fill="#fca5a5"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 16 16"><rect x="7" y="1" width="2" height="3" fill="#fbbf24"/><rect x="7" y="12" width="2" height="3" fill="#fbbf24"/><rect x="1" y="7" width="3" height="2" fill="#fbbf24"/><rect x="12" y="7" width="3" height="2" fill="#fbbf24"/><rect x="3" y="3" width="2" height="2" fill="#fbbf24"/><rect x="11" y="3" width="2" height="2" fill="#fbbf24"/><rect x="3" y="11" width="2" height="2" fill="#fbbf24"/><rect x="11" y="11" width="2" height="2" fill="#fbbf24"/><rect x="6" y="6" width="4" height="4" fill="#f59e0b"/><rect x="7" y="7" width="2" height="2" fill="#fde68a"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 16 16"><path d="M4 4h6l3 3v4H4z" fill="#7dd3fc"/><path d="M4 4h6l1 1.5H4z" fill="#fff"/><path d="M4 9.5h9V11H4z" fill="#38bdf8"/><rect x="5" y="12" width="1.4" height="2.4" fill="#38bdf8"/><rect x="7.8" y="12" width="1.4" height="2.4" fill="#38bdf8"/><rect x="10.6" y="12" width="1.4" height="2.4" fill="#38bdf8"/></symbol>
+    <symbol id="i-photo" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" fill="#a16207"/><rect x="3.5" y="4.5" width="9" height="7" fill="#bae6fd"/><rect x="10" y="5.5" width="2" height="2" fill="#fde047"/><path d="M3.5 11.5l3-3 2 2 1.5-1.5 2.5 2.5z" fill="#22c55e"/></symbol>
+    <symbol id="i-gamepad" viewBox="0 0 16 16"><path d="M4 4h8l2 3v4l-2 2-2-3H6L4 13l-2-1V7z" fill="#a78bfa"/><path d="M6 4h4l1 1H5z" fill="#c4b5fd"/><path d="M5 7h1V6h1v1h1v1H7v1H6V8H5z" fill="#4c1d95"/><rect x="10" y="7" width="1.2" height="1.2" fill="#4c1d95"/><rect x="11.5" y="8.6" width="1.2" height="1.2" fill="#4c1d95"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 1l7 3-7 3-7-3z" fill="#fdba74"/><path d="M1 8l7 3 7-3 1 1-8 3.5L0 9z" fill="#f97316"/><path d="M1 11.5L8 14.5l7-3 1 1-8 3.5L0 12.5z" fill="#9a3412"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1l5 2v5c0 4-2 6-5 7-3-1-5-3-5-7V3z" fill="#34d399"/><path d="M8 1l5 2v5c0 4-2 6-5 7z" fill="#059669" opacity=".55"/><path d="M5.5 8l2 2 3.5-4 1 1-4.5 5-3-3z" fill="#fff"/></symbol>
+    <symbol id="i-star" viewBox="0 0 16 16"><path d="M8 1l1.5 5.5L15 8l-5.5 1.5L8 15 6.5 9.5 1 8l5.5-1.5z" fill="#fbbf24"/><path d="M8 1l1.5 5.5L15 8H8z" fill="#fef3c7"/><rect x="12.5" y="11.5" width="2" height="2" fill="#fbbf24"/><rect x="1.5" y="2.5" width="1.6" height="1.6" fill="#fbbf24"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 16 16"><path d="M11 1a7 7 0 0 0 2.5 9.5A6.5 6.5 0 0 1 5 14.5 6 6 0 0 1 3 6.5 7 7 0 0 1 11 1z" fill="#a5b4fc"/><path d="M12 2l.7 1.8 1.8.7-1.8.7L12 7l-.7-1.8-1.8-.7 1.8-.7z" fill="#fde047"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 16 16"><path d="M5 1h8v2H7v9H5z" fill="#fdba74"/><path d="M2 4h9v11H2z" fill="#ffedd5"/><path d="M2 4h9v3H2z" fill="#f97316"/><rect x="4" y="9" width="5" height="1.2" fill="#c2410c"/><rect x="4" y="11" width="5" height="1.2" fill="#c2410c"/></symbol>
+    <symbol id="i-wand" viewBox="0 0 16 16"><path d="M3 13l8-8 1 1-8 8z" fill="#a16207"/><path d="M3 13l2 2-2 1-1-2z" fill="#78350f"/><path d="M11 1l1 2.5 2.5 1-2.5 1L11 8l-1-2.5L7.5 4.5 10 3.5z" fill="#fde047"/><path d="M4 2.5l.6 1.4 1.4.6-1.4.6L4 6.5l-.6-1.4L2 4.5l1.4-.6z" fill="#fdba74"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><rect x="2" y="2" width="7" height="7" fill="#7dd3fc"/><rect x="3.4" y="3.4" width="4.2" height="4.2" fill="#e0f2fe"/><rect x="3.4" y="3.4" width="1.8" height="1.8" fill="#fff"/><path d="M8.5 8.5L14 14l-1.5 1.5L7 10z" fill="#a16207"/></symbol>
+    <symbol id="i-user" viewBox="0 0 16 16"><rect x="6" y="1" width="4" height="4.5" fill="#f6c89f"/><rect x="6" y="1" width="4" height="1.2" fill="#4a2f1b"/><rect x="4" y="7" width="8" height="8" fill="#14b8a6"/><rect x="4" y="7" width="8" height="1.6" fill="#0d9488"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" fill="#fcd34d"/><path d="M2 3.5l6 4.5 6-4.5V5l-6 4.5L2 5z" fill="#f59e0b"/><path d="M2 12.5l4.5-3.5 1 1L2 13.5z M14 12.5l-4.5-3.5-1 1 4.5 3.5z" fill="#b45309"/></symbol>
+    <symbol id="i-info" viewBox="0 0 16 16"><rect x="3" y="1" width="10" height="14" fill="#38bdf8"/><rect x="3" y="1" width="10" height="2.4" fill="#0284c7"/><rect x="6.6" y="5" width="2.8" height="2.8" fill="#fff"/><rect x="6.6" y="8.6" width="2.8" height="4.6" fill="#fff"/></symbol>
+    <symbol id="i-check" viewBox="0 0 16 16"><path d="M6 11L3 8l1.5-1.5L6 8l5.5-5.5L13 4z" fill="#22c55e"/><path d="M6 13.5L1.5 9 3 7.5 6 10.5l7-7L14.5 5z" fill="#15803d" opacity=".45"/></symbol>
+  </defs>
+</svg>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <button class="hamb" id="hamb" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="drawer">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="brand" href="index.html">
+      <img src="logo.png" width="34" height="34" alt="ReativaConquistas" style="border-radius:9px;display:block">
+      <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
+      <span class="bedrock-badge" style="font-size:10px;vertical-align:middle;background:#dc2626;color:white;border-radius:3px;padding:1px 4px;">Bedrock</span>
+    </a>
+    <nav class="nav">
+      <a class="hide-m" href="#como-funciona">Como funciona</a>
+      <a class="hide-m" href="#planos">Planos</a>
+      <a class="hide-m" href="#faq">Dúvidas</a>
+      <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
+        <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+        <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      </button>
+      <a href="minha-conta.html" id="navAuth" hidden>Entrar</a>
+      <a class="btn-nav" href="#converter">Converter grátis</a>
+    </nav>
+  </div>
+</div>
+
+<div class="drawer-bg" id="drawerBg" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Menu do site" aria-hidden="true">
+  <div class="drawer-head">
+    <b>Menu</b>
+    <span style="display:flex;gap:8px;align-items:center">
+      <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
+        <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+        <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      </button>
+      <button class="drawer-x" id="drawerClose" type="button" aria-label="Fechar menu">×</button>
+    </span>
+  </div>
+  <a href="#converter"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Converter mundo</a>
+  <a href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Planos</a>
+  <a href="#como-funciona"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>Como funciona</a>
+  <a href="#faq"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Dúvidas</a>
+  <a href="minha-conta.html"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Minha conta</a>
+  <a href="mailto:ncmine75@gmail.com"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>Contato</a>
+</aside>
+
+<div class="sticky-cta" id="stickyCta" hidden>
+  <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
+  <span class="sticky-tx"><b>Mundo até 10 MB? É grátis.</b><em>Recupere suas conquistas em segundos</em></span>
+  <a class="sticky-go" href="#converter">Converter</a>
+  <a class="sticky-vip" href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Ser VIP</a>
+  <button class="sticky-x" id="stickyX" type="button" aria-label="Fechar aviso">×</button>
+</div>
+
+<div class="page page-wide">
+  <div class="page" style="padding-left:0;padding-right:0;max-width:760px">
+
+  <header class="hero">
+    <p class="kicker">Projeto independente · sem vínculo com Mojang/Microsoft</p>
+    <img class="hero-logo" src="hero.png" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
+    <h1>Conquistas sumiram?<br><span>Volte a desbloquear no seu mundo Minecraft Bedrock</span></h
+    <p class="tagline">Solte o <b>.mcworld</b> abaixo. Roda <b>no seu celular/PC</b> · original intacto · <b>Minecraft Bedrock Edition</b> · <b>até 10 MB grátis</b>.</p>
+    <div class="hero-cta">
+      <a class="primary hero-btn" href="#converter">Corrigir meu mundo grátis</a>
+      <a class="btn-ghost hero-btn" href="#planos">Ver o VIP</a>
+    </div>
+    <div class="trust">
+      <span><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>100% no seu aparelho</span>
+      <span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>7 dias de garantia</span>
+      <span><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Pix ou cartão</span>
+    </div>
+  </header>
+
+  <div id="quotaBar" class="quota">
+    <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
+    <span id="quotaText">Verificando seu plano…</span>
+  </div>
+
+  <section class="demo" aria-label="Como funciona em 4 passos">
+    <div class="demo-step"><span><b>1.</b> Exporte o <b>.mcworld</b></span></div>
+    <div class="demo-step"><span><b>2.</b> Solte aqui embaixo</span></div>
+    <div class="demo-step"><span><b>3.</b> Baixe corrigido</span></div>
+    <div class="demo-step"><span><b>4.</b> Jogue no Survival</span></div>
+  </section>
+
+  <main class="card" id="converter">
+    <h2>Editar seu mundo</h2>
+    <p class="sub">Conquistas + mapa + player. Sai um arquivo novo. Original intacto.</p>
+
+    <form id="form" novalidate>
+      <details class="acc" id="accFile" open>
+        <summary><span class="acc-n">1</span><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Arquivo do mundo <span class="acc-badge" id="badgeFile">aguardando</span></summary>
+        <div class="acc-body">
+      <label id="drop" class="drop" for="file" tabindex="0">
+        <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
+        <span class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
+        </span>
+        <span class="drop-title">Toque p/ escolher ou solte o .mcworld</span>
+        <span class="drop-sub">Até <b>10 MB grátis (2/dia)</b> · maior = <b>VIP</b></span>
+        <span id="fileName" class="file-name" hidden></span>
+        <span id="filex" class="file-x" hidden></span>
+      </label>
+
+      <div id="worldInfo" class="worldinfo" hidden>
+        <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — nada foi alterado</span></div>
+        <div class="wi-grid">
+          <div class="wi-row"><span>Nome</span><b id="wiName">—</b></div>
+          <div class="wi-row"><span>Seed</span><span class="wi-seed"><code id="wiSeed">—</code><button type="button" class="btn-ghost btn-mini" id="seedCopy" hidden>Copiar</button></span></div>
+          <div class="wi-row"><span>Modo atual</span><b id="wiMode">—</b></div>
+          <div class="wi-row"><span>Dificuldade</span><b id="wiDiff">—</b></div>
+          <div class="wi-row"><span>Spawn</span><b id="wiSpawn">—</b></div>
+          <div class="wi-row"><span>Conquistas</span><b id="wiStatus">—</b></div>
+        </div>
+      </div>
+
+
+      <div id="mapPreview" class="mappreview" hidden>
+        <div class="wi-title">Mapa 2D <span class="wi-sub">lido da pasta db/ — nada foi alterado · grátis</span></div>
+        <div id="mapStats" class="map-stats">Lendo…</div>
+        <div id="mapDims" class="map-dims" hidden></div>
+        <div class="map-modes">
+          <button type="button" class="map-dim on" id="mapModePan">✋ Mover</button>
+          <button type="button" class="map-dim" id="mapModeSel">▦ Selecionar</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
+          <span id="mapHint" class="map-hint"></span>
+        </div>
+        <div class="map-tools" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="btn-ghost" id="mapAnalyzeBtn">🔍 Analisar</button>
+          <button type="button" class="btn-ghost" id="mapResetSelBtn">🗑 Reset chunks</button>
+        </div>
+        <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
+        <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>visitado</span><span><i class="sq" style="background:#b91c1c"></i>● spawn</span><span><i class="sq" style="background:#22c55e"></i>● você</span><span><i class="sq" style="background:#f97316"></i>resetado</span></div>
+        <div class="map-actions">
+          <button type="button" class="btn-ghost btn-mini" id="mapZoomIn" aria-label="Aproximar mapa">+ zoom</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
+        </div>
+      </div>
+        </div>
+      </details>
+
+      <details class="acc" id="accFree" open>
+        <summary><span class="acc-n">2</span><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Ajustes grátis <span class="acc-badge">incluídos</span></summary>
+        <div class="acc-body">
+
+      <label class="opt" id="diffOpt">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/iron_sword.png" alt="" aria-hidden="true">Dificuldade</b>
+          <em>Grátis · não bloqueia conquistas</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="difficulty" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Manter como está</option>
+              <option value="0">Pacífico (sem monstros)</option>
+              <option value="1">Fácil</option>
+              <option value="2">Normal</option>
+              <option value="3">Difícil</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt" id="coordOpt">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/spyglass.png" alt="" aria-hidden="true">Coordenadas</b>
+          <em>Grátis · mostra o XYZ na tela</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="showcoords" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Manter como está</option>
+              <option value="1">Mostrar</option>
+              <option value="0">Ocultar</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt" id="renameOpt">
+        <input type="checkbox" id="wantRename">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/name_tag.png" alt="" aria-hidden="true">Renomear</b>
+          <em>Grátis · use §+letra p/ colorir (§a)</em>
+          <span class="icon-row" style="margin-top:10px">
+            <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
+              style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+          </span>
+        </span>
+      </label>
+
+
+
+        </div>
+      </details>
+
+      <details class="acc" id="accPacks" open>
+        <summary><span class="acc-n">3</span><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Pacotes (addons)</summary>
+        <div class="acc-body">
+          <p class="sub" style="margin:6px 0 10px">Por até <b>2 grátis</b>. Tirar p/ voltar conquistas = <b>VIP</b>.</p>
+          <label class="opt" id="packOpt">
+            <span style="flex:1">
+              <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
+              <em>.mcpack/.mcaddon/.zip · behavior bloqueia conquistas</em>
+              <span class="icon-row" style="margin-top:10px">
+                <input type="file" id="packFiles" accept=".mcpack,.mcaddon,.zip" multiple hidden>
+                <button type="button" class="btn-ghost" id="packBtn">Escolher pacotes</button>
+                <span id="packList" class="pack-list" style="font-size:12.5px"></span>
+              </span>
+            </span>
+          </label>
+      <label class="opt locked" id="stripOpt">
+        <input type="checkbox" id="stripPacks">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover addons <span class="lock">VIP</span></b>
+          <em>Tira behavior packs · conquistas voltam</em>
+        </span>
+      </label>
+        </div>
+      </details>
+
+      <details class="acc" id="accPrem" open>
+        <summary><span class="acc-n">4</span><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Ajustes VIP <span class="lock">VIP</span></summary>
+        <div class="acc-body">
+
+      <label class="opt locked" id="keepOpt">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Manter inventário <span class="lock">VIP</span></b>
+          <em>Não perde itens ao morrer · <a href="#planos" class="unlock">desbloquear</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Manter como está</option>
+              <option value="1">Ligar (não perde os itens)</option>
+              <option value="0">Desligar (perde os itens)</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt locked" id="modeOpt">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/crafting_table.png" alt="" aria-hidden="true">Modo de jogo <span class="lock">VIP</span></b>
+          <em>Survival p/ conquistas · grátis já converte</em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="gamemode" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="keep">Manter o do mundo</option>
+              <option value="survival">Sobrevivência</option>
+              <option value="creative">Criativo</option>
+              <option value="adventure">Aventura</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt locked" id="timeOpt">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Dia/noite + clima <span class="lock">VIP</span></b>
+          <em>Trava tempo e clima · <a href="#planos" class="unlock">desbloquear</a></em>
+          <span class="icon-row" style="margin-top:10px">
+            <select id="daycycle" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Dia/noite: manter</option>
+              <option value="0">Travar dia/noite (congela o horário)</option>
+              <option value="1">Destravar dia/noite</option>
+            </select>
+            <select id="weather" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
+              <option value="-1">Clima: manter</option>
+              <option value="0">Travar clima (sem chuva/neve)</option>
+              <option value="1">Destravar clima</option>
+            </select>
+          </span>
+        </span>
+      </label>
+
+      <label class="opt locked" id="iconOpt">
+        <input type="checkbox" id="wantIcon">
+        <span style="flex:1">
+          <b><img class="mc-ic" src="mc/item/painting.png" alt="" aria-hidden="true">Foto do mundo <span class="lock">VIP</span></b>
+          <em>Envie imagem ou use ícone pronto</em>
+          <span class="icon-row" id="presetRow" style="margin-top:10px"></span>
+          <span class="icon-row" style="margin-top:10px">
+            <input type="file" id="iconFile" accept=".png,.jpg,.jpeg,.webp" hidden>
+            <button type="button" class="btn-ghost" id="iconBtn">Escolher imagem</button>
+            <img id="iconPreview" class="icon-preview" alt="Prévia do ícone">
+            <span id="iconName" style="font-size:12.5px"></span>
+          </span>
+        </span>
+      </label>
+
+
+
+
+        </div>
+      </details>
+
+
+
+      <details class="acc" id="accChunks" open>
+        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Reset de chunks <span class="lock">VIP</span></summary>
+        <div class="acc-body">
+          <p class="sub" style="margin:6px 0 10px">Pinte no mapa p/ <b>regenerar do seed</b>. Grátis 8/dia.</p>
+          <div class="map-actions" style="margin-top:0">
+            <button type="button" class="btn-ghost" id="selModeBtn">🖌 Pintar no mapa</button>
+            <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar</button>
+            <span id="selCount" style="font-size:13px;align-self:center">nada pintado ainda</span>
+          </div>
+          <div id="analysisBox" class="worldinfo" hidden style="margin-top:10px"></div>
+          <label class="accept" style="margin-top:10px">
+            <input type="checkbox" id="resetAck">
+            <span>Backup feito, pode apagar.</span>
+          </label>
+          <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
+        </div>
+      </details>
+
+      <details class="acc" id="accPlayer" open>
+        <summary><span class="acc-n">6</span><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Entrar gemado <span class="lock">VIP</span></summary>
+        <div class="acc-body">
+          <p class="sub" style="margin:6px 0 10px">Toque no item, depois no slot. Grátis: hotbar 2/dia.</p>
+          <div class="map-actions" style="margin-top:0">
+            <select id="playerSel" hidden style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px"></select>
+          </div>
+          <div id="playerGrids" hidden>
+            <div class="pg-sec"><h4>Inventário</h4>
+              <div class="mc-scroll"><div class="mc-inv" id="mcInv"></div></div>
+              <div class="slider-row" style="margin-top:8px"><label>Mão</label>
+                <select id="selSlot" style="border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:14px">
+                  <option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option><option value="4">5</option><option value="5">6</option><option value="6">7</option><option value="7">8</option><option value="8">9</option>
+                </select>
+              </div>
+            </div>
+            <div class="pg-sec"><h4>Ender chest</h4>
+              <div class="mc-scroll"><div class="mc-ender" id="mcEnder"></div></div>
+            </div>
+            <div class="pg-sec"><h4>XP</h4>
+              <div class="slider-row"><label>Nível</label><input type="number" id="xpLevel" min="0" max="10000" value="0" style="border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:14px;width:120px"></div>
+            </div>
+            <div class="pg-sec"><h4>Kits</h4>
+              <div class="map-actions" style="margin-top:0">
+                <button type="button" class="btn-ghost" data-kit="netherite">Kit Netherite</button>
+                <button type="button" class="btn-ghost" data-kit="diamond">Kit Diamante</button>
+                <button type="button" class="btn-ghost" data-kit="start">Kit Iniciante</button>
+                <button type="button" class="btn-ghost btn-mini" id="kitClear">Limpar tudo</button>
+              </div>
+            </div>
+            <div class="pg-sec" id="itemEditor" hidden><h4 id="ieTitle">Editando</h4>
+              <p class="sub" style="margin:0 0 8px">Arraste ou toque: item → slot.</p>
+              <input type="text" id="ieSearch" placeholder="Buscar item… (ex.: espada, capacete, totem)" style="width:100%;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:8px">
+              <div id="ieGrid" class="item-grid" style="max-height:220px;overflow:auto"></div>
+              <div class="slider-row" style="margin-top:8px"><label>ID exato/addon</label><input type="text" id="ieCustomId" placeholder="minecraft:diamond_sword" style="flex:1;border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:13px"></div>
+              <div class="row2" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                <label style="font-size:13px">Qtd <input type="number" id="ieCount" min="1" max="64" value="1" style="width:64px;border:1.5px solid var(--line-strong);border-radius:8px;padding:6px"></label>
+                <label style="font-size:13px">Meta <input type="number" id="ieMeta" min="0" max="32767" value="0" title="Metadata (quase sempre 0)" style="width:64px;border:1.5px solid var(--line-strong);border-radius:8px;padding:6px"></label>
+                <label style="font-size:13px">Desgaste <input type="number" id="ieDura" min="0" max="100000" placeholder="novo" title="Vazio = novo. Maior = mais gasto." style="width:80px;border:1.5px solid var(--line-strong);border-radius:8px;padding:6px"></label>
+              </div>
+              <div class="slider-row" style="margin-top:8px"><label>Nome custom</label><input type="text" id="ieName" maxlength="60" placeholder="Ex.: Espada do Nilo §a" style="flex:1;border:1.5px solid var(--line-strong);border-radius:10px;padding:8px 10px;font-size:13px"></div>
+              <label class="row" style="font-size:13px"><input type="checkbox" id="ieUnbr"> Inquebrável (nunca gasta)</label>
+              <label class="row" style="font-size:13px"><input type="checkbox" id="ieKeep"> Manter ao morrer (keep_on_death)</label>
+              <div style="margin-top:8px"><b style="font-size:13px">Encantamentos (até nv 255)</b><div id="ieEnchList" style="margin:6px 0"></div>
+                <div class="row2" style="display:flex;gap:8px;flex-wrap:wrap">
+                  <select id="ieEnchSel" style="flex:1;min-width:160px;border:1.5px solid var(--line-strong);border-radius:10px;padding:8px;font-size:13px"></select>
+                  <input type="number" id="ieEnchLvl" min="1" max="255" value="5" style="width:70px;border:1.5px solid var(--line-strong);border-radius:8px;padding:6px">
+                  <button type="button" class="btn-ghost btn-mini" id="ieEnchAdd">+ add</button>
+                </div>
+              </div>
+              <div class="map-actions">
+                <button type="button" class="primary" id="ieApply" style="flex:1">Aplicar no slot</button>
+                <button type="button" class="btn-ghost" id="ieClear">Limpar slot</button>
+                <button type="button" class="btn-ghost btn-mini" id="ieClose">Fechar</button>
+              </div>
+            </div>
+            <label class="accept" style="margin-top:10px">
+              <input type="checkbox" id="playerAck">
+              <span>Backup feito.</span>
+            </label>
+          </div>
+          <div id="playerStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
+        </div>
+      </details>
+
+
+    
+      <label class="accept">
+        <input type="checkbox" id="accept">
+        <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. O mundo é meu. Sem garantia da Mojang. <b>Obrigatório.</b></span>
+      </label>
+
+      <button id="submit" class="primary" type="submit" disabled>Gerar e baixar meu mundo</button>
+      <p class="cta-sub">Aplica tudo marcado acima · 1 arquivo só</p>
+      <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Só diagnosticar</button>
+</form>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <!-- PLANOS -->
+  <section class="section" id="planos">
+    <h2>Planos</h2>
+    <p class="plans-sub">Até <b>10 MB grátis (2/dia)</b>. Gigante? <b>Passe 24h</b>. Completo? <b>VIP 30 dias</b>.</p>
+    <div class="plans plans-3">
+      <div class="plan">
+        <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
+        <div class="price">R$ 0<small> · p/ sempre</small></div>
+        <ul>
+          <li class="yes">Até <b>10 MB, 2/dia</b></li>
+          <li class="yes"><b>Renomear</b> + dificuldade + coords</li>
+          <li class="yes">Raio-X + <b>mapa 2D</b></li>
+          <li class="yes">Reset <b>8 chunks/dia</b></li>
+          <li class="yes"><b>Hotbar gemada</b> (2/dia)</li>
+        </ul>
+        <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
+      </div>
+      <div class="plan plan-24h">
+        <h3><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Passe 24h</h3>
+        <div class="price">R$ 5,90<small> · 24h de VIP</small></div>
+        <ul>
+          <li class="yes">VIP <b>total por 24h</b></li>
+          <li class="yes">Mundos <b>gigantes</b></li>
+          <li class="yes">Modo, foto, clima + chunks + gemado</li>
+          <li class="yes">Ideal p/ <b>1 mundo</b></li>
+        </ul>
+        <a class="btn-plan btn-pay" data-pay="vip24h" href="#">Liberar R$ 5,90</a>
+        <p class="plan-note">Mais barato p/ hoje.</p>
+      </div>
+      <div class="plan plan-vip">
+        <span class="vip-flag">Mais escolhido</span>
+        <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">VIP · 30 dias</h3>
+        <div class="price" id="price-monthly">R$ 19,90<small> · 30 dias</small></div>
+        <ul>
+          <li class="yes">Gigantes <b>sem limite</b> + lote</li>
+          <li class="yes"><b>Tirar addons</b> e voltar conquistas</li>
+          <li class="yes">Modo, keep, foto, clima</li>
+          <li class="yes">Chunks <b>ilimitado</b> + gemado full 255</li>
+          <li class="yes">Suporte por e-mail</li>
+        </ul>
+        <a class="btn-plan btn-pay" data-pay="vip30" href="#">Quero o VIP · Pix</a>
+        <p class="plan-note">7 dias de garantia · expira sozinho.</p>
+      </div>
+    </div>
+    <p class="pay-note">Pix ou cartão no checkout seguro. VIP liberado na hora na sua conta. <b>Use no pagamento o mesmo e-mail da sua conta Google.</b></p>
+  </section>
+
+  <section class="section" id="como-funciona">
+    <h2>Como funciona</h2>
+    <div class="steps">
+      <div class="step"><b>1.</b> Limpamos os flags de cheat no <code>level.dat</code>. Vai p/ Survival.</div>
+      <div class="step"><b>2.</b> Só isso muda. Mapa e itens intactos.</div>
+      <div class="step"><b>3.</b> Abra no Survival, sem cheats. Vale a regra da Mojang.</div>
+    </div>
+    <div class="warn"><b>Sem promessa:</b> ninguém garante liberação da Mojang. Garantimos arquivo íntegro ou <a href="reembolso.html">reembolso em 7 dias</a>. Addons próprios bloqueiam conquistas — use <b>Remover addons</b>.</div>
+  </section>
+
+  <section class="section" id="faq">
+    <h2>Dúvidas</h2>
+    <details class="faq" open><summary>Perco meu mundo?</summary><p>Não. Sai arquivo novo. Guarde cópia do original.</p></details>
+    <details class="faq"><summary>Posso ser banido?</summary><p>É seu save, uso pessoal. Regras são da Mojang.</p></details>
+    <details class="faq"><summary>Por que gigante é VIP?</summary><p>Acima de <b>10 MB</b> pesa muito. Até 10 MB é <b>grátis (2/dia)</b>.</p></details>
+    <details class="faq"><summary>Arquivo vai p/ servidor?</summary><p>Não. Tudo no navegador.</p></details>
+    <details class="faq"><summary>Vale o VIP?</summary><p>Sim se passa de <b>10 MB</b> ou quer chunks, gemado full e ilimitado. Senão, grátis resolve.</p></details>
+    <details class="faq"><summary>Reset apaga base?</summary><p>Só dentro da seleção. Análise mostra antes. <b>Faça backup.</b></p></details>
+    <details class="faq"><summary>Como é o gemado?</summary><p>Monte hotbar/armadura/ender e baixe equipado. <b>Grátis: hotbar 2/dia.</b></p></details>
+    <details class="faq"><summary>Como assino?</summary><p>Pix no checkout, libera na hora.</p></details>
+    <details class="faq"><summary>E se não funcionar?</summary><p>Teste no Survival, sem behavior packs. Defeito nosso: reembolso em 7 dias.</p></details>
+    <details class="faq"><summary>Onde acho o .mcworld?</summary><p>No jogo: lápis do mundo → Exportar.</p></details>
+  </section>
+
+  <footer class="foot">
+    <nav>
+      <a href="termos.html">Termos de Uso</a>
+      <a href="privacidade.html">Privacidade (LGPD)</a>
+      <a href="reembolso.html">Reembolso</a>
+      <a href="minha-conta.html">Minha conta</a>
+      <a href="mailto:ncmine75@gmail.com">Contato</a>
+    </nav>
+<p><b>ReativaConquistas</b> é um utilitário independente para <b>Minecraft Bedrock Edition</b>. <b>Não afiliado, endossado ou patrocinado por Mojang Studios, Microsoft ou Minecraft.</b> MINECRAFT é marca registrada da Mojang Synergies AB.<br>
+Operador: <b>ReativaConquistas</b> · <span id="opCity">Terra Roxa/PR</span> · <span id="supEmail">ncmine75@gmail.com</span><br>
+Preços em BRL. © 2026 — Todos os direitos reservados.</p>
+  </footer>
+
+  </div><!-- /inner -->
+</div>
+
+<script src="vendor/jszip.min.js?v=14"></script>
+<script src="vendor/leveldb-reader.js?v=1"></script>
+<script src="config.js?v=17"></script>
+<script src="converter.js?v=16"></script>
+<script src="pixel-icons.js?v=13"></script>
+<script src="ferramentas-local.js?v=14"></script>
+<script src="mapa-2d.js?v=6"></script>
+<script src="mapa-terreno.js?v=2"></script>
+<script src="nbt-bedrock.js?v=2"></script>
+<script src="leveldb-write.js?v=2"></script>
+<script src="db-common.js?v=4"></script>
+<script src="chunks.js?v=5"></script>
+<script src="player.js?v=5"></script>
+<script src="app.js?v=17"></script>
+<script src="firebase-config.js?v=13"></script>
+<script src="auth.js?v=13"></script>
+<script src="pagamento.js?v=14"></script>
+</body>
+</html>

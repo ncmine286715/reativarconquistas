@@ -1,24 +1,32 @@
-/* ReativaConquistas — Worker Cloudflare (API: AbacatePay + contas).
-   A chave abc_* mora SÓ aqui (wrangler secret), NUNCA no site.
-   Planos: "vip24h" (Passe 24h, 1 dia) e "vip30" (VIP 30 dias). Cada plano tem
-   seu produto no dashboard AbacatePay (ABACATEPAY_PRODUCT_ID_24H / _ID).
+/* ReativaConquistas — Worker Cloudflare (API: Depix + AbacatePay + contas).
+   NENHUM segredo neste arquivo: tudo via `wrangler secret put` (nunca no git/site).
+   Planos: "vip24h" (Passe 24h = 590 centavos, 1 dia) e "vip30" (VIP 30 dias = 1990 centavos).
+   Fluxo Depix (ativo): site/pagamento.js -> POST /api/depix/create -> api.depixapp.com
+   -> payment_url -> volta em sucesso.html?checkout_id=chk_... -> GET /api/depix/status
+   -> webhook POST /api/depix/webhook (HMAC X-DePix-Signature com DEPIX_WEBHOOK_SECRET).
    Endpoints (chamados por site/pagamento.js e site/auth.js):
       POST /api/auth/register {email,name,password} -> {token,email,name}
       POST /api/auth/login    {email,password} -> {token,email,name}
       GET  /api/auth/me      (Bearer) -> {email,name,premium_until_ms}
       POST /api/auth/logout  (Bearer) -> {ok:true}
-      POST /api/abacate/create   {email, name, plan?} -> {url, id, plan}
-                                 (plan "vip24h"|"vip30", padrão "vip30")
+      POST /api/depix/create   {email, name, plan?, payer_tax_number} -> {url, id, plan}
+                               (plan "vip24h"|"vip30", padrão "vip30")
+      GET  /api/depix/status?id=chk_... -> {status, paid, email, plan?, premium_until_ms?}
+      POST /api/depix/webhook   (chamado pelo Depix App; verifica HMAC)
+      POST /api/depix/simulate {id} (TESTE local: sk_test_ marca como pago)
+      POST /api/abacate/create   {email, name, plan?} -> {url, id, plan} (reserva)
       GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, plan?, premium_until_ms?}
       POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
       GET  /api/premium?email=X -> {premium_until_ms}
       GET  /api/config -> flags públicas
-      POST /api/kiwify/webhook[?secret=...] (Kiwify "Compra aprovada" ->
-                                            libera VIP pelo produto)
+      POST /api/kiwify/webhook[?secret=...] (reserva — backup em site/backup-kiwify-*)
     Secrets (via API: nunca neste arquivo nem no git):
+      DEPIX_API_KEY (sk_test_ p/ teste, sk_live_ p/ produção),
+      DEPIX_WEBHOOK_SECRET (whsec_... do painel Depix > My Business),
       ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET
     Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_24H,
-      KIWIFY_PID_24H, KIWIFY_PID_30D, PUBLIC_BASE_URL, ALLOWED_ORIGINS.
+      KIWIFY_PID_24H, KIWIFY_PID_30D, PUBLIC_BASE_URL, ALLOWED_ORIGINS,
+      DEPIX_TEST_MODE ("1" = teste).
     KV: PREMIUM_KV (contas, sessões, pendentes, premium).
 */
 
@@ -155,6 +163,92 @@ async function abacateStatus(env, id) {
   throw new Error("Não consegui consultar a cobrança agora (" + (last && last.message) + ").");
 }
 
+/* ---------- Depix: preços em centavos p/ teste e produção ---------- */
+function depixAmount(plan) {
+  return plan === "vip24h" ? 590 : 1990; // R$ 5,90 / R$ 19,90
+}
+function depixPlanDays(plan) {
+  return plan === "vip24h" ? 1 : 30;
+}
+function cleanDoc(s) {
+  return String(s || "").replace(/\D/g, "").slice(0, 14);
+}
+function validDocServer(s) {
+  var d = cleanDoc(s);
+  if (d.length === 11 && !/^(\d)\1{10}$/.test(d)) return true; // CPF: formato (a receita valida no QR)
+  if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato
+  return false;
+}
+// Verifica HMAC do webhook Depix: header "t=...,v1=..." sobre "timestamp.rawBody".
+async function verifyDepixSignature(rawBody, header, secret) {
+  if (!secret || !header) return false;
+  var t = "", v1 = "";
+  String(header).split(",").forEach(function (p) {
+    var kv = String(p).trim().split("=");
+    if (kv[0] === "t") t = kv[1] || "";
+    if (kv[0] === "v1") v1 = (kv[1] || "").toLowerCase();
+  });
+  if (!t || !v1 || !/^[0-9]+$/.test(t)) return false;
+  if (Math.abs(Date.now() / 1000 - (+t)) > 600) return false; // tolerância 10 min
+  try {
+    var key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    var sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + rawBody));
+    var hex = [...new Uint8Array(sig)].map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+    return hex === v1;
+  } catch (e) { return false; }
+}
+async function depixCreate(env, email, name, plan, doc, req) {
+  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
+  var amount = depixAmount(plan);
+  var origin = "";
+  try { origin = new URL(req.url).origin; } catch (e) {}
+  var siteBase = "";
+  try {
+    var o = req.headers.get("Origin") || "";
+    siteBase = o.startsWith("http") ? o : String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+  } catch (e2) {}
+  if (!siteBase) siteBase = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+  var body = {
+    amount: amount,
+    payer_tax_number: cleanDoc(doc),
+    description: plan === "vip24h" ? "ReativaConquistas — Passe 24h" : "ReativaConquistas — VIP 30 dias",
+    expires_in: 1200,
+    callback_url: origin + "/api/depix/webhook",
+    redirect_url: siteBase + "/sucesso.html",
+    metadata: { email: email, name: name || "", plan: plan }
+  };
+  var resp = await fetch("https://api.depixapp.com/api/checkouts", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.DEPIX_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  var txt = await resp.text();
+  var data = {};
+  try { data = txt ? JSON.parse(txt) : {}; } catch (e) { throw new Error("Depix respondeu algo inválido."); }
+  if (!resp.ok) {
+    var msg = String((data.response && data.response.errorMessage) || (data.error && data.error.message) || txt).slice(0, 300);
+    throw new Error("Depix recusou (" + resp.status + "): " + msg);
+  }
+  if (!data.id || !data.payment_url) throw new Error("Depix não retornou link de pagamento.");
+  return { url: data.payment_url, id: data.id, plan: plan };
+}
+async function depixStatus(env, id) {
+  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY).");
+  var resp = await fetch("https://api.depixapp.com/api/checkouts/" + encodeURIComponent(id), {
+    headers: { Authorization: "Bearer " + env.DEPIX_API_KEY }
+  });
+  if (!resp.ok) throw new Error("Não consegui consultar o Pix agora (HTTP " + resp.status + ").");
+  var data = await resp.json();
+  var c = data.checkout || data;
+  var status = String(c.status || "").toLowerCase();
+  var paid = status === "completed" || status === "approved";
+  var meta = c.metadata || {};
+  if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch (e) { meta = {}; } }
+  return { status: status || "unknown", paid: paid, email: String(meta.email || "").toLowerCase(), plan: meta.plan === "vip24h" ? "vip24h" : "vip30" };
+}
+
 async function grantPremium(env, email, billingId, days) {
   days = days === 1 ? 1 : 30; // vip24h = 1 dia; resto = 30 dias
   email = email.trim().toLowerCase();
@@ -180,7 +274,110 @@ export default {
     try {
       // ---------- flags públicas ----------
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), pass24h_cents: 590, premium30_cents: 1990 }, 200, cors);
+      }
+
+      // ---------- Depix: criar checkout Pix ----------
+      if (url.pathname === "/api/depix/create" && req.method === "POST") {
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const plan = body.plan === "vip24h" ? "vip24h" : "vip30";
+        const email = ((await sessionEmail(req, env)) || String(body.email || "").trim().toLowerCase());
+        const name = String(body.name || "").trim().slice(0, 80);
+        const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
+        if (!validEmail(email)) return json({ error: "Informe um e-mail válido (ou entre na conta)." }, 400, cors);
+        if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-depix:" + ip, 10, 3600))) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
+        try {
+          const r = await depixCreate(env, email, name, plan, doc, req);
+          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({ email, at: Date.now(), plan, via: "depix" }), { expirationTtl: 86400 }).catch(() => {});
+          return json(r, 200, cors);
+        } catch (e) {
+          return json({ error: String((e && e.message) || e) }, 502, cors);
+        }
+      }
+
+      // ---------- Depix: status (volta do checkout / polling) ----------
+      if (url.pathname === "/api/depix/status" && req.method === "GET") {
+        const id = (url.searchParams.get("id") || "").trim();
+        if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
+        try {
+          const info = await depixStatus(env, id);
+          const out = { status: info.status, paid: info.paid, email: info.email, plan: info.plan };
+          let email = info.email;
+          let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+          if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
+          const plan = (pend && pend.plan) || info.plan || "vip30";
+          out.plan = plan;
+          if (email) out.email = email;
+          if (info.paid && email) {
+            out.premium_until_ms = await grantPremium(env, email, id, depixPlanDays(plan));
+            await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+          }
+          return json(out, 200, cors);
+        } catch (e) {
+          return json({ error: String((e && e.message) || e) }, 502, cors);
+        }
+      }
+
+      // ---------- Depix: webhook (Depix -> Worker; verifica HMAC) ----------
+      if (url.pathname === "/api/depix/webhook" && req.method === "POST") {
+        const raw = await req.text();
+        const sig = req.headers.get("X-DePix-Signature") || req.headers.get("x-depix-signature") || "";
+        if (env.DEPIX_WEBHOOK_SECRET) {
+          const ok = await verifyDepixSignature(raw, sig, env.DEPIX_WEBHOOK_SECRET);
+          if (!ok) return json({ error: "forbidden" }, 403, cors);
+        }
+        let evt = {};
+        try { evt = raw ? JSON.parse(raw) : {}; } catch { evt = {}; }
+        const data = evt.data || evt.checkout || evt;
+        const bid = String(data.id || data.checkout_id || data.checkoutId || "");
+        const status = String(evt.type || evt.event || data.status || "").toLowerCase();
+        const isCompleted = /completed/.test(status) || data.status === "completed";
+        try {
+          const lst = (await env.PREMIUM_KV.get("dlog", "json").catch(() => null)) || [];
+          lst.unshift({ at: Date.now(), type: String(evt.type || evt.event || "").slice(0, 60), id: bid.slice(0, 40), status: status.slice(0, 30) });
+          await env.PREMIUM_KV.put("dlog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
+        } catch (e) {}
+        if (bid && (isCompleted || status.includes("checkout"))) {
+          try {
+            const info = await depixStatus(env, bid);
+            let email = info.email;
+            const pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
+            if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
+            const plan = (pend && pend.plan) || info.plan || "vip30";
+            if (info.paid && email) await grantPremium(env, email, bid, depixPlanDays(plan));
+          } catch (e) { console.log("depix webhook erro: " + (e && e.message)); }
+        }
+        return json({ ok: true }, 200, cors);
+      }
+
+      // ---------- Depix: visor do log (só com segredo do webhook) ----------
+      if (url.pathname === "/api/depix/log" && req.method === "GET") {
+        if (!env.DEPIX_WEBHOOK_SECRET || url.searchParams.get("secret") !== env.DEPIX_WEBHOOK_SECRET) {
+          return json({ error: "forbidden" }, 403, cors);
+        }
+        return json({ items: (await env.PREMIUM_KV.get("dlog", "json").catch(() => null)) || [] }, 200, cors);
+      }
+
+      // ---------- Depix: simular pagamento (TESTE local, sk_test_ apenas) ----------
+      if (url.pathname === "/api/depix/simulate" && req.method === "POST") {
+        if (!env.DEPIX_API_KEY || !String(env.DEPIX_API_KEY).startsWith("sk_test_")) {
+          return json({ error: "Simulação só com sk_test_ no servidor." }, 403, cors);
+        }
+        let body = {};
+        try { body = await req.json(); } catch { body = {}; }
+        const id = String(body.id || url.searchParams.get("id") || "").trim();
+        if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
+        const resp = await fetch("https://api.depixapp.com/api/checkouts/" + encodeURIComponent(id) + "/simulate-payment", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + env.DEPIX_API_KEY, "Content-Type": "application/json" },
+          body: "{}"
+        });
+        const txt = await resp.text();
+        if (!resp.ok) return json({ error: "Depix recusou simulação (" + resp.status + "): " + txt.slice(0, 200) }, 502, cors);
+        return json({ ok: true, id: id }, 200, cors);
       }
 
       // ---------- log de erro do navegador (diagnóstico; leitura protegida) ----------
