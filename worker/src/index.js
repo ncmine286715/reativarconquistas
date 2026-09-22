@@ -151,6 +151,33 @@ async function saveAdminList(env, key, items) {
   await env.PREMIUM_KV.put(key, JSON.stringify(items.slice(0, ADMIN_HISTORY_LIMIT)), { expirationTtl: ADMIN_HISTORY_TTL }).catch(() => {});
 }
 
+function summarizeAdminErrors(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const rawMessage = String(item.msg || "Sem detalhes");
+    let kind = "technical";
+    let title = "Erro técnico";
+    let message = rawMessage;
+    if (/aceitar os termos|e-mail válido|cpf\/cnpj válido/i.test(rawMessage)) {
+      kind = "checkout_input";
+      title = "Dados incompletos no checkout";
+      message = "O Pix não foi criado porque o cliente não preencheu ou confirmou todos os dados.";
+    } else if (/compliance review|unable to process deposits/i.test(rawMessage)) {
+      kind = "depix_compliance";
+      title = "Pagamento recusado pela análise da Depix";
+      message = "A Depix bloqueou esta cobrança para o pagador. Oriente o cliente a falar com o suporte da Depix ou usar outro pagador.";
+    } else if (item.step) {
+      title += " em " + String(item.step).slice(0, 40);
+    }
+    const key = kind + ":" + title + ":" + message;
+    const current = groups.get(key) || { at: 0, title, msg: message, count: 0, kind };
+    current.at = Math.max(+current.at || 0, +item.at || 0);
+    current.count += 1;
+    groups.set(key, current);
+  }
+  return Array.from(groups.values()).sort((a, b) => b.at - a.at).slice(0, 20);
+}
+
 async function recordCheckout(env, entry) {
   const items = await adminList(env, "admin:checkouts");
   const id = String(entry.id || "").slice(0, 180);
@@ -718,7 +745,7 @@ export default {
           manual_grants: manualGrants.slice(0, 150),
           abandoned: abandoned.slice(0, 150),
           pending: pending.slice(0, 100),
-          errors: errors.filter((item) => (+item.at || 0) >= since).slice(0, 50)
+          errors: summarizeAdminErrors(errors.filter((item) => (+item.at || 0) >= since))
         }, 200, cors);
       }
 

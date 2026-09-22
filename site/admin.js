@@ -73,6 +73,9 @@
     document.getElementById("errorCount").textContent = items.length;
     if (!items.length) { list.innerHTML = "<p class='sub'>Nenhum erro recente.</p>"; return; }
     list.innerHTML = items.map(function (item) {
+      if (item.count) {
+        return "<div class='admin-log'><b>" + esc(item.title || "Aviso") + " (" + item.count + "x)</b><span>" + esc(item.msg || "Sem detalhes") + " Ultima: " + esc(when(item.at)) + ".</span></div>";
+      }
       return "<div class='admin-log'><b>" + esc(item.step || "erro") + " · " + esc(when(item.at)) + "</b><span>" + esc(item.msg || "Sem detalhes") + "</span></div>";
     }).join("");
   }
