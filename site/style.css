@@ -599,8 +599,40 @@ a.hero-btn.btn-ghost {
 .map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 12px; margin-top: 8px; }
 .map-legend .sq { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: baseline; }
 .map-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-/* A restauração de chunks foi retirada da interface; o mapa permanece somente visual. */
+/* A restauração de chunks fica em uma ferramenta dedicada; o mapa do conversor permanece visual. */
 #accChunks { display: none !important; }
+.chunk-tool-link {
+  display: block; margin-top: 13px; padding: 11px 12px; border: 1px solid #fed7aa;
+  border-radius: 10px; background: #fff7ed; color: var(--orange-dark); text-decoration: none; font-size: 13px;
+}
+.chunk-tool-link:hover { background: #ffedd5; }
+.chunk-page { max-width: 860px; }
+.chunk-hero { text-align: center; padding: 38px 0 16px; }
+.chunk-hero h1 { margin: 0 0 10px; font-size: clamp(28px, 5.4vw, 42px); letter-spacing: -.03em; }
+.chunk-hero > p:not(.kicker) { max-width: 650px; margin: 0 auto; color: var(--muted); font-size: 16px; line-height: 1.55; }
+.chunk-hero-note { max-width: 740px; margin: 18px auto 0; padding: 12px 15px; text-align: left; border: 1px solid #fdba74; border-radius: 12px; background: #fff7ed; color: #7c2d12; font-size: 13.5px; line-height: 1.5; }
+.chunk-card { margin-top: 18px; }
+.chunk-step { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 14px; }
+.chunk-step > span { flex: 0 0 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--orange); color: #fff; font-weight: 800; }
+.chunk-step h2 { margin: 1px 0 4px; font-size: 19px; }
+.chunk-step .sub { margin: 0; }
+.chunk-map { margin-top: 18px; }
+.chunk-map .map-canvas-wrap { height: 460px; }
+.chunk-coordinates { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; }
+.chunk-coordinates > b { color: var(--ink); }
+.chunk-coordinates > span { width: 100%; color: var(--muted); }
+.chunk-coordinates label { display: flex; align-items: center; gap: 5px; font-weight: 700; }
+.chunk-coordinates input { width: 100px; border: 1.5px solid var(--line-strong); border-radius: 9px; padding: 7px 8px; font-size: 13px; }
+.chunk-selection { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-radius: 11px; background: var(--orange-soft); font-size: 13px; }
+.chunk-selection span { color: var(--muted); }
+.chunk-risk { display: grid; grid-template-columns: max-content 1fr; gap: 8px 14px; margin-top: 14px; padding: 13px 14px; border-radius: 11px; background: #fff8f1; font-size: 13px; line-height: 1.45; }
+.chunk-risk b { color: var(--orange-dark); }
+.chunk-risk span { color: var(--muted); }
+.chunk-danger { border-color: #fdba74; }
+.chunk-reset { width: 100%; margin-top: 12px; }
+.chunk-danger .status { margin-top: 12px; }
+.chunk-plans { padding-bottom: 25px; }
+@media (max-width: 560px) { .chunk-map .map-canvas-wrap { height: 370px; } .chunk-risk { grid-template-columns: 1fr; gap: 3px; } }
 /* ---------- abas (uma tela por ferramenta) ---------- */
 .tabs { display: flex; gap: 8px; margin: 2px 0 14px; }
 .tabbtn {

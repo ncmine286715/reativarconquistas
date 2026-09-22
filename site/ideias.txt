@@ -1,0 +1,63 @@
+================================================================
+BUILDER LAB — TUDO QUE JA DA PRA FAZER + IDEIAS MALUCAS QUE ATRAEM GENTE
+ReativaConquistas · atualizado na versao beta do Builder
+================================================================
+
+PARTE 1 — O QUE O BUILDER JA FAZ HOJE (100% no navegador, sem servidor)
+----------------------------------------------------------------
+[1] Abre .mcworld de verdade: descompacta, le o LevelDB (db/) offline.
+[2] Preview 3D do terreno real com ceu de dia, nuvens e nevoeiro.
+[3] Foto PNG da construcao (botao Foto) pra postar e atrair gente.
+[4] Ceu Dia / Por-do-sol / Noite (o "shader do pobre", sem Render Dragon).
+[5] Posiciona .mcstructure sobre o terreno: X/Y/Z, rotacao 0/90/180/270.
+[6] Cola no chao sozinha (snap) ao clicar no mapa, no terreno ou no spawn.
+[7] Mover 3D estilo Blender: setas na construcao, trava de 1 bloco e 90 graus (tecla G alterna mover/girar).
+[8] Arrastar com Shift, setas do teclado, PageUp/PageDown, R gira, Esc orbita.
+[9] Borracha: apaga bloco da construcao OU abre buraco no terreno (vai pro export).
+[10] Remover arvores da area com 1 clique (some na hora no preview).
+[11] Mobs estilo replay: 12 bichos com modelo blocado, clica e aparece em qualquer andar (só visual).
+[12] Pino do player: boneco azul + feixe de luz onde voce estava; a casa comeca la.
+[13] Minimapa padrao do site: verde, zoom, tooltip, spawn, player e contorno da casa.
+[14] Raio-X do mundo: chunks, subchunks, blocos, Y min/max, top 12 blocos, players, spawn, seed.
+[15] Alcance 3x3 / 5x5 / 7x7 (modo leve automatico no celular fraco).
+[16] Exporta .mcworld com a casa dentro: modos Ignorar ar / Substituir / Somente no ar, cria subchunk de ceu sozinha, remove vegetacao e buracos, verifica tudo antes de baixar.
+[17] Validação honesta: colisões, fora-do-terreno, altura, block entities listadas.
+[18] Funciona no J2: barra de ferramentas estilo CapCut embaixo, botoes grandes.
+
+PARTE 2 — IDEIAS MALUCAS (priorizadas por impacto x risco)
+----------------------------------------------------------------
+A) MODO REPLAY DE VERDADE (medio): gravar caminho da camera e exportar video
+   da volta na construcao. Atrai YouTube/TikTok sozinho.
+B) SHADER DE VERDADE NO NAVEGADOR (medio): agua animada, folhas balancando,
+   sombra suave via custom ShaderMaterial no Three.js. Nada de Render Dragon:
+   e preview com "RTX de pobre" vira marketing.
+C) LOJA DE ESTRUTURAS (facil): galeria de .mcstructure prontas (casas, farms,
+   portais) pra colar com 1 clique. Quem tem catalogo vence.
+D) CONVERSOR JAVA -> BEDROCK (dificil): .schematic/.litematic virando
+   .mcstructure. Abre o mundo dos criadores Java.
+E) ESCRITA DE MOBS (dificil, arriscado): hoje mob e so visual porque gravar
+   actor no LevelDB pode corromper o mundo. Com sandbox de testes, vaca no
+   curral de verdade.
+F) MULTIPLAYER FANTASMA (medio): dois amigos posicionando juntos via link
+   (WebRTC, sem servidor). Preview compartilhado.
+G) BIOMAS NO MAPA (facil): pintar o minimapa com a cor do bioma (Data3D ja
+   esta no LevelDB, so falta decodificar).
+H) MEDIDOR DE FARM (facil): marcar area e estimar itens/hora (funil, plantacao).
+I) TEMA ESCURO/CLARO + PT/EN/ES (facil): dobra o publico.
+J) UNDO NO MUNDO (medio): guardar .mcworld anterior e "desfazer exportacao".
+K) PINTAR TERRENO (medio): pincel que troca grama por pedra/areia na area.
+L) NETHER E END (medio): mesma maquina, outra dimensao (dim=1/2 ja lida).
+M) APP INSTALAVEL PWA (facil): manifest + icone = "baixe o app" no Android.
+N) MODO HISTORIA/TUTORIAL (facil): tour guiado de 5 passos na primeira visita.
+   Macaco-proof de verdade.
+
+PARTE 3 — LIMITES HONESTOS (nao prometer isso ainda)
+----------------------------------------------------------------
+- Criar chunk NUNCA visitada do zero (o jogo que gera; inventar corrompe).
+- Block entities complexas (baus com itens, camas, fornalhas ligadas).
+- Nether/End no preview (leitura ok, render igual; falta ligar).
+- Mundos gigantes 500MB+ no J2 (PC vai, celular chora).
+- Shaders reais no jogo (so no preview web; no Minecraft precisa Render Dragon).
+
+REGRA DE OURO: preview pode errar pra bonito; exportacao NUNCA erra pro mundo.
+Tudo que grava no .mcworld passa por verificar() antes do download.

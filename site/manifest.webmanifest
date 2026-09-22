@@ -1,0 +1,16 @@
+{
+  "name": "ReativaConquistas — Construtor 3D (beta)",
+  "short_name": "Construtor 3D",
+  "description": "Cole casas .mcstructure no seu mundo Minecraft Bedrock vendo o terreno em 3D. Grátis durante o beta.",
+  "start_url": "builder-lab.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b101c",
+  "theme_color": "#0b101c",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "logo.png", "sizes": "any", "type": "image/png", "purpose": "any" },
+    { "src": "hero.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ]
+}

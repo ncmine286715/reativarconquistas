@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurar chunks com lag — ReativaConquistas</title>
+<meta name="description" content="Selecione no mapa as áreas com lag ou corrompidas do seu mundo Minecraft Bedrock e recrie apenas essas chunks pela seed. Tudo roda no navegador.">
+<link rel="icon" type="image/png" href="logo.png">
+<meta name="theme-color" content="#5EBB2B">
+<link rel="stylesheet" href="style.css?v=12">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+</head>
+<body>
+<div class="topbar"><div class="topbar-in">
+  <a class="brand" href="index.html"><img src="logo.png" width="34" height="34" alt="ReativaConquistas" style="border-radius:9px;display:block"><span>ReativaConquistas<small>ferramenta de chunks</small></span></a>
+  <nav class="nav"><a href="index.html#converter">Conversor</a><a href="#como-funciona">Como funciona</a><a href="#planos">Planos</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">◐</button><a href="minha-conta.html" id="navAuth" hidden>Entrar</a></nav>
+</div></div>
+
+<main class="page chunk-page">
+  <header class="chunk-hero">
+    <p class="kicker">100% local · seu mundo não é enviado</p>
+    <h1>Área com lag ou chunk quebrada?</h1>
+    <p>Marque no mapa somente a região problemática. O Minecraft recriará aquela área pela seed quando você voltar até ela.</p>
+    <div class="chunk-hero-note"><b>Importante:</b> não existe “desativar” uma chunk no Bedrock. Para ela nascer de novo, removemos os dados salvos <b>somente da área marcada</b>. Construções, baús, mobs e vilas dentro dela não voltam.</div>
+  </header>
+
+  <section class="card chunk-card" aria-labelledby="uploadTitle">
+    <div class="chunk-step"><span>1</span><div><h2 id="uploadTitle">Abra seu mundo</h2><p class="sub">Use um arquivo <b>.mcworld</b> ou <b>.zip</b> exportado pelo Minecraft Bedrock. Faça uma cópia do original antes.</p></div></div>
+    <label id="drop" class="drop" for="file" tabindex="0">
+      <input id="file" type="file" accept=".mcworld,.zip" hidden>
+      <span class="drop-icon" aria-hidden="true">↓</span>
+      <span class="drop-title">Toque para escolher o seu mundo</span>
+      <span class="drop-sub">O mapa e a análise rodam no seu aparelho.</span>
+      <span id="fileName" class="file-name" hidden></span>
+    </label>
+  </section>
+
+  <section id="mapPreview" class="mappreview chunk-map" hidden aria-labelledby="mapTitle">
+    <div class="chunk-step"><span>2</span><div><h2 id="mapTitle">Encontre a área com problema</h2><p class="sub">Mover não altera nada. Use Selecionar para pintar as chunks que devem nascer de novo.</p></div></div>
+    <div id="mapStats" class="map-stats">Lendo mapa…</div>
+    <div id="mapDims" class="map-dims" hidden></div>
+    <div class="map-modes">
+      <button type="button" class="map-dim on" id="mapModePan">Mover</button>
+      <button type="button" class="map-dim" id="mapModeSel">Selecionar chunks</button>
+      <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
+      <span id="mapHint" class="map-hint"></span>
+    </div>
+    <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
+    <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>chunk visitada</span><span><i class="sq" style="background:#b91c1c"></i>selecionada para regenerar</span><span><i class="sq" style="background:#22c55e"></i>jogador</span></div>
+    <div class="map-actions">
+      <button type="button" class="btn-ghost btn-mini" id="mapZoomIn">+ zoom</button>
+      <button type="button" class="btn-ghost btn-mini" id="mapZoomOut">− zoom</button>
+      <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos</button>
+      <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar seleção</button>
+    </div>
+    <div class="chunk-coordinates">
+      <b>Selecionar por coordenadas</b>
+      <span>Use X e Z que aparecem no jogo.</span>
+      <label>X <input id="coordX" inputmode="numeric" type="number" placeholder="Ex.: 320"></label>
+      <label>Z <input id="coordZ" inputmode="numeric" type="number" placeholder="Ex.: -144"></label>
+      <button id="coordGo" class="btn-ghost btn-mini" type="button">Mostrar no mapa</button>
+      <button id="coordSel" class="btn-ghost btn-mini" type="button">Marcar esta chunk</button>
+      <button id="coordSpawn" class="btn-ghost btn-mini" type="button">Marcar área do spawn</button>
+    </div>
+  </section>
+
+  <section class="card chunk-card" aria-labelledby="reviewTitle">
+    <div class="chunk-step"><span>3</span><div><h2 id="reviewTitle">Revise antes de regenerar</h2><p class="sub">A análise procura dados incompletos, versões antigas, entidades e vínculos que podem afetar a área.</p></div></div>
+    <div class="chunk-selection"><b id="selCount">Nada selecionado ainda</b><span>Limite gratuito: até 8 chunks em 1 restauração por dia.</span></div>
+    <div class="map-actions">
+      <button type="button" class="btn-ghost" id="selModeBtn">Selecionar no mapa</button>
+      <button type="button" class="btn-ghost" id="analyzeBtn">Analisar seleção</button>
+    </div>
+    <div id="analysisBox" class="worldinfo" hidden style="margin-top:12px"></div>
+    <div class="chunk-risk">
+      <b>O que fica intacto</b><span>Seu arquivo original, player, placares, outras chunks e áreas fora da seleção.</span>
+      <b>O que será recriado</b><span>Terreno, blocos, baús, construções, entidades e dados de vila dentro das chunks selecionadas.</span>
+    </div>
+  </section>
+
+  <section class="card chunk-card chunk-danger" aria-labelledby="resetTitle">
+    <div class="chunk-step"><span>4</span><div><h2 id="resetTitle">Gerar mundo com chunks restauradas</h2><p class="sub">O download será um novo <b>.mcworld</b>. Importe-o, entre no mundo e visite a área selecionada para ela regenerar.</p></div></div>
+    <label class="accept"><input type="checkbox" id="resetAck"><span>Fiz backup e entendo que construções e itens dentro da área selecionada serão removidos para o terreno nascer de novo pela seed.</span></label>
+    <button type="button" class="primary chunk-reset" id="resetBtn" disabled>Restaurar chunks e baixar novo mundo</button>
+    <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden></div>
+  </section>
+
+  <section class="section" id="como-funciona">
+    <h2>Depois do download</h2>
+    <div class="steps"><div class="step"><b>1.</b> Importe o novo arquivo no Minecraft.</div><div class="step"><b>2.</b> Abra o mundo e vá até a área marcada.</div><div class="step"><b>3.</b> Aguarde o terreno regenerar; se necessário, feche e abra o mundo.</div></div>
+  </section>
+
+  <section class="section chunk-plans" id="planos">
+    <h2>Precisa restaurar uma área maior?</h2>
+    <p class="plans-sub">O teste gratuito é para áreas pequenas. O VIP libera restaurações sem limite diário e seleções maiores.</p>
+    <div class="map-actions"><a class="btn-plan btn-pay" data-pay="vip7" href="#">Liberar 7 dias · R$ 7,99</a><a class="btn-ghost" href="index.html#planos">Comparar todos os planos</a></div>
+  </section>
+</main>
+
+<script src="vendor/jszip.min.js?v=14"></script>
+<script src="vendor/leveldb-reader.js?v=3"></script>
+<script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
+<script src="config.js?v=25"></script>
+<script src="converter.js?v=16"></script>
+<script src="ferramentas-local.js?v=14"></script>
+<script src="mapa-2d.js?v=6"></script>
+<script src="mapa-terreno.js?v=3"></script>
+<script src="nbt-bedrock.js?v=3"></script>
+<script src="leveldb-write.js?v=2"></script>
+<script src="db-common.js?v=5"></script>
+<script src="chunks.js?v=6"></script>
+<script src="firebase-config.js?v=13"></script>
+<script src="auth.js?v=14"></script>
+<script src="pagamento.js?v=22"></script>
+<script>
+(function () {
+  var root = document.documentElement;
+  document.addEventListener("click", function (e) { var b = e.target && e.target.closest && e.target.closest(".theme-btn"); if (!b) return; e.preventDefault(); var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark"; root.setAttribute("data-theme", next); try { localStorage.setItem("rc_theme", next); } catch (x) {} });
+  var state = window.RC_entitlementState = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+  function refresh() { var u = window.RC_auth && window.RC_auth.user && window.RC_auth.user(); if (!u || !window.RC_pay || !window.RC_pay.entitlements) { state.ready = false; state.until = 0; state.world_credits = 0; state.plan = ""; return; } window.RC_pay.entitlements().then(function (e) { state.ready = true; state.until = +e.premium_until_ms || 0; state.world_credits = Math.max(0, +e.world_credits || 0); state.plan = String(e.plan || ""); state.email = String(e.email || u.email || ""); }).catch(function () { state.ready = false; }); }
+  if (window.RC_auth) window.RC_auth.onChange(refresh);
+  document.addEventListener("rc-pay-ready", refresh);
+  refresh();
+})();
+</script>
+</body>
+</html>

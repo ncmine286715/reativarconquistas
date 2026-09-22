@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -47,6 +47,7 @@
     </a>
     <nav class="nav">
       <a class="hide-m" href="#como-funciona">Como funciona</a>
+      <a class="hide-m" href="chunks.html">Restaurar chunks</a>
       <a class="hide-m" href="#planos">Planos</a>
       <a class="hide-m" href="#faq">Dúvidas</a>
       <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
@@ -72,6 +73,7 @@
     </span>
   </div>
   <a href="#converter"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Converter mundo</a>
+  <a href="chunks.html"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Restaurar chunks</a>
   <a href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Planos</a>
   <a href="#como-funciona"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>Como funciona</a>
   <a href="#faq"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Dúvidas</a>
@@ -163,11 +165,13 @@
         </div>
         <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
         <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>visitado</span><span><i class="sq" style="background:#b91c1c"></i>● spawn</span><span><i class="sq" style="background:#22c55e"></i>● jogador</span></div>
-        <div class="map-actions">
+      <div class="map-actions">
           <button type="button" class="btn-ghost btn-mini" id="mapZoomIn" aria-label="Aproximar mapa">+ zoom</button>
           <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
           <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
         </div>
+        <a class="chunk-tool-link" href="chunks.html"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</a>
+        <a class="chunk-tool-link" href="builder-lab.html" style="border-color:#5EBB2B"><b>🏠 NOVO (beta grátis): cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</a>
       </div>
         </div>
       </details>
