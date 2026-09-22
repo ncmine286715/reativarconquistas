@@ -239,30 +239,29 @@
         "</div>" +
       "</div>" +
       (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
-      "<div class='vip-assurance'><b>VIP automático:</b> cai nesta conta Google assim que o Pix for confirmado.</div>" +
+      "<div class='pay-intro'><span class='pay-method-pill' id='payMethodBadge'>PIX · DEPIX</span><p id='payIntroText'>Escolha seu plano e confira os dados. Ao continuar, você vai gerar uma cobrança Pix no checkout.</p></div>" +
+      "<div class='vip-assurance'><b>Onde o acesso será liberado?</b> Após a confirmação do pagamento, o benefício será vinculado à conta Google exibida acima.</div>" +
+      "<div class='pay-section-label'>1. Escolha seu plano</div>" +
       "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'>" +
         "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 5,99</b><small>150 MB</small></span></label>" +
         "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>500 MB</small></span></label>" +
         "<label><input type='radio' name='payplan' value='vip30'" + (plan === "vip30" ? " checked" : "") + "><span class='plan-main'><strong>30 dias</strong><b>R$ 24,90</b><small>Sem limite comercial</small></span></label>" +
         "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>" +
       "</div>" +
-      "<p class='sub pay-sub' id='paySub'></p>" +
+      "<div class='pay-plan-summary' aria-live='polite'><div class='pay-plan-summary-top'><span>Seu pedido</span><strong id='payPlanPrice'></strong></div><b id='payPlanName'></b><p id='paySub'></p></div>" +
+      "<div class='pay-section-label pay-data-label'>2. Dados para gerar o Pix</div>" +
       "<div class='pay-form-grid'>" +
         "<div class='pay-field pay-field-full'>" +
           "<label for='payDoc'>CPF ou CNPJ do pagador</label>" +
           "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Documento do titular do Pix'>" +
-          "<small class='pay-help'><b>Pagador maior de 18 anos.</b> Se você for menor, use os dados do responsável que fará o pagamento.</small>" +
+          "<small class='pay-help'>O Depix pede o documento de quem vai pagar para criar a cobrança. Se o pagador for menor de 18 anos, use os dados do responsável.</small>" +
         "</div>" +
         "<div class='pay-field'>" +
-          "<label for='payPixEmail'>E-mail para o Pix</label>" +
-          "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='E-mail do pagamento'>" +
-        "</div>" +
-        "<div class='pay-field'>" +
-          "<label for='payPixEmailConfirm'>Confirmar e-mail</label>" +
-          "<input id='payPixEmailConfirm' type='email' maxlength='120' autocomplete='email' placeholder='Repita o e-mail'>" +
+          "<label for='payPixEmail'>E-mail informado no pagamento</label>" +
+          "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='seu@email.com'>" +
+          "<small class='pay-help'>Já preenchemos com seu e-mail Google. Você pode manter esse ou informar outro.</small>" +
         "</div>" +
       "</div>" +
-      "<div class='pay-mini-note'>O e-mail acima identifica a cobrança Pix. O VIP continua vinculado à <b>conta Google</b> mostrada no topo.</div>" +
       "<label class='accept pay-terms' for='payTerms'>" +
         "<input id='payTerms' type='checkbox'>" +
         "<span>Li e aceito os <a href='termos.html' target='_blank' rel='noopener'>Termos</a>, <a href='reembolso.html' target='_blank' rel='noopener'>Reembolso</a> e <a href='privacidade.html' target='_blank' rel='noopener'>Privacidade</a>. Confirmo os dados da compra.</span>" +
@@ -270,7 +269,8 @@
       "</div>" +
       "<div class='pay-footer'>" +
         "<div class='status' id='payMsg' hidden></div>" +
-        "<div class='secure' id='payConn'>Verificando pagamento seguro…</div>" +
+        "<div class='pay-next-step' id='payNextStep'>Próxima etapa: abrir o checkout Depix para pagar via Pix. Você ainda não pagou nesta tela.</div>" +
+        "<div class='secure' id='payConn'>Conexão com Depix: verificando…</div>" +
         "<div class='row2 pay-actions'>" +
           "<button class='btn-ghost' id='payBack' type='button'>Voltar</button>" +
           "<button class='btn-ghost pay-primary' id='payGo' type='button'></button>" +
@@ -283,8 +283,14 @@
       if (pixFields) pixFields.hidden = true;
       var payNote = bg.querySelector(".pay-mini-note");
       if (payNote) payNote.innerHTML = "O checkout Kiwify abrirÃ¡ em seguida. Use nele o <b>mesmo e-mail da conta Google</b> para o VIP cair na conta correta.";
+      var payBadge = bg.querySelector("#payMethodBadge");
+      if (payBadge) payBadge.textContent = "CHECKOUT · KIWIFY";
+      var payIntro = bg.querySelector("#payIntroText");
+      if (payIntro) payIntro.textContent = "Confira o plano e os dados da sua conta. Ao continuar, você vai para o checkout da Kiwify.";
+      var payNextStep = bg.querySelector("#payNextStep");
+      if (payNextStep) payNextStep.textContent = "Próxima etapa: abrir o checkout Kiwify para concluir a compra.";
       var payConn = bg.querySelector("#payConn");
-      if (payConn) payConn.textContent = "Checkout seguro Kiwify";
+      if (payConn) payConn.textContent = "Checkout Kiwify configurado";
     }
     var planPick = bg.querySelector(".planpick");
     if (planPick) planPick.innerHTML =
@@ -298,11 +304,17 @@
       var r = bg.querySelector("input[name='payplan']:checked");
       return r ? normalizePlan(r.value) : "vip30";
     }
+    function checkoutCta(planId) {
+      var p = PLANS[normalizePlan(planId)];
+      return paymentProvider() === "kiwify" ? p.cta : "Continuar para pagar no Pix · " + p.price;
+    }
     function paintPlan() {
       var p = PLANS[selPlan()];
-      document.getElementById("payTitle").textContent = p.title + " — " + p.price;
-      document.getElementById("paySub").innerHTML = p.sub;
-      document.getElementById("payGo").textContent = p.cta;
+      document.getElementById("payTitle").textContent = "Finalize sua compra";
+      document.getElementById("payPlanName").textContent = p.title;
+      document.getElementById("payPlanPrice").textContent = p.price;
+      document.getElementById("paySub").textContent = p.sub;
+      document.getElementById("payGo").textContent = checkoutCta(selPlan());
     }
     Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) {
       r.addEventListener("change", function () { paintPlan(); track("plan_viewed", { plan: normalizePlan(r.value) }); });
@@ -318,8 +330,8 @@
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
         if (c) c.textContent = paymentProvider() === "kiwify"
-          ? "Checkout seguro Kiwify"
-          : (cfg.depix_configured ? "✓ Pagamento Pix disponível" : "✓ Pagamento seguro disponível");
+          ? "Checkout Kiwify configurado"
+          : (cfg.depix_configured ? "✓ Pix disponível via Depix" : "Serviço de pagamento disponível");
         if (cfg && cfg.product24h_configured === false) {
           var radio = bg.querySelector("input[name='payplan'][value='vip24h']");
           if (radio) {
@@ -387,20 +399,9 @@
         return;
       }
       var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
-      var pixEmailConfirm = String((document.getElementById("payPixEmailConfirm") || {}).value || "").trim().toLowerCase();
       if (!validEmail(pixEmail)) {
         track("checkout_validation_failed", { plan: selPlan(), reason: "email" });
         payStatus("Preencha um e-mail válido para o Pix.", "err");
-        return;
-      }
-      if (!validEmail(pixEmailConfirm)) {
-        track("checkout_validation_failed", { plan: selPlan(), reason: "email_confirmation" });
-        payStatus("Confirme o e-mail usado no Pix.", "err");
-        return;
-      }
-      if (pixEmail !== pixEmailConfirm) {
-        track("checkout_validation_failed", { plan: selPlan(), reason: "email_mismatch" });
-        payStatus("Os dois e-mails não são iguais. Confira antes de continuar.", "err");
         return;
       }
       if (!document.getElementById("payTerms").checked) {
@@ -425,14 +426,14 @@
       function attempt(n) {
         var name = buyerName;
         go.disabled = true; go.textContent = "Gerando cobrança…";
-        payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : "Criando cobrança segura…");
+        payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : (depixEnabled() ? "Criando sua cobrança Pix no Depix…" : "Preparando seu checkout…"));
         var planEl = document.querySelector("#payModal input[name='payplan']:checked");
         var plan = normalizePlan(planEl && planEl.value);
         // Depix primeiro (Pix via Worker); AbacatePay como reserva.
         if (depixEnabled()) {
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
-          if (!validDoc(doc)) { track("checkout_validation_failed", { plan: plan, reason: "document" }); go.disabled = false; go.textContent = "Tentar de novo"; payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
+          if (!validDoc(doc)) { track("checkout_validation_failed", { plan: plan, reason: "document" }); go.disabled = false; go.textContent = checkoutCta(plan); payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
           track("pix_create_clicked", Object.assign({ plan: plan }, context));
           depixCreate(plan, doc, pixEmail, context.source).then(function (r) {
             var url = r.url || r.payment_url;
@@ -440,13 +441,13 @@
             try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
             try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e2) {}
             track("pix_checkout_redirect", Object.assign({ plan: plan }, context));
-            payStatus("Abrindo o checkout Pix…");
+            payStatus("Abrindo o checkout Pix da Depix…");
             location.href = url;
           }).catch(function (err) {
             track("pix_create_error", { plan: plan, error_type: classifyError(err) });
             logClient("depix-create", (err && err.message) || err);
             go.disabled = false;
-            go.textContent = PLANS[plan].cta;
+            go.textContent = checkoutCta(plan);
             payStatus(friendlyErr(err), "err");
           });
           return;
@@ -456,7 +457,7 @@
         // silenciosamente para 30 dias em outro provedor.
         if (plan === "vip7") {
           go.disabled = false;
-          go.textContent = PLANS[plan].cta;
+          go.textContent = checkoutCta(plan);
           payStatus("O plano de 7 dias está disponível somente no Pix no momento. Escolha 24h ou 30 dias para usar outra forma de pagamento.", "err");
           return;
         }
@@ -476,7 +477,7 @@
         }).catch(function (err) {
           logClient("create-alt", (err && err.message) || err);
           go.disabled = false;
-          go.textContent = PLANS[plan].cta;
+          go.textContent = checkoutCta(plan);
           payStatus(friendlyErr(err), "err");
         });
       }
