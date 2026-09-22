@@ -757,10 +757,10 @@ export default {
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const email = String(body.email || "").trim().toLowerCase();
         const rawPlan = String(body.plan || "");
-        const plan = normalizeDepixPlan(rawPlan);
+        const plan = rawPlan === "vip24h" ? "vip24h" : normalizeDepixPlan(rawPlan);
         const reason = String(body.reason || "").trim().slice(0, 160);
         if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
-        if (!["world1", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inválido." }, 400, cors);
+        if (!["world1", "vip24h", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inválido." }, 400, cors);
         if (reason.length < 3) return json({ error: "Informe o motivo da liberação." }, 400, cors);
         const billingId = "manual:" + Date.now() + ":" + crypto.randomUUID();
         const grant = await grantPurchase(env, email, billingId, plan);
