@@ -281,6 +281,10 @@
     if (kiwifyEnabled()) {
       var pixFields = bg.querySelector(".pay-form-grid");
       if (pixFields) pixFields.hidden = true;
+      var dataLabel = bg.querySelector(".pay-data-label");
+      if (dataLabel) dataLabel.hidden = true;
+      var assurance = bg.querySelector(".vip-assurance");
+      if (assurance) assurance.innerHTML = "<b>Importante</b> Use exatamente este e-mail Google (" + escH(logged) + ") no checkout da Kiwify para vincular o VIP a sua conta.";
       var payNote = bg.querySelector(".pay-mini-note");
       if (payNote) payNote.innerHTML = "O checkout Kiwify abrirÃ¡ em seguida. Use nele o <b>mesmo e-mail da conta Google</b> para o VIP cair na conta correta.";
       var payBadge = bg.querySelector("#payMethodBadge");
@@ -584,19 +588,10 @@
     return /^https?:\/\//i.test(u) ? u : "";
   }
 
-  // Entrada única de compra: Depix (Pix via Worker) primeiro,
-  // Kiwify (link direto) como reserva, AbacatePay por último.
+  // Entrada única de compra: autentica a conta e confirma o plano antes do checkout.
   // Backup Kiwify em site/backup-kiwify-2026-09-20/.
   function checkout(plan, notice) {
     plan = normalizePlan(plan);
-    if (paymentProvider() === "kiwify" && kiwifyEnabled()) {
-      var directUrl = kiwifyUrl(plan);
-      if (!directUrl) return false;
-      try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: plan, at: Date.now() })); } catch (e) {}
-      track("checkout_opened", { plan: plan, provider: "kiwify" });
-      location.href = directUrl;
-      return true;
-    }
     if (!currentEmail()) {
       try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
       if (window.RC_auth) window.RC_auth.openModal();

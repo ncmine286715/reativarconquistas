@@ -14,7 +14,7 @@ window.RC_CONFIG = {
 
   // Provedor ativo: "depix", "kiwify" ou "hybrid".
   // "hybrid" mantém Depix como principal e Kiwify como link alternativo.
-  PAYMENT_PROVIDER: "depix",
+  PAYMENT_PROVIDER: "kiwify",
 
   // Limite padrão para usuários grátis.
   FREE_MAX_MB: 10,
