@@ -58,6 +58,16 @@
       return "<tr><td>" + esc(when(item.paid_at || item.at)) + "</td><td><b>" + esc(item.email) + "</b></td><td>" + esc(planName(item.plan)) + "</td><td>" + esc(money(item.amount_cents)) + "</td><td>" + esc(sourceName(item)) + "</td></tr>";
     }).join("");
   }
+  function fillManualGrantRows(items) {
+    var body = document.getElementById("manualGrantRows");
+    if (!items.length) {
+      body.innerHTML = "<tr><td class='admin-empty' colspan='5'>Nenhuma liberação manual neste período.</td></tr>";
+      return;
+    }
+    body.innerHTML = items.map(function (item) {
+      return "<tr><td>" + esc(when(item.at)) + "</td><td><b>" + esc(item.email) + "</b></td><td>" + esc(planName(item.plan)) + "</td><td>" + esc(item.reason || "—") + "</td><td>" + esc(item.admin || "—") + "</td></tr>";
+    }).join("");
+  }
   function renderErrors(items) {
     var list = document.getElementById("errorList");
     document.getElementById("errorCount").textContent = items.length;
@@ -76,8 +86,10 @@
     document.getElementById("statAbandoned").textContent = summary.abandoned_count || 0;
     document.getElementById("statPending").textContent = summary.pending_count || 0;
     document.getElementById("purchaseCount").textContent = (data.purchases || []).length;
+    document.getElementById("manualGrantCount").textContent = (data.manual_grants || []).length;
     document.getElementById("abandonedCount").textContent = (data.abandoned || []).length;
     fillRows("purchaseRows", data.purchases || []);
+    fillManualGrantRows(data.manual_grants || []);
     fillRows("abandonedRows", data.abandoned || []);
     renderErrors(data.errors || []);
   }

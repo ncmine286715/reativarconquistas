@@ -695,8 +695,10 @@ export default {
         const since = Date.now() - days * 86400000;
         const allPurchases = await adminList(env, "admin:purchases");
         const allCheckouts = await adminList(env, "admin:checkouts");
+        const allManualGrants = await adminList(env, "admin:actions");
         const errors = await adminList(env, "clog");
         const purchases = allPurchases.filter((item) => (+item.paid_at || +item.at || 0) >= since);
+        const manualGrants = allManualGrants.filter((item) => (+item.at || 0) >= since);
         const checkouts = allCheckouts.filter((item) => (+item.at || 0) >= since).map((item) => ({ ...item, status: classifyAdminCheckout(item) }));
         const abandoned = checkouts.filter((item) => item.status === "abandoned");
         const pending = checkouts.filter((item) => item.status === "pending");
@@ -713,6 +715,7 @@ export default {
             conversion_percent: decided ? Math.round(purchases.length * 1000 / decided) / 10 : 0
           },
           purchases: purchases.slice(0, 150),
+          manual_grants: manualGrants.slice(0, 150),
           abandoned: abandoned.slice(0, 150),
           pending: pending.slice(0, 100),
           errors: errors.filter((item) => (+item.at || 0) >= since).slice(0, 50)

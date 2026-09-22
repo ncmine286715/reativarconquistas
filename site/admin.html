@@ -68,6 +68,12 @@
     </section>
 
     <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">SUPORTE</span><h2>Liberações manuais</h2></div><span class="admin-count" id="manualGrantCount">0</span></div>
+      <div class="admin-table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Motivo</th><th>Administrador</th></tr></thead><tbody id="manualGrantRows"></tbody></table></div>
+      <p class="admin-note">Liberações feitas pelo painel aparecem aqui. Elas não contam como compra nem alteram o faturamento.</p>
+    </section>
+
+    <section class="card admin-panel admin-wide">
       <div class="admin-panel-head"><div><span class="admin-eyebrow">RECUPERAÇÃO</span><h2>Quem gerou Pix e não pagou</h2></div><span class="admin-count" id="abandonedCount">0</span></div>
       <div class="admin-table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Valor</th><th>Origem</th></tr></thead><tbody id="abandonedRows"></tbody></table></div>
       <p class="admin-note">A lista começa a ser preenchida após esta atualização; cobranças antigas não são reconstruídas.</p>
@@ -78,6 +84,6 @@
 <script src="config.js?v=25"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=14"></script>
-<script src="admin.js?v=2"></script>
+<script src="admin.js?v=3"></script>
 </body>
 </html>
