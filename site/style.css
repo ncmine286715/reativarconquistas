@@ -602,10 +602,25 @@ a.hero-btn.btn-ghost {
 /* A restauração de chunks fica em uma ferramenta dedicada; o mapa do conversor permanece visual. */
 #accChunks { display: none !important; }
 .chunk-tool-link {
-  display: block; margin-top: 13px; padding: 11px 12px; border: 1px solid #fed7aa;
-  border-radius: 10px; background: #fff7ed; color: var(--orange-dark); text-decoration: none; font-size: 13px;
+  display: flex; align-items: center; gap: 12px; margin-top: 13px; padding: 11px 12px; border: 1px solid #fed7aa;
+  border-radius: 12px; background: #fff7ed; color: var(--orange-dark); text-decoration: none; font-size: 13px; line-height: 1.45;
 }
-.chunk-tool-link:hover { background: #ffedd5; }
+.chunk-tool-link:hover { background: #ffedd5; border-color: #fb923c; }
+.chunk-tool-builder { border-color: #78bd53; background: #f3faed; }
+.chunk-tool-builder:hover { background: #eaf6df; border-color: #4a9c2b; }
+.chunk-tool-pixel {
+  position: relative; display: grid; place-items: center; flex: 0 0 48px;
+  width: 48px; height: 48px; overflow: hidden; border: 1px solid #f1d2ae;
+  border-radius: 11px; background: #fff;
+}
+.chunk-tool-pixel img { position: absolute; width: 31px; height: 31px; object-fit: contain; image-rendering: pixelated; }
+.chunk-tool-pixel .repair-pick { left: 5px; top: 1px; transform: rotate(-28deg); }
+.chunk-tool-pixel .repair-rock { right: 0; bottom: 0; width: 25px; height: 25px; }
+.chunk-tool-pixel .builder-door { left: 5px; top: 1px; width: 34px; height: 34px; }
+.chunk-tool-pixel .builder-grass { right: -1px; bottom: -1px; width: 27px; height: 27px; }
+.chunk-tool-copy { min-width: 0; }
+[data-theme="dark"] .chunk-tool-link { background: #28201a; border-color: #62452f; }
+[data-theme="dark"] .chunk-tool-builder { background: #1d2919; border-color: #4c7138; }
 .chunk-page { max-width: 860px; }
 .chunk-hero { text-align: center; padding: 38px 0 16px; }
 .chunk-hero h1 { margin: 0 0 10px; font-size: clamp(28px, 5.4vw, 42px); letter-spacing: -.03em; }

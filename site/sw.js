@@ -1,10 +1,25 @@
 /* ReativaConquistas — Service Worker mínimo do Construtor 3D (beta).
    Deixa o app instalável e acelera a segunda visita com cache local.
    Versões com ?v= são chaves distintas: atualizar o ?v= atualiza o app. */
-var CACHE = 'rc-builder-v1';
+var CACHE = 'rc-builder-v2';
 var CORE = [
   'builder-lab.html',
-  'builder-lab.css?v=4',
+  'builder-lab.css?v=5',
+  'builder-lab.js?v=18',
+  'assets/null-apresenta.png',
+  'assets/null-guia.png',
+  'style.css?v=13',
+  'logo.png',
+  'mc/item/ender_eye.png',
+  'mc/item/oak_door.png',
+  'mc/item/iron_pickaxe.png',
+  'mc/item/shears.png',
+  'mc/item/armor_stand.png',
+  'mc/item/cow_spawn_egg.png',
+  'mc/item/iron_hoe.png',
+  'mc/item/filled_map.png',
+  'mc/item/grass_block.png',
+  'mc/block/bedrock.png',
   'vendor/jszip.min.js',
   'vendor/leveldb-reader.js',
   'vendor/three.min.js',

@@ -3,41 +3,73 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0b101c">
+  <meta name="theme-color" content="#fff7ef">
   <meta name="description" content="Construtor 3D beta: cole casas .mcstructure no seu mundo Minecraft Bedrock vendo o terreno de verdade. Grátis durante o beta.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="logo.png">
   <title>Construtor 3D (beta grátis) — ReativaConquistas</title>
-  <link rel="stylesheet" href="builder-lab.css?v=4">
+  <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="builder-lab.css?v=5">
 </head>
 <body>
-  <main class="lab-shell">
-    <header>
-      <a href="index.html">← ReativaConquistas</a> <button id="tourReplay" type="button" title="Ver o tour guiado de novo" style="float:right;background:#142136;color:#ffd75e;border:1px solid #674d21;border-radius:8px;padding:6px 12px;cursor:pointer">? Tour</button>
-      <p class="eyebrow">BETA GRÁTIS · 3D NO NAVEGADOR</p>
-      <h1>Construtor 3D <span style="font-size:14px;background:#5EBB2B;color:#06130a;border-radius:8px;padding:3px 10px;vertical-align:middle">BETA GRÁTIS</span></h1>
-      <p class="lead">Carregue o mundo, escolha o ponto e cole a estrutura sobre um recorte 3D real dos blocos salvos.</p>
+  <div class="topbar">
+    <div class="topbar-in lab-topbar-in">
+      <a class="brand" href="index.html">
+        <img src="logo.png" width="34" height="34" alt="" style="border-radius:9px;display:block">
+        <span>ReativaConquistas<small>Minecraft Bedrock · .mcworld</small></span>
+      </a>
+      <nav class="nav" aria-label="Navegação">
+        <a class="lab-nav-home" href="index.html">Início</a>
+        <a class="lab-nav-chunks" href="chunks.html">Restaurar chunks</a>
+        <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
+          <svg class="ic ic-moon" aria-hidden="true"><use href="index.html#i-moon"/></svg>
+          <svg class="ic ic-sun" aria-hidden="true"><use href="index.html#i-sun"/></svg>
+        </button>
+        <button id="tourReplay" class="btn-nav guide-launch" type="button" title="Abrir o guia passo a passo"><span class="guide-desktop-label">Guia do construtor</span><span class="guide-mobile-label">Guia</span></button>
+      </nav>
+    </div>
+  </div>
+  <main class="lab-shell page page-wide">
+    <header class="lab-hero">
+      <p class="kicker">NOVO · BETA GRÁTIS · 3D NO NAVEGADOR</p>
+      <h1>Construtor 3D <span>BETA GRÁTIS</span></h1>
+      <p class="tagline">Carregue seu mundo e uma casa <b>.mcstructure</b>. Veja o terreno de verdade, posicione, gire e exporte — direto no navegador.</p>
     </header>
-    <section class="warning"><b>Beta grátis:</b> guarde uma cópia do `.mcworld` original. Confira o preview (posição, rotação e borracha) antes de exportar.</section>
-    <div id="tourOverlay" hidden>
-      <div id="tourCard" role="dialog" aria-label="Tour guiado">
-        <img id="tourMascot" src="mascote.png" alt="Mascote" onerror="this.outerHTML='<div style=&quot;font-size:64px&quot;>👑</div>'">
+    <section class="warning"><b>Antes de começar:</b> guarde uma cópia do <code>.mcworld</code> original. Confira o preview, a posição e a rotação antes de exportar.</section>
+    <section id="tourOverlay" hidden aria-hidden="true">
+      <div class="tour-shade" data-side="top"></div>
+      <div class="tour-shade" data-side="right"></div>
+      <div class="tour-shade" data-side="bottom"></div>
+      <div class="tour-shade" data-side="left"></div>
+      <div id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+        <img id="tourMascot" src="assets/null-apresenta.png" alt="Null, seu guia do construtor 3D">
         <div class="tour-balloon">
-          <p id="tourText"></p>
-          <div id="tourDots"></div>
-          <div class="tour-btns"><button id="tourBack" type="button">←</button><button id="tourNext" type="button">Próximo →</button><button id="tourSkip" type="button">Pular tour</button></div>
+          <div class="tour-heading"><span id="tourProgress"></span><button id="tourClose" type="button" aria-label="Fechar guia">×</button></div>
+          <h2 id="tourTitle"></h2>
+          <p id="tourText" aria-live="polite"></p>
+          <p id="tourHint" class="tour-hint"></p>
+          <div class="tour-btns"><button id="tourBack" type="button" aria-label="Passo anterior">← Voltar</button><button id="tourNext" type="button">Próximo →</button><button id="tourSkip" type="button">Sair</button></div>
         </div>
       </div>
-    </div>
+    </section>
     <section class="upload-card">
-      <label for="worldFile">1. Mundo <code>.mcworld</code></label>
-      <input id="worldFile" type="file" accept=".mcworld,application/zip">
-      <label for="structureFile">2. Arquivo <code>.mcstructure</code></label>
-      <input id="structureFile" type="file" accept=".mcstructure,application/octet-stream" disabled>
+      <div class="upload-step">
+        <span class="step-number">01</span>
+        <label for="worldFile">Seu mundo <code>.mcworld</code></label>
+        <input id="worldFile" type="file" accept=".mcworld,application/zip">
+        <small>Escolha o arquivo do mundo Bedrock.</small>
+      </div>
+      <div class="upload-step">
+        <span class="step-number">02</span>
+        <label for="structureFile">Sua construção <code>.mcstructure</code></label>
+        <input id="structureFile" type="file" accept=".mcstructure,application/octet-stream" disabled>
+        <small>Libera depois de abrir o mundo.</small>
+      </div>
       <p id="status" role="status">Carregue primeiro um mundo Bedrock.</p>
     </section>
     <section id="result" hidden>
-      <div class="summary-grid">
+      <div class="summary-grid" id="summaryOverview">
         <article><span>Dimensões</span><strong id="dimensions">—</strong></article>
         <article><span>Posições</span><strong id="blocks">—</strong></article>
         <article><span>Block entities</span><strong id="blockEntities">—</strong></article>
@@ -52,65 +84,92 @@
       <section class="editor">
         <div class="canvas-panel">
           <div class="viewport-toolbar" role="toolbar" aria-label="Ferramentas de posicionamento">
-            <button type="button" id="toolOrbit" aria-pressed="true">🌀<span>Orbitar</span></button>
-            <button type="button" id="toolPlace" aria-pressed="false">📍<span>Colar</span></button>
-            <button type="button" id="toolMove" aria-pressed="false">✥<span>Arrastar</span></button>
-            <button type="button" id="toolErase" aria-pressed="false">🧽<span>Borracha</span></button>
-            <button type="button" id="toolGizmo" aria-pressed="false">🎮<span>Mover 3D</span></button>
-            <button type="button" id="toolMob" aria-pressed="false">🐄<span>Mob</span></button>
-            <button type="button" id="toolPaint" aria-pressed="false">🖌️<span>Pincel</span></button>
-            <button type="button" id="photoBtn">📷<span>Foto</span></button>
+            <button type="button" id="toolOrbit" aria-pressed="true"><img class="tool-icon" src="mc/item/ender_eye.png" alt=""><span>Orbitar</span></button>
+            <button type="button" id="toolPlace" aria-pressed="false"><img class="tool-icon" src="mc/item/oak_door.png" alt=""><span>Colar</span></button>
+            <button type="button" id="toolMove" aria-pressed="false"><img class="tool-icon" src="mc/item/iron_pickaxe.png" alt=""><span>Arrastar</span></button>
+            <button type="button" id="toolErase" aria-pressed="false"><img class="tool-icon" src="mc/item/shears.png" alt=""><span>Borracha</span></button>
+            <button type="button" id="toolGizmo" aria-pressed="false"><img class="tool-icon" src="mc/item/armor_stand.png" alt=""><span>Mover 3D</span></button>
+            <button type="button" id="toolMob" aria-pressed="false"><img class="tool-icon" src="mc/item/cow_spawn_egg.png" alt=""><span>Mob</span></button>
+            <button type="button" id="toolPaint" aria-pressed="false"><img class="tool-icon" src="mc/item/iron_hoe.png" alt=""><span>Pincel</span></button>
+            <button type="button" id="photoBtn"><img class="tool-icon" src="mc/item/filled_map.png" alt=""><span>Foto</span></button>
           </div>
           <p id="placementHint" class="canvas-help" role="status">Escolha uma região no mapa. Depois, clique em “Colocar no terreno”.</p>
           <div id="preview" aria-label="Editor 3D do mundo e estrutura"></div>
           <div class="viewport-info"><output id="positionReadout">X 0 · Y 64 · Z 0</output><span id="terrainStats" role="status">Aguardando mundo</span></div>
           <p class="canvas-help">Contorno azul: área da estrutura. Setas: X/Z · Page Up/Down: altura · R: girar · Esc: orbitar. Shift + arrastar também move a estrutura.</p>
         </div>
-        <aside class="controls">
-          <h2>Posicionar estrutura</h2>
-          <label>X <input id="x" type="number" value="0" step="1"></label>
-          <label>Y <input id="y" type="number" value="64" step="1" min="-64" max="319"></label>
-          <label>Z <input id="z" type="number" value="0" step="1"></label>
-          <label>Rotação <select id="rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></label>
-          <label>Passo <select id="moveStep"><option value="1">1 bloco</option><option value="4">4 blocos</option><option value="16">16 blocos</option></select></label>
-          <div class="nudge-grid" role="group" aria-label="Mover por eixo">
-            <button type="button" data-axis="x" data-delta="-1">−X</button><button type="button" data-axis="x" data-delta="1">+X</button>
-            <button type="button" data-axis="y" data-delta="-1">−Y</button><button type="button" data-axis="y" data-delta="1">+Y</button>
-            <button type="button" data-axis="z" data-delta="-1">−Z</button><button type="button" data-axis="z" data-delta="1">+Z</button>
-          </div>
-          <label>Ao clicar <select id="clickAnchor"><option value="center">Centralizar base</option><option value="origin">Posicionar origem</option></select></label>
-          <button id="snapGround" type="button">Apoiar no terreno</button>
-          <p class="canvas-help">Apoiar ajusta Y ao ponto mais alto sob a base. Ao clicar no mapa ou no terreno, a estrutura já cola no chão sozinha.</p>
-          <button id="restoreErased" type="button">Restaurar blocos apagados</button>
-          <label>Mob <select id="mobType"><option value="cow">Vaca</option><option value="pig">Porco</option><option value="sheep">Ovelha</option><option value="chicken">Galinha</option><option value="villager">Aldeão</option><option value="horse">Cavalo</option><option value="wolf">Lobo</option><option value="zombie">Zumbi</option><option value="skeleton">Esqueleto</option><option value="creeper">Creeper</option><option value="spider">Aranha</option><option value="enderman">Enderman</option></select></label>
-          <button id="clearMobs" type="button">Limpar mobs</button>
-          <label>Pincel <select id="paintBlock"><option value="minecraft:grass_block">Grama</option><option value="minecraft:dirt">Terra</option><option value="minecraft:stone">Pedra</option><option value="minecraft:cobblestone">Pedregulho</option><option value="minecraft:sand">Areia</option><option value="minecraft:oak_planks">Tábuas</option><option value="minecraft:glass">Vidro</option></select></label>
-          <label>Tamanho <select id="paintRadius"><option value="1">1 (ponto)</option><option value="2">2</option><option value="3">3 (área)</option></select></label>
-          <div class="nudge-grid"><button id="undoPosition" type="button" disabled>Desfazer posição</button><button id="redoPosition" type="button" disabled>Refazer</button></div>
-          <label class="check-row"><input id="showStructure" type="checkbox" checked> Mostrar estrutura</label>
-          <label class="check-row"><input id="showOutline" type="checkbox" checked> Mostrar contorno</label>
-          <label class="check-row"><input id="clearTrees" type="checkbox"> Remover árvores na área ao exportar</label>
-          <label>Céu <select id="skyMode"><option value="day">Dia ☀️</option><option value="sunset">Pôr-do-sol 🌇</option><option value="night">Noite 🌙</option></select></label>
-          <label>Região <select id="region"><option value="">Carregue um mundo</option></select></label>
-          <button id="useRegion" type="button">Ir para região visitada</button>
-          <button id="goSpawn" type="button">Ir para spawn</button>
-          <button id="goPlayer" type="button">Ir para o player</button>
-          <button id="goCoords" type="button">Ir para X/Z digitado</button>
-          <label>Alcance <select id="terrainRange"><option value="1">3×3 (rápido)</option><option value="2">5×5 (normal)</option><option value="3">7×7 (amplo)</option></select></label>
-          <button id="refreshTerrain" type="button">Atualizar terreno 3D</button>
-          <button id="focus" type="button">Centralizar estrutura</button>
-          <button id="reset" type="button">Resetar posição</button>
-          <label>Modo <select id="buildMode"><option value="ignore_air">Ignorar ar</option><option value="replace">Substituir tudo</option><option value="only_air">Somente no ar</option></select></label>
-          <button id="exportWorld" type="button">Exportar mundo (.mcworld)</button>
-          <p id="exportStatus" class="canvas-help" role="status"></p>
-          <button id="analyzeWorld" type="button">Raio-X do mundo</button>
-          <div id="worldStats" class="canvas-help"></div>
-          <button id="report" type="button">Baixar relatório</button>
-          <hr>
-          <h2>Validação e colisão</h2>
-          <div id="validation"></div>
-          <h2>Tipos de block entity</h2>
-          <ul id="entityTypes"></ul>
+        <aside class="controls" aria-label="Controles do construtor">
+          <section class="control-group" id="placementControls">
+            <h2>Posição e rotação</h2>
+            <div class="axis-fields">
+              <label>X <input id="x" type="number" value="0" step="1"></label>
+              <label>Y <input id="y" type="number" value="64" step="1" min="-64" max="319"></label>
+              <label>Z <input id="z" type="number" value="0" step="1"></label>
+            </div>
+            <label>Rotação <select id="rotation"><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></label>
+            <label>Passo do movimento <select id="moveStep"><option value="1">1 bloco</option><option value="4">4 blocos</option><option value="16">16 blocos</option></select></label>
+            <div class="nudge-grid" role="group" aria-label="Mover por eixo">
+              <button type="button" data-axis="x" data-delta="-1">−X</button><button type="button" data-axis="x" data-delta="1">+X</button>
+              <button type="button" data-axis="y" data-delta="-1">−Y</button><button type="button" data-axis="y" data-delta="1">+Y</button>
+              <button type="button" data-axis="z" data-delta="-1">−Z</button><button type="button" data-axis="z" data-delta="1">+Z</button>
+            </div>
+            <label>Clique no terreno <select id="clickAnchor"><option value="center">Centralizar base</option><option value="origin">Posicionar origem</option></select></label>
+            <button id="snapGround" type="button">Apoiar no terreno</button>
+            <p class="canvas-help">Apoiar ajusta Y ao ponto mais alto sob a base. Clicar no mapa ou no terreno também posiciona e apoia a casa.</p>
+          </section>
+          <section class="control-group" id="historyControls">
+            <h2>Desfazer e restaurar</h2>
+            <div class="nudge-grid"><button id="undoPosition" type="button" disabled>Desfazer posição</button><button id="redoPosition" type="button" disabled>Refazer</button></div>
+            <button id="restoreErased" type="button">Restaurar blocos apagados</button>
+            <button id="reset" type="button">Resetar posição</button>
+          </section>
+          <section class="control-group" id="mobControls">
+            <h2>Mobs do preview</h2>
+            <label>Mob <select id="mobType"><option value="cow">Vaca</option><option value="pig">Porco</option><option value="sheep">Ovelha</option><option value="chicken">Galinha</option><option value="villager">Aldeão</option><option value="horse">Cavalo</option><option value="wolf">Lobo</option><option value="zombie">Zumbi</option><option value="skeleton">Esqueleto</option><option value="creeper">Creeper</option><option value="spider">Aranha</option><option value="enderman">Enderman</option></select></label>
+            <button id="clearMobs" type="button">Limpar mobs</button>
+          </section>
+          <section class="control-group" id="paintControls">
+            <h2>Pincel do terreno</h2>
+            <label>Bloco <select id="paintBlock"><option value="minecraft:grass_block">Grama</option><option value="minecraft:dirt">Terra</option><option value="minecraft:stone">Pedra</option><option value="minecraft:cobblestone">Pedregulho</option><option value="minecraft:sand">Areia</option><option value="minecraft:oak_planks">Tábuas</option><option value="minecraft:glass">Vidro</option></select></label>
+            <label>Tamanho <select id="paintRadius"><option value="1">1 (ponto)</option><option value="2">2</option><option value="3">3 (área)</option></select></label>
+          </section>
+          <section class="control-group" id="displayControls">
+            <h2>Visual do preview</h2>
+            <label class="check-row"><input id="showStructure" type="checkbox" checked> Mostrar estrutura</label>
+            <label class="check-row"><input id="showOutline" type="checkbox" checked> Mostrar contorno</label>
+            <label class="check-row"><input id="clearTrees" type="checkbox"> Remover árvores na área ao exportar</label>
+            <label>Céu <select id="skyMode"><option value="day">Dia</option><option value="sunset">Pôr-do-sol</option><option value="night">Noite</option></select></label>
+          </section>
+          <section class="control-group" id="navigationControls">
+            <h2>Ir para um local</h2>
+            <label>Região visitada <select id="region"><option value="">Carregue um mundo</option></select></label>
+            <button id="useRegion" type="button">Ir para região visitada</button>
+            <button id="goSpawn" type="button">Ir para spawn</button>
+            <button id="goPlayer" type="button">Ir para o player</button>
+            <button id="goCoords" type="button">Ir para X/Z digitado</button>
+          </section>
+          <section class="control-group" id="terrainControls">
+            <h2>Carregamento do terreno</h2>
+            <label>Alcance <select id="terrainRange"><option value="1">3×3 (rápido)</option><option value="2">5×5 (normal)</option><option value="3">7×7 (amplo)</option></select></label>
+            <button id="refreshTerrain" type="button">Atualizar terreno 3D</button>
+            <button id="focus" type="button">Centralizar estrutura</button>
+          </section>
+          <section class="control-group export-controls" id="exportControls">
+            <h2>Exportar mundo</h2>
+            <label>Ao ocupar blocos <select id="buildMode"><option value="ignore_air">Ignorar ar</option><option value="replace">Substituir tudo</option><option value="only_air">Somente no ar</option></select></label>
+            <button id="exportWorld" type="button">Exportar mundo (.mcworld)</button>
+            <p id="exportStatus" class="canvas-help" role="status"></p>
+          </section>
+          <section class="control-group diagnostics" id="diagnosticControls">
+            <h2>Raio-X e relatório</h2>
+            <button id="analyzeWorld" type="button">Raio-X do mundo</button>
+            <div id="worldStats" class="canvas-help"></div>
+            <button id="report" type="button">Baixar relatório</button>
+            <h3>Validação e colisão</h3>
+            <div id="validation"></div>
+            <h3>Tipos de block entity</h3>
+            <ul id="entityTypes"></ul>
+          </section>
         </aside>
       </section>
     </section>
@@ -132,7 +191,7 @@
   <script>if (!window.THREE || !window.THREE.OrbitControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/OrbitControls.js"><\/script>');</script>
   <script src="vendor/TransformControls.js"></script>
   <script>if (!window.THREE || !window.THREE.TransformControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/TransformControls.js"><\/script>');</script>
-  <script src="builder-lab.js?v=17"></script>
+  <script src="builder-lab.js?v=18"></script>
   <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>

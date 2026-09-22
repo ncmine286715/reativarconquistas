@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -170,8 +170,14 @@
           <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
           <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
         </div>
-        <a class="chunk-tool-link" href="chunks.html"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</a>
-        <a class="chunk-tool-link" href="builder-lab.html" style="border-color:#5EBB2B"><b>🏠 NOVO (beta grátis): cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</a>
+        <a class="chunk-tool-link chunk-tool-repair" href="chunks.html">
+          <span class="chunk-tool-pixel" aria-hidden="true"><img class="repair-pick" src="mc/item/iron_pickaxe.png" alt=""><img class="repair-rock" src="mc/block/bedrock.png" alt=""></span>
+          <span class="chunk-tool-copy"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</span>
+        </a>
+        <a class="chunk-tool-link chunk-tool-builder" href="builder-lab.html">
+          <span class="chunk-tool-pixel" aria-hidden="true"><img class="builder-door" src="mc/item/oak_door.png" alt=""><img class="builder-grass" src="mc/item/grass_block.png" alt=""></span>
+          <span class="chunk-tool-copy"><b>NOVO · beta grátis: cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</span>
+        </a>
       </div>
         </div>
       </details>

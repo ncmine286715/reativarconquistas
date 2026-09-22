@@ -384,15 +384,6 @@
       /* Celular fraco: 3×3 chunks carrega ~3x mais rápido; PC: 5×5. */
       var lightMode = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || Math.min(window.innerWidth || 999, window.innerHeight || 999) < 500;
       state.chunkPreview = new window.RC_ChunkPreviewManager(world, { renderDistance: lightMode ? 1 : 2, mode: "SURFACE" });
-    var zin = $('mapZoomIn'), zout = $('mapZoomOut');
-    if (zin) zin.addEventListener('click', function () { state.mapZoom = Math.min(8, (state.mapZoom || 1) * 2); drawWorldMap(); });
-    if (zout) zout.addEventListener('click', function () { state.mapZoom = Math.max(1, (state.mapZoom || 1) / 2); drawWorldMap(); });
-    var tourNext = $('tourNext'), tourBack = $('tourBack'), tourSkip = $('tourSkip'), tourReplay = $('tourReplay');
-    if (tourNext) tourNext.addEventListener('click', function () { tourShow(tourIndex + 1); });
-    if (tourBack) tourBack.addEventListener('click', function () { tourShow(tourIndex - 1); });
-    if (tourSkip) tourSkip.addEventListener('click', function () { tourHide(); });
-    if (tourReplay) tourReplay.addEventListener('click', function () { try { localStorage.removeItem('rc_tour_done'); } catch (e) {} tourShow(0); });
-    setTimeout(function () { try { if (!localStorage.getItem('rc_tour_done')) tourShow(0); } catch (e) {} }, 900);
     var rangeSel = $('terrainRange');
       if (rangeSel) rangeSel.value = String(state.chunkPreview.renderDistance);
       state.playerPos = readPlayerPos(world);
@@ -410,6 +401,7 @@
         catch (previewError) { hint('Mundo aberto, mas o preview falhou: ' + (previewError.message || previewError)); drawWorldMap(); }
         $("structureFile").disabled = false;
         $("status").textContent = state.playerPos ? "Mundo carregado. Começando onde o player estava; agora envie a estrutura." : spawn ? "Mundo carregado. O preview começa no spawn do mundo; agora envie a estrutura." : "Mundo carregado. Escolhi uma área visitada automaticamente; agora envie a estrutura.";
+        if (tourIndex >= 0 && tourIndex <= 1 && !tourWasSkipped) tourShow(2);
       });
     }).catch(function (e) { if (generation !== state.worldGeneration) return; state.world = null; $("status").textContent = "Não consegui abrir o mundo: " + (e.message || "arquivo inválido"); });
   }
@@ -557,6 +549,7 @@
       /* Se a altura atual é impossível (ex.: spawn inválido herdado do level.dat),
          cola a estrutura no chão sozinha em vez de deixá-la perdida no céu. */
       if (Number($("y").value) < -64 || Number($("y").value) > 319) snapGround().then(focus);
+      if (tourIndex === 2 && !tourWasSkipped) tourShow(3);
     }).catch(function (e) { if (generation !== state.structureGeneration) return; state.structure = null; clear(state.placed); state.placed = null; if (state.outline) state.outline.visible = false; $("status").textContent = "Não consegui validar: " + (e.message || "arquivo inválido"); });
   }
   /* Mobs estilo replay: só visual no preview, não vão para o mundo. */
@@ -644,37 +637,141 @@
     if (state.cloudMat) state.cloudMat.opacity = s.cloud;
     invalidate();
   }
-  /* Tour guiado com mascote: 5 passos, fundo desfocado, replay no "? Tour". */
+  /* Guia interativo do Null. A chave nova faz o tour corrigido aparecer para
+     quem já visitou a primeira versão, que só começava depois do upload. */
+  var TOUR_KEY = 'rc_builder_guide_v2_done';
+  var tourIndex = -1, tourWasSkipped = false, tourOriginFocus = null, tourUpdateTimer = 0;
   var TOUR_STEPS = [
-    { sel: '#worldFile', text: 'Oi! Eu sou o Coroa! Passo 1 de 5: clica aqui e manda seu MUNDO (.mcworld). Tudo roda no seu aparelho, nada é enviado.' },
-    { sel: '#worldMap', text: 'Passo 2 de 5: clica numa parte VERDE do mapa — é área que você já visitou no jogo. Pode clicar sem medo!' },
-    { sel: '#structureFile', text: 'Passo 3 de 5: agora manda a CONSTRUÇÃO (.mcstructure). Ela aparece em cima do terreno de verdade e cola no chão sozinha!' },
-    { sel: '.viewport-toolbar', text: 'Passo 4 de 5: as ferramentas! Colar, Borracha, Mover 3D, Mob, Pincel e Foto. No celular elas ficam na barrinha de baixo.' },
-    { sel: '#exportWorld', text: 'Passo 5 de 5: confere o preview e clica EXPORTAR — o mundo volta com a casa dentro, de graça no beta! Boa obra!' }
+    { sel: '.lab-hero', title: 'Oi, eu sou o Null!', text: 'Vou te mostrar o construtor por partes. O mundo original fica no seu aparelho; aqui você posiciona uma casa, confere o terreno e salva uma cópia editada.' },
+    { sel: '#worldFile', title: '1 · Abra seu mundo', text: 'Escolha um arquivo .mcworld. O guia continua assim que o mundo terminar de carregar. No PC, clique no campo; no celular, toque nele e escolha o arquivo.' },
+    { sel: '#structureFile', title: '2 · Escolha a construção', text: 'Envie um arquivo .mcstructure. Ele só libera depois que o mundo abrir. Quando a leitura terminar, a casa aparece no preview.' },
+    { sel: '#summaryOverview', title: 'Resumo da construção', text: 'Aqui aparecem tamanho, quantidade de blocos, block entities e entidades encontradas no arquivo.' },
+    { sel: '.world-map-card', title: 'Escolha uma área visitada', text: 'Cada quadrado representa uma chunk salva no mundo. Toque ou clique numa área verde para levar o preview até lá; no PC, passe o mouse para ver coordenadas. Use + zoom e − zoom para aproximar ou afastar o mapa.' },
+    { sel: '#preview', title: 'Navegue pelo terreno 3D', text: 'Arraste com o mouse para girar e use a roda para aproximar. No celular, arraste com um dedo para girar e use pinça com dois dedos para zoom. O contorno azul mostra a área da casa.' },
+    { sel: '#toolOrbit', title: 'Orbitar', text: 'Este modo deixa você girar e aproximar a câmera sem mover a construção. Esc também volta para Orbitar.' },
+    { sel: '#toolPlace', title: 'Colar no terreno', text: 'Ative Colar e clique no mapa ou no terreno para colocar a base da estrutura. A altura acompanha o chão.' },
+    { sel: '#toolMove', title: 'Arrastar', text: 'Ative Arrastar e puxe a estrutura pelo terreno. No PC, Shift + arrastar também move sem trocar o modo.' },
+    { sel: '#toolErase', title: 'Borracha', text: 'Apague blocos da construção no preview. No terreno, ela abre um buraco que entra na exportação. “Restaurar blocos apagados” desfaz remoções e pinturas feitas nesta sessão.' },
+    { sel: '#toolGizmo', title: 'Mover 3D', text: 'Use as setas do manipulador para mover a casa pelos eixos. Pressione G para alternar entre mover e girar; o encaixe é de um bloco e 90°.' },
+    { sel: '#toolMob', title: 'Mobs de cenário', text: 'Este botão ativa a colocação de mobs no preview. O seletor e o botão para limpar ficam no grupo Mobs, que vou destacar logo adiante. Eles são apenas visuais e não são gravados no .mcworld.' },
+    { sel: '#toolPaint', title: 'Pincel do terreno', text: 'Este botão ativa o pincel. O tipo de bloco e o tamanho ficam no grupo Pincel, que vou destacar logo adiante; as alterações feitas nele vão para a exportação.' },
+    { sel: '#photoBtn', title: 'Salvar uma foto', text: 'Gera um PNG da câmera atual para você mostrar sua construção.' },
+    { sel: '#placementControls', title: 'Coordenadas e rotação', text: 'Defina X, Y e Z ou use os botões para mover por eixo. Escolha o tamanho do passo, gire em 0°, 90°, 180° ou 270° e decida se o clique centraliza a base ou usa a origem. “Apoiar no terreno” ajusta a altura ao chão. As setas movem X/Z; Page Up/Down muda Y e R gira.' },
+    { sel: '#historyControls', title: 'Desfazer e reiniciar', text: 'Desfaça ou refaça mudanças de posição. “Restaurar blocos apagados” desfaz o uso da borracha na estrutura; “Resetar posição” volta às coordenadas iniciais.' },
+    { sel: '#mobControls', title: 'Escolha e limpe os mobs', text: 'Selecione vaca, porco, aldeão e outros modelos blocados. “Limpar mobs” remove todos do preview; nenhum deles entra no arquivo exportado.' },
+    { sel: '#paintControls', title: 'Bloco e tamanho do pincel', text: 'Escolha grama, terra, pedra ou outro bloco e defina se o pincel muda um ponto ou uma área maior.' },
+    { sel: '#displayControls', title: 'Ajuste o visual', text: 'Mostre ou esconda a estrutura e o contorno. “Remover árvores” aplica a limpeza na área ao exportar. Dia, pôr-do-sol e noite mudam a iluminação do preview.' },
+    { sel: '#navigationControls', title: 'Ir direto a um local', text: 'Vá para uma região visitada, o spawn, a posição salva do jogador ou as coordenadas X/Z digitadas. A casa se reposiciona e tenta apoiar no terreno.' },
+    { sel: '#terrainControls', title: 'Detalhe e enquadramento', text: 'O alcance 3×3, 5×5 ou 7×7 controla quantas chunks aparecem; use alcance menor se o celular ficar lento. “Atualizar terreno” recarrega o preview e “Centralizar estrutura” enquadra a câmera.' },
+    { sel: '#exportControls', title: 'Escolha como os blocos se encaixam', text: '“Ignorar ar” preserva os blocos do mundo onde a estrutura tem ar; “Substituir tudo” grava também esses espaços; “Somente no ar” evita substituir blocos existentes. Confira a posição e então exporte a cópia .mcworld.' },
+    { sel: '#diagnosticControls', title: 'Raio-X e conferência final', text: 'O Raio-X conta chunks, subchunks, blocos, alturas, jogadores e spawn. O relatório baixa esses dados em JSON. A validação mostra colisões e limites; block entities complexas ainda não são gravadas no mundo.' }
   ];
-  var tourIndex = -1;
+  function tourTarget(step) {
+    if (!step) return null;
+    try { return document.querySelector(step.sel); } catch (e) { return null; }
+  }
+  function tourMeasure() {
+    if (tourIndex < 0) return;
+    var overlay = $('tourOverlay'), target = tourTarget(TOUR_STEPS[tourIndex]);
+    if (!overlay || overlay.hidden) return;
+    var shades = overlay.querySelectorAll('.tour-shade');
+    var rect = target && target.getClientRects().length ? target.getBoundingClientRect() : null;
+    if (!rect) return;
+    var pad = 10, left = Math.max(0, rect.left - pad), top = Math.max(0, rect.top - pad);
+    var right = Math.min(window.innerWidth, rect.right + pad), bottom = Math.min(window.innerHeight, rect.bottom + pad);
+    var boxes = {
+      top: [0, 0, window.innerWidth, top],
+      right: [right, top, Math.max(0, window.innerWidth - right), Math.max(0, bottom - top)],
+      bottom: [0, bottom, window.innerWidth, Math.max(0, window.innerHeight - bottom)],
+      left: [0, top, left, Math.max(0, bottom - top)]
+    };
+    Array.prototype.forEach.call(shades, function (shade) {
+      var box = boxes[shade.getAttribute('data-side')];
+      shade.style.left = box[0] + 'px'; shade.style.top = box[1] + 'px';
+      shade.style.width = box[2] + 'px'; shade.style.height = box[3] + 'px';
+    });
+    var card = $('tourCard'), cardHeight = card.offsetHeight;
+    var spaceAbove = Math.max(0, rect.top), spaceBelow = Math.max(0, window.innerHeight - rect.bottom);
+    var fitsAbove = spaceAbove >= cardHeight + 18, fitsBelow = spaceBelow >= cardHeight + 18;
+    var putAtTop = fitsAbove && !fitsBelow ? true : fitsBelow && !fitsAbove ? false :
+      fitsAbove && fitsBelow ? rect.top + rect.height / 2 > window.innerHeight * 0.56 : spaceAbove > spaceBelow;
+    card.classList.toggle('tour-card-at-top', putAtTop);
+  }
   function tourShow(i) {
+    var overlay = $('tourOverlay');
+    if (!overlay || i < 0 || i >= TOUR_STEPS.length) { tourHide(); return; }
+    if (tourIndex < 0 && document.activeElement && document.activeElement !== document.body) tourOriginFocus = document.activeElement;
     Array.prototype.forEach.call(document.querySelectorAll('.tour-glow'), function (el) { el.classList.remove('tour-glow'); });
-    var overlay = $('tourOverlay'), card = $('tourText');
-    if (!overlay || !card || i < 0 || i >= TOUR_STEPS.length) { tourHide(); return; }
     tourIndex = i;
-    var target = null;
-    try { target = document.querySelector(TOUR_STEPS[i].sel); } catch (e) {}
+    var step = TOUR_STEPS[i], target = tourTarget(step);
     overlay.hidden = false;
-    if (target) { try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e2) {} try { target.classList.add('tour-glow'); } catch (e3) {} }
-    card.textContent = TOUR_STEPS[i].text;
-    var dots = $('tourDots');
-    if (dots) dots.innerHTML = TOUR_STEPS.map(function (_, k) { return '<i class="' + (k === i ? 'on' : '') + '"></i>'; }).join('');
+    overlay.setAttribute('aria-hidden', 'false');
+    if (target) {
+      try { target.scrollIntoView({ block: 'center', behavior: 'auto' }); } catch (e) {}
+      target.classList.add('tour-glow');
+    }
+    var mascot = $('tourMascot'), mascotFile = i === 0 ? 'assets/null-apresenta.png' : 'assets/null-guia.png';
+    if (mascot && mascot.getAttribute('src') !== mascotFile) mascot.setAttribute('src', mascotFile);
+    $('tourTitle').textContent = step.title;
+    $('tourText').textContent = step.text;
+    $('tourProgress').textContent = 'PASSO ' + (i + 1) + ' DE ' + TOUR_STEPS.length;
+    $('tourHint').textContent = i === 1 && !state.world ? 'Selecione o mundo destacado. O guia avança sozinho quando terminar.' :
+      i === 2 && !state.structure ? 'Selecione a construção destacada. O guia avança sozinho depois da leitura.' : '';
     var back = $('tourBack'), next = $('tourNext');
-    if (back) back.disabled = i === 0;
-    if (next) next.textContent = i === TOUR_STEPS.length - 1 ? 'Começar!' : 'Próximo →';
+    back.disabled = i === 0;
+    next.disabled = (i === 1 && !state.world) || (i === 2 && !state.structure);
+    next.textContent = i === TOUR_STEPS.length - 1 ? 'Concluir' : i === 1 && !state.world ? 'Aguardando mundo…' : i === 2 && !state.structure ? 'Aguardando casa…' : 'Próximo →';
+    clearTimeout(tourUpdateTimer);
+    tourUpdateTimer = setTimeout(tourMeasure, 80);
   }
   function tourHide() {
     tourIndex = -1;
+    tourWasSkipped = true;
     Array.prototype.forEach.call(document.querySelectorAll('.tour-glow'), function (el) { el.classList.remove('tour-glow'); });
     var overlay = $('tourOverlay');
-    if (overlay) overlay.hidden = true;
-    try { localStorage.setItem('rc_tour_done', '1'); } catch (e) {}
+    if (overlay) { overlay.hidden = true; overlay.setAttribute('aria-hidden', 'true'); }
+    try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
+    if (tourOriginFocus && tourOriginFocus.isConnected && typeof tourOriginFocus.focus === 'function') {
+      try { tourOriginFocus.focus({ preventScroll: true }); } catch (e) { tourOriginFocus.focus(); }
+    }
+    tourOriginFocus = null;
+  }
+  function wireTour() {
+    $('tourNext').addEventListener('click', function () { if (!$('tourNext').disabled) tourShow(tourIndex + 1); });
+    $('tourBack').addEventListener('click', function () { tourShow(tourIndex - 1); });
+    $('tourSkip').addEventListener('click', tourHide);
+    $('tourClose').addEventListener('click', tourHide);
+    $('tourReplay').addEventListener('click', function () {
+      tourWasSkipped = false;
+      try { localStorage.removeItem(TOUR_KEY); } catch (e) {}
+      tourShow(0);
+    });
+    document.querySelectorAll('.theme-btn').forEach(function (button) {
+      button.setAttribute('aria-pressed', document.documentElement.getAttribute('data-theme') === 'dark' ? 'true' : 'false');
+      button.addEventListener('click', function () {
+        var nextTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', nextTheme);
+        try { localStorage.setItem('rc_theme', nextTheme); } catch (e) {}
+        document.querySelectorAll('.theme-btn').forEach(function (item) { item.setAttribute('aria-pressed', nextTheme === 'dark' ? 'true' : 'false'); });
+      });
+    });
+    var zoomIn = $('mapZoomIn'), zoomOut = $('mapZoomOut');
+    if (zoomIn) zoomIn.addEventListener('click', function () { state.mapZoom = Math.min(8, (state.mapZoom || 1) * 2); drawWorldMap(); });
+    if (zoomOut) zoomOut.addEventListener('click', function () { state.mapZoom = Math.max(1, (state.mapZoom || 1) / 2); drawWorldMap(); });
+    window.addEventListener('resize', tourMeasure, { passive: true });
+    window.addEventListener('scroll', tourMeasure, { passive: true });
+    document.addEventListener('keydown', function (event) {
+      if (tourIndex < 0) return;
+      if (event.key === 'Escape') { event.preventDefault(); tourHide(); }
+      else if (event.key === 'ArrowLeft' && !/^(INPUT|SELECT|TEXTAREA)$/.test((event.target && event.target.tagName) || '')) {
+        event.preventDefault(); if (tourIndex > 0) tourShow(tourIndex - 1);
+      } else if (event.key === 'ArrowRight' && !/^(INPUT|SELECT|TEXTAREA)$/.test((event.target && event.target.tagName) || '')) {
+        event.preventDefault(); if (tourIndex < TOUR_STEPS.length - 1 && !$('tourNext').disabled) tourShow(tourIndex + 1);
+      }
+    }, true);
+    try {
+      if (!localStorage.getItem(TOUR_KEY)) setTimeout(function () { if (tourIndex < 0 && !tourWasSkipped) tourShow(0); }, 600);
+    } catch (e) { setTimeout(function () { if (tourIndex < 0 && !tourWasSkipped) tourShow(0); }, 600); }
   }
   function focus(view) {
     if (!state.controls) return;
@@ -1079,5 +1176,6 @@
       hint('Mundo exportado com a estrutura. Abra o arquivo baixado no Minecraft.');
     }).catch(function (exportError) { exportDone('Falha ao exportar: ' + (exportError.message || exportError)); });
   });
+  wireTour();
   wireControls();
 })();
