@@ -36,7 +36,7 @@
     });
   }
   function money(cents) {
-    return (Number(cents) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return ((Number(cents) || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
   function when(ms) {
     return ms ? new Date(Number(ms)).toLocaleString("pt-BR") : "—";
