@@ -31,3 +31,7 @@ KIWIFY_PID_30D = ""
 PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 DEPIX_TEST_MODE = "0"
+ADMIN_EMAILS = "ncmine75@gmail.com,rosidomingos032@gmail.com"
+
+[triggers]
+crons = ["*/5 * * * *"]

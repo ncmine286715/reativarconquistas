@@ -14,7 +14,7 @@ window.RC_CONFIG = {
 
   // Provedor ativo: "depix", "kiwify" ou "hybrid".
   // "hybrid" mantém Depix como principal e Kiwify como link alternativo.
-  PAYMENT_PROVIDER: "kiwify",
+  PAYMENT_PROVIDER: "depix",
 
   // Limite padrão para usuários grátis.
   FREE_MAX_MB: 10,
@@ -99,7 +99,7 @@ window.RC_CONFIG = {
      ========================= */
 
   // Os links ficam públicos no checkout; segredos permanecem no Worker.
-  KIWIFY_ENABLED: true,
+  KIWIFY_ENABLED: false,
   KIWIFY_URL_WORLD1: "https://pay.kiwify.com.br/YfzTiEM",
   KIWIFY_URL_7D: "https://pay.kiwify.com.br/sBgHQEA",
   KIWIFY_URL_30D: "https://pay.kiwify.com.br/8vujvs0",

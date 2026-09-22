@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Painel administrativo — ReativaConquistas</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="admin.css?v=1">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+</head>
+<body class="admin-body">
+<div class="topbar"><div class="topbar-in">
+  <a class="brand" href="index.html"><img src="logo.png" width="30" height="30" alt="ReativaConquistas" style="border-radius:8px;display:block"><span>ReativaConquistas<small>painel protegido</small></span></a>
+  <nav class="nav"><a href="index.html">Ver site</a><a href="minha-conta.html">Minha conta</a></nav>
+</div></div>
+
+<main class="admin-shell">
+  <section class="admin-hero">
+    <div><span class="admin-eyebrow">CENTRAL DE OPERAÇÕES</span><h1>Painel administrativo</h1><p>Compras, desistências, erros e liberações manuais em um só lugar.</p></div>
+    <button class="btn-ghost" id="refreshAdmin" type="button">Atualizar dados</button>
+  </section>
+
+  <div id="adminGate" class="admin-gate card">
+    <img src="assets/checkout-voxel.png" alt="" aria-hidden="true">
+    <div><h2>Entre com a conta autorizada</h2><p class="sub" id="gateText">Carregando sua sessão Google…</p><button class="google-btn" id="adminLogin" type="button" hidden><span class="google-g">G</span>Continuar com Google</button></div>
+  </div>
+
+  <div id="adminApp" hidden>
+    <section class="admin-stats" aria-label="Resumo">
+      <article><span>Compras</span><strong id="statPaid">—</strong><small id="statRevenue">—</small></article>
+      <article><span>Conversão</span><strong id="statConversion">—</strong><small>Pix gerados → pagos</small></article>
+      <article><span>Desistências</span><strong id="statAbandoned">—</strong><small>Pix sem pagamento após 20 min</small></article>
+      <article><span>Pendentes</span><strong id="statPending">—</strong><small>Aguardando confirmação</small></article>
+    </section>
+
+    <section class="admin-grid">
+      <article class="card admin-panel">
+        <div class="admin-panel-head"><div><span class="admin-eyebrow">SUPORTE</span><h2>Dar plano por e-mail</h2></div></div>
+        <form id="grantForm" class="admin-form">
+          <label>E-mail da conta Google<input id="grantEmail" type="email" maxlength="120" autocomplete="off" placeholder="cliente@gmail.com" required></label>
+          <label>Plano<select id="grantPlan"><option value="world1">1 crédito de mundo</option><option value="vip7">Passe 7 dias</option><option value="vip30" selected>Passe 30 dias</option><option value="creator">Criador — 30 dias</option></select></label>
+          <label>Motivo<input id="grantReason" type="text" maxlength="160" placeholder="Ex.: pagamento confirmado no suporte" required></label>
+          <button class="primary" type="submit">Liberar plano agora</button>
+        </form>
+        <div id="grantStatus" class="status" hidden></div>
+        <p class="admin-note">A liberação fica vinculada ao e-mail e migra para o UID quando o cliente entrar com essa conta Google.</p>
+        <div class="admin-divider"></div>
+        <div class="admin-panel-head"><div><span class="admin-eyebrow">DEPIX</span><h2>Recuperar pagamento</h2></div></div>
+        <form id="reconcileForm" class="admin-form">
+          <label>ID da cobrança (opcional)<input id="reconcileId" type="text" maxlength="180" autocomplete="off" placeholder="chk_..."></label>
+          <button class="btn-ghost" type="submit">Reconciliar pagamentos Depix</button>
+        </form>
+        <div id="reconcileStatus" class="status" hidden></div>
+        <p class="admin-note">Sem ID, o painel confere os pagamentos recentes do webhook. A Depix é consultada antes de qualquer liberação e uma mesma compra nunca soma VIP duas vezes.</p>
+      </article>
+
+      <article class="card admin-panel">
+        <div class="admin-panel-head"><div><span class="admin-eyebrow">DIAGNÓSTICO</span><h2>Erros recentes</h2></div><span class="admin-count" id="errorCount">0</span></div>
+        <div id="errorList" class="admin-log-list"><p class="sub">Nenhum erro recente.</p></div>
+      </article>
+    </section>
+
+    <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">VENDAS</span><h2>Quem comprou</h2></div><span class="admin-count" id="purchaseCount">0</span></div>
+      <div class="admin-table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Valor</th><th>Origem</th></tr></thead><tbody id="purchaseRows"></tbody></table></div>
+    </section>
+
+    <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">RECUPERAÇÃO</span><h2>Quem gerou Pix e não pagou</h2></div><span class="admin-count" id="abandonedCount">0</span></div>
+      <div class="admin-table-wrap"><table><thead><tr><th>Data</th><th>Cliente</th><th>Plano</th><th>Valor</th><th>Origem</th></tr></thead><tbody id="abandonedRows"></tbody></table></div>
+      <p class="admin-note">A lista começa a ser preenchida após esta atualização; cobranças antigas não são reconstruídas.</p>
+    </section>
+  </div>
+</main>
+
+<script src="config.js?v=25"></script>
+<script src="firebase-config.js?v=13"></script>
+<script src="auth.js?v=14"></script>
+<script src="admin.js?v=2"></script>
+</body>
+</html>

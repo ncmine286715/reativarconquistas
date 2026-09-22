@@ -48,6 +48,15 @@ assert.equal(worker.checkEntitlement({ plan: "", world_credits: 0, premium_until
 assert.equal(worker.checkEntitlement({ plan: "vip7", world_credits: 0, premium_until_ms: now + 86400000 }, 1, 10, now, { mode: "keep", advanced_rules: true }).allowed, true);
 assert.equal(worker.isSecurityResearcherReward({ SECURITY_REWARD_EMAIL: "Researcher@Example.com" }, "researcher@example.com"), true);
 assert.equal(worker.isSecurityResearcherReward({ SECURITY_REWARD_EMAIL: "Researcher@Example.com" }, "other@example.com"), false);
+assert.equal(worker.isAdminEmail({ ADMIN_EMAILS: "owner@example.com, helper@example.com" }, "OWNER@example.com"), true);
+assert.equal(worker.isAdminEmail({ ADMIN_EMAILS: "owner@example.com" }, "intruder@example.com"), false);
+assert.equal(worker.classifyAdminCheckout({ at: Date.now() - 21 * 60 * 1000, status: "pending" }), "abandoned");
+assert.equal(worker.classifyAdminCheckout({ at: Date.now(), status: "pending" }), "pending");
+assert.equal(worker.classifyAdminCheckout({ at: Date.now() - 86400000, status: "paid" }), "paid");
+assert.equal(worker.isDepixReleasableStatus("processing"), true, "digital access releases once Pix reaches Depix processing");
+assert.equal(worker.isDepixReleasableStatus("approved"), true);
+assert.equal(worker.isDepixReleasableStatus("completed"), true);
+assert.equal(worker.isDepixReleasableStatus("expired"), false);
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "1 MUNDO" } }, {}), "world1");
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "Passe 7 dias" } }, {}), "vip7");
 assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { product_name: "VIP 30 DIAS" } }, {}), "vip30");

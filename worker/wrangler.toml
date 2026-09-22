@@ -55,3 +55,7 @@ ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pa
 # continuação de [vars]
 # "1" = teste (site mostra aviso); "0"/vazio = produção.
 DEPIX_TEST_MODE = "0"
+ADMIN_EMAILS = "ncmine75@gmail.com,rosidomingos032@gmail.com"
+
+[triggers]
+crons = ["*/5 * * * *"]

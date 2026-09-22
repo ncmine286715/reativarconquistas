@@ -231,7 +231,8 @@
       '<div class="modal pay-modal" role="dialog" aria-modal="true" aria-labelledby="payTitle">' +
       "<div class='pay-scroll'>" +
       "<div class='pay-head'>" +
-        "<h3 id='payTitle'></h3>" +
+        "<img class='pay-voxel' src='assets/checkout-voxel.png' alt='' aria-hidden='true'>" +
+        "<div class='pay-head-copy'><span class='pay-kicker'>PIX RÁPIDO E SEGURO</span><h3 id='payTitle'></h3><p>Liberação automática após a confirmação.</p></div>" +
         "<div class='pay-account'>" +
           (avatar ? "<img class='pay-account-avatar' src='" + escH(avatar) + "' alt=''>" : "<div class='pay-account-avatar-fallback'>" + escH(displayName.charAt(0).toUpperCase()) + "</div>") +
           "<div class='pay-account-meta'><b>" + escH(displayName) + "</b><span>" + escH(logged) + "</span></div>" +
@@ -239,9 +240,8 @@
         "</div>" +
       "</div>" +
       (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
-      "<div class='pay-intro'><span class='pay-method-pill' id='payMethodBadge'>PIX · DEPIX</span><p id='payIntroText'>Escolha seu plano e confira os dados. Ao continuar, você vai gerar uma cobrança Pix no checkout.</p></div>" +
-      "<div class='vip-assurance'><b>Onde o acesso será liberado?</b> Após a confirmação do pagamento, o benefício será vinculado à conta Google exibida acima.</div>" +
-      "<div class='pay-section-label'>1. Escolha seu plano</div>" +
+      "<div class='pay-intro'><span class='pay-method-pill' id='payMethodBadge'>PIX · DEPIX</span><p id='payIntroText'><b>Escolha o plano, confirme seus dados e pague.</b> O acesso cai na conta Google exibida acima.</p></div>" +
+      "<div class='pay-section-label'>Escolha seu plano</div>" +
       "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'>" +
         "<label><input type='radio' name='payplan' value='world1'" + (plan === "world1" ? " checked" : "") + "><span class='plan-main'><strong>1 mundo</strong><b>R$ 5,99</b><small>150 MB</small></span></label>" +
         "<label><input type='radio' name='payplan' value='vip7'" + (plan === "vip7" ? " checked" : "") + "><span class='plan-main'><strong>7 dias</strong><b>R$ 7,99</b><small>500 MB</small></span></label>" +
@@ -249,17 +249,17 @@
         "<label><input type='radio' name='payplan' value='creator'" + (plan === "creator" ? " checked" : "") + "><span class='plan-main'><strong>Criador</strong><b>R$ 39,90</b><small>Sem limite comercial</small></span></label>" +
       "</div>" +
       "<div class='pay-plan-summary' aria-live='polite'><div class='pay-plan-summary-top'><span>Seu pedido</span><strong id='payPlanPrice'></strong></div><b id='payPlanName'></b><p id='paySub'></p></div>" +
-      "<div class='pay-section-label pay-data-label'>2. Dados para gerar o Pix</div>" +
+      "<div class='pay-section-label pay-data-label'>Dados para gerar o Pix</div>" +
       "<div class='pay-form-grid'>" +
         "<div class='pay-field pay-field-full'>" +
           "<label for='payDoc'>CPF ou CNPJ do pagador</label>" +
           "<input id='payDoc' inputmode='numeric' maxlength='18' autocomplete='off' placeholder='Documento do titular do Pix'>" +
-          "<small class='pay-help'>O Depix pede o documento de quem vai pagar para criar a cobrança. Se o pagador for menor de 18 anos, use os dados do responsável.</small>" +
+          "<small class='pay-help'>Use o documento do titular do Pix. Para menores, informe o do responsável.</small>" +
         "</div>" +
         "<div class='pay-field'>" +
           "<label for='payPixEmail'>E-mail informado no pagamento</label>" +
           "<input id='payPixEmail' type='email' maxlength='120' autocomplete='email' value='" + escH(logged) + "' placeholder='seu@email.com'>" +
-          "<small class='pay-help'>Já preenchemos com seu e-mail Google. Você pode manter esse ou informar outro.</small>" +
+          "<small class='pay-help'>Enviaremos a identificação da cobrança para este e-mail.</small>" +
         "</div>" +
       "</div>" +
       "<label class='accept pay-terms' for='payTerms'>" +
@@ -269,7 +269,7 @@
       "</div>" +
       "<div class='pay-footer'>" +
         "<div class='status' id='payMsg' hidden></div>" +
-        "<div class='pay-next-step' id='payNextStep'>Próxima etapa: abrir o checkout Depix para pagar via Pix. Você ainda não pagou nesta tela.</div>" +
+        "<div class='pay-next-step' id='payNextStep'>Você será levado ao checkout Depix para escanear ou copiar o Pix.</div>" +
         "<div class='secure' id='payConn'>Conexão com Depix: verificando…</div>" +
         "<div class='row2 pay-actions'>" +
           "<button class='btn-ghost' id='payBack' type='button'>Voltar</button>" +
@@ -395,7 +395,6 @@
           payStatus("Para continuar, leia e aceite os Termos de Uso, a PolÃ­tica de Reembolso e a PolÃ­tica de Privacidade.", "err");
           return;
         }
-        try { localStorage.setItem("rc_pending_kiwify", JSON.stringify({ plan: selectedPlan, at: Date.now() })); } catch (e) {}
         track("kiwify_checkout_redirect", Object.assign({ plan: selectedPlan }, context));
         go.disabled = true;
         go.textContent = "Abrindo Kiwifyâ€¦";

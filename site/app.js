@@ -256,89 +256,8 @@
       paintQuota();
     });
   }
-  // Vincula um e-mail de pagamento (ex.: pagou na Kiwify com outro e-mail)
-  function claimWithEmail(email) {
-    // Never turn a user-supplied e-mail into an entitlement. The Worker
-    // binds benefits to the verified Google UID/e-mail.
-    setStatus("", "O VIP Ã© liberado somente na conta Google usada na compra. Verificando a conta atualâ€¦");
-    refreshRemotePrem();
-    return;
-    /* Legacy e-mail linking disabled: entitlements are UID-bound.
-    email = String(email || "").trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setStatus("err", "Informe um e-mail válido para verificar o VIP.");
-      return;
-    }
-    if (!window.RC_pay || !window.RC_pay.enabled()) {
-      setStatus("err", "Verificação indisponível agora. Tente de novo em instantes.");
-      return;
-    }
-    setStatus("", "Verificando VIP em <b>" + escapeHtml(email) + "</b>…");
-    window.RC_pay.remotePremiumMs(email).then(function (ms) {
-      if (+ms > Date.now()) {
-        try {
-          localStorage.setItem(LS_LINKED, email);
-          localStorage.setItem(LS_PREM, JSON.stringify({ until: +ms, email: email }));
-        } catch (e) {}
-        paintQuota();
-        setStatus("ok", "VIP encontrado em <b>" + escapeHtml(email) + "</b> até <b>" +
-          new Date(+ms).toLocaleDateString("pt-BR") + "</b>. Recursos VIP desbloqueados!");
-      } else {
-        setStatus("err", "Nenhum VIP ativo em <b>" + escapeHtml(email) + "</b>. " +
-          "Confira se pagou com este e-mail — <b>o VIP vale no e-mail do pagamento</b>. " +
-          "Pagou e não liberou? Fale com <b>" + escapeHtml(CFG.SUPPORT_EMAIL || "o suporte") + "</b> com o comprovante.");
-      }
-    }).catch(function () {
-      setStatus("err", "Sem conexão com o servidor de pagamento agora. Confira sua internet e toque em <b>Verificar de novo</b>.");
-    });
-    */
-  }
-  function askClaimEmail() {
-    setStatus("", "O VIP Ã© liberado somente na conta Google usada na compra. Verificando a conta atualâ€¦");
-    refreshRemotePrem();
-    return;
-    var cur = linkedEmail() || googleEmail() || "";
-    var em = null;
-    try { em = window.prompt("Qual e-mail você usou no pagamento? (o VIP vale nele)", cur); } catch (e) {}
-    if (em === null) return;
-    claimWithEmail(em);
-  }
-
-  // Volta da Kiwify: pagou lá fora, o navegador só libera vinculando o e-mail.
-  // Mostra banner com campo de e-mail (some quando VIP ativa ou após 72h).
-  function maybeKiwifyReturn() {
-    try {
-      var p = JSON.parse(localStorage.getItem("rc_pending_kiwify") || "null");
-      if (!p || !p.at) return;
-      if (Date.now() - (+p.at || 0) > 72 * 3600 * 1000) { localStorage.removeItem("rc_pending_kiwify"); return; }
-      if (loggedIn()) { refreshRemotePrem(); return; }
-      if (remotePremOk()) { localStorage.removeItem("rc_pending_kiwify"); return; }
-      if ($("kiwifyBanner")) return;
-      var conv = $("converter");
-      if (!conv) return;
-      var d = document.createElement("div");
-      d.id = "kiwifyBanner";
-      d.className = "promo-banner";
-      d.innerHTML = "Pagou agora e continua bloqueado? <b>Digite o e-mail usado no pagamento</b> p/ liberar o VIP neste aparelho:<br>" +
-        "<span class='kw-row'><input id='kwEmail' type='email' maxlength='120' autocomplete='email' placeholder='e-mail do pagamento'>" +
-        "<button id='kwGo' class='btn-ghost btn-mini' type='button'>Liberar VIP</button></span>";
-      conv.insertBefore(d, conv.firstChild);
-      var go = $("kwGo");
-      if (go) go.addEventListener("click", function () {
-        var em = ($("kwEmail") || {}).value || "";
-        claimWithEmail(em);
-      });
-    } catch (e) {}
-  }
   function paintQuota() {
     var vip = remotePremOk();
-    try {
-      if (vip) {
-        localStorage.removeItem("rc_pending_kiwify");
-        var kb = $("kiwifyBanner");
-        if (kb) kb.remove();
-      }
-    } catch (e) {}
     if (vip) {
       quotaBar.classList.add("premium");
       quotaText.innerHTML = "<strong>VIP ativo</strong>" +
@@ -1154,7 +1073,6 @@
   paintContact();
   paintPresets();
   paintQuota();
-  maybeKiwifyReturn();
   refreshFreeQuota();
   document.addEventListener("rc-pay-ready", refreshFreeQuota);
   refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho

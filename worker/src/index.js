@@ -98,6 +98,9 @@ const PLAN_LIMITS = {
 };
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired"]);
 const PLAN_PRICES = { world1: 599, vip7: 799, vip30: 2490, creator: 3990 };
+const ADMIN_HISTORY_LIMIT = 300;
+const ADMIN_HISTORY_TTL = 400 * 86400;
+const ABANDONED_AFTER_MS = 20 * 60 * 1000;
 function analyticsDay(ms = Date.now()) { return new Date(ms).toISOString().slice(0, 10); }
 function cleanDimension(value, max = 40) { return String(value || "").replace(/[^a-zA-Z0-9_:\-.]/g, "_").slice(0, max); }
 function deviceType(ua) { return /mobile|android|iphone|ipad/i.test(ua || "") ? "mobile" : "desktop"; }
@@ -122,6 +125,143 @@ async function metric(env, event, data = {}, req = null) {
   if (event === "payment_paid" && PLAN_PRICES[plan]) current.revenue_cents = (+current.revenue_cents || 0) + PLAN_PRICES[plan];
   if (event === "pix_create_error" || event === "checkout_validation_failed") { const ek = cleanDimension(data.error_type || data.reason || "unknown", 40); current.errors[ek] = (current.errors[ek] || 0) + 1; }
   await env.PREMIUM_KV.put(key, JSON.stringify(current), { expirationTtl: 400 * 86400 }).catch(() => {});
+}
+
+export function isAdminEmail(env, email) {
+  const allowed = String(env.ADMIN_EMAILS || "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(String(email || "").trim().toLowerCase());
+}
+
+export function classifyAdminCheckout(item, now = Date.now()) {
+  if (item && item.status === "paid") return "paid";
+  return item && now - (+item.at || 0) >= ABANDONED_AFTER_MS ? "abandoned" : "pending";
+}
+
+async function adminUser(req, env) {
+  const fb = await firebaseUser(req, env);
+  return fb && isAdminEmail(env, fb.email) ? fb : null;
+}
+
+async function adminList(env, key) {
+  const value = await env.PREMIUM_KV.get(key, "json").catch(() => null);
+  return Array.isArray(value) ? value : [];
+}
+
+async function saveAdminList(env, key, items) {
+  await env.PREMIUM_KV.put(key, JSON.stringify(items.slice(0, ADMIN_HISTORY_LIMIT)), { expirationTtl: ADMIN_HISTORY_TTL }).catch(() => {});
+}
+
+async function recordCheckout(env, entry) {
+  const items = await adminList(env, "admin:checkouts");
+  const id = String(entry.id || "").slice(0, 180);
+  if (!id || items.some((item) => item.id === id)) return;
+  items.unshift({
+    id,
+    at: +entry.at || Date.now(),
+    email: String(entry.email || "").trim().toLowerCase().slice(0, 120),
+    uid: String(entry.uid || "").slice(0, 160),
+    plan: normalizeDepixPlan(entry.plan),
+    amount_cents: PLAN_PRICES[normalizeDepixPlan(entry.plan)] || 0,
+    provider: String(entry.provider || "depix").slice(0, 20),
+    source: cleanDimension(entry.source, 40),
+    status: "pending"
+  });
+  await saveAdminList(env, "admin:checkouts", items);
+}
+
+async function recordPaidCheckout(env, entry) {
+  const id = String(entry.id || "").slice(0, 180);
+  if (!id) return;
+  const paidAt = +entry.paid_at || Date.now();
+  const checkouts = await adminList(env, "admin:checkouts");
+  const checkout = checkouts.find((item) => item.id === id);
+  if (checkout) {
+    checkout.status = "paid";
+    checkout.paid_at = paidAt;
+    if (entry.email) checkout.email = String(entry.email).trim().toLowerCase().slice(0, 120);
+    if (entry.plan) checkout.plan = normalizeDepixPlan(entry.plan);
+  }
+  await saveAdminList(env, "admin:checkouts", checkouts);
+
+  const purchases = await adminList(env, "admin:purchases");
+  if (purchases.some((item) => item.id === id)) return;
+  const plan = normalizeDepixPlan(entry.plan || (checkout && checkout.plan));
+  purchases.unshift({
+    id,
+    at: checkout ? checkout.at : paidAt,
+    paid_at: paidAt,
+    email: String(entry.email || (checkout && checkout.email) || "").trim().toLowerCase().slice(0, 120),
+    plan,
+    amount_cents: PLAN_PRICES[plan] || 0,
+    provider: String(entry.provider || (checkout && checkout.provider) || "depix").slice(0, 20),
+    source: cleanDimension(entry.source || (checkout && checkout.source), 40)
+  });
+  await saveAdminList(env, "admin:purchases", purchases);
+}
+
+async function recordAdminAction(env, entry) {
+  const items = await adminList(env, "admin:actions");
+  items.unshift({
+    at: Date.now(),
+    admin: String(entry.admin || "").slice(0, 120),
+    email: String(entry.email || "").slice(0, 120),
+    plan: normalizeDepixPlan(entry.plan),
+    reason: String(entry.reason || "").slice(0, 160),
+    billing_id: String(entry.billing_id || "").slice(0, 180)
+  });
+  await saveAdminList(env, "admin:actions", items);
+}
+
+async function reconcileDepixCheckout(env, id) {
+  id = String(id || "").trim().slice(0, 180);
+  if (!id) throw new Error("ID da cobrança obrigatório.");
+  const info = await depixStatus(env, id);
+  const pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+  const email = String(info.email || (pend && pend.email) || "").trim().toLowerCase();
+  const uid = String(info.uid || (pend && pend.uid) || "").trim().slice(0, 160);
+  const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
+  if (!info.paid) return { id, paid: false, status: info.status, email, plan };
+  if (!validEmail(email)) throw new Error("Pagamento confirmado, mas sem e-mail válido para liberar o plano.");
+  const grant = await grantPurchase(env, email, id, plan, uid);
+  await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: pend && pend.source });
+  await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+  return { id, paid: true, status: info.status, email, plan, source: pend && pend.source, ...grant };
+}
+
+async function listDepixCheckouts(env, status) {
+  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor.");
+  const response = await fetch("https://api.depixapp.com/api/checkouts?status=" + encodeURIComponent(status) + "&limit=100", {
+    headers: { Authorization: "Bearer " + env.DEPIX_API_KEY }
+  });
+  if (!response.ok) throw new Error("Falha ao listar checkouts Depix (HTTP " + response.status + ").");
+  const data = await response.json();
+  return Array.isArray(data.checkouts) ? data.checkouts : [];
+}
+
+async function reconcileRecentDepixCheckouts(env) {
+  const all = [];
+  for (const status of ["processing", "approved", "completed"]) {
+    all.push(...await listDepixCheckouts(env, status));
+  }
+  const seen = new Set();
+  const results = [];
+  for (const checkout of all) {
+    const id = String(checkout.id || "").trim().slice(0, 180);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    let metadata = checkout.metadata || {};
+    if (typeof metadata === "string") { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
+    const email = String(metadata.email || "").trim().toLowerCase();
+    const uid = String(metadata.firebase_uid || "").trim().slice(0, 160);
+    const rawPlan = String(metadata.plan || "");
+    if (!validEmail(email) || !["world1", "vip7", "vip30", "creator", "vip24h"].includes(rawPlan)) continue;
+    const plan = normalizeDepixPlan(rawPlan);
+    const grant = await grantPurchase(env, email, id, plan, uid);
+    await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: "automatic_reconcile" });
+    await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+    results.push({ id, paid: true, status: String(checkout.status || ""), email, plan, ...grant });
+  }
+  return { checked: seen.size, recovered: results.length, results };
 }
 
 function b64(bytes) {
@@ -389,7 +529,7 @@ async function depixStatus(env, id) {
   var data = await resp.json();
   var c = data.checkout || data;
   var status = String(c.status || "").toLowerCase();
-  var paid = status === "completed" || status === "approved";
+  var paid = isDepixReleasableStatus(status);
   var meta = c.metadata || {};
   if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch (e) { meta = {}; } }
   return {
@@ -399,6 +539,10 @@ async function depixStatus(env, id) {
     email: String(meta.email || "").toLowerCase(),
     plan: normalizeDepixPlan(meta.plan)
   };
+}
+
+export function isDepixReleasableStatus(status) {
+  return ["processing", "approved", "completed"].includes(String(status || "").toLowerCase());
 }
 
 async function grantPremium(env, email, billingId, days, uid = "", plan = "") {
@@ -544,6 +688,79 @@ export default {
 
     try {
       // ---------- flags públicas ----------
+      if (url.pathname === "/api/admin/dashboard" && req.method === "GET") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Conta sem permissão para acessar o painel." }, 403, cors);
+        const days = Math.max(1, Math.min(400, parseInt(url.searchParams.get("days") || "30", 10) || 30));
+        const since = Date.now() - days * 86400000;
+        const allPurchases = await adminList(env, "admin:purchases");
+        const allCheckouts = await adminList(env, "admin:checkouts");
+        const errors = await adminList(env, "clog");
+        const purchases = allPurchases.filter((item) => (+item.paid_at || +item.at || 0) >= since);
+        const checkouts = allCheckouts.filter((item) => (+item.at || 0) >= since).map((item) => ({ ...item, status: classifyAdminCheckout(item) }));
+        const abandoned = checkouts.filter((item) => item.status === "abandoned");
+        const pending = checkouts.filter((item) => item.status === "pending");
+        const revenue = purchases.reduce((sum, item) => sum + (+item.amount_cents || 0), 0);
+        const decided = purchases.length + abandoned.length;
+        return json({
+          admin_email: admin.email,
+          period_days: days,
+          summary: {
+            paid_count: purchases.length,
+            revenue_cents: revenue,
+            abandoned_count: abandoned.length,
+            pending_count: pending.length,
+            conversion_percent: decided ? Math.round(purchases.length * 1000 / decided) / 10 : 0
+          },
+          purchases: purchases.slice(0, 150),
+          abandoned: abandoned.slice(0, 150),
+          pending: pending.slice(0, 100),
+          errors: errors.filter((item) => (+item.at || 0) >= since).slice(0, 50)
+        }, 200, cors);
+      }
+
+      if (url.pathname === "/api/admin/grant" && req.method === "POST") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Conta sem permissão para liberar planos." }, 403, cors);
+        if (!(await rlTake(env, "rl-admin-grant:" + admin.uid, 60, 86400))) return json({ error: "Limite diário de liberações atingido." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const email = String(body.email || "").trim().toLowerCase();
+        const rawPlan = String(body.plan || "");
+        const plan = normalizeDepixPlan(rawPlan);
+        const reason = String(body.reason || "").trim().slice(0, 160);
+        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
+        if (!["world1", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inválido." }, 400, cors);
+        if (reason.length < 3) return json({ error: "Informe o motivo da liberação." }, 400, cors);
+        const billingId = "manual:" + Date.now() + ":" + crypto.randomUUID();
+        const grant = await grantPurchase(env, email, billingId, plan);
+        await recordAdminAction(env, { admin: admin.email, email, plan, reason, billing_id: billingId });
+        return json({ ok: true, email, plan, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits }, 200, cors);
+      }
+
+      if (url.pathname === "/api/admin/depix/reconcile" && req.method === "POST") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Conta sem permissão para reconciliar pagamentos." }, 403, cors);
+        if (!(await rlTake(env, "rl-admin-reconcile:" + admin.uid, 30, 3600))) return json({ error: "Muitas reconciliações. Aguarde alguns minutos." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { body = {}; }
+        const requestedId = String(body.id || "").trim().slice(0, 180);
+        let reconciliation;
+        if (requestedId) {
+          try {
+            const result = await reconcileDepixCheckout(env, requestedId);
+            reconciliation = { checked: 1, recovered: result.paid ? 1 : 0, results: [result] };
+          } catch (error) {
+            reconciliation = { checked: 1, recovered: 0, results: [{ id: requestedId, paid: false, error: String((error && error.message) || error).slice(0, 240) }] };
+          }
+        } else {
+          reconciliation = await reconcileRecentDepixCheckouts(env);
+        }
+        const { checked, recovered, results } = reconciliation;
+        await recordAdminAction(env, { admin: admin.email, email: "reconcile", plan: "vip30", reason: "Reconciliação Depix: " + recovered + " pagamento(s)", billing_id: requestedId || "recentes" });
+        return json({ ok: true, checked, recovered, results }, 200, cors);
+      }
+
       if (url.pathname === "/api/config" && req.method === "GET") {
         return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
       }
@@ -608,7 +825,8 @@ export default {
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan, source, via: "depix",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
-          }), { expirationTtl: 86400 }).catch(() => {});
+          }), { expirationTtl: 30 * 86400 }).catch(() => {});
+          await recordCheckout(env, { id: r.id, uid, email, plan, source, provider: "depix" });
           await metric(env, "payment_pending", { plan, source }, req);
           await metric(env, "pix_create_success", { plan, source }, req);
           return json(r, 200, cors);
@@ -643,6 +861,7 @@ export default {
           if (email) out.email = email;
           if (info.paid && email) {
             const grant = await grantPurchase(env, email, id, plan, uid);
+            await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: pend && pend.source });
             await metric(env, "payment_paid", { plan, source: pend && pend.source }, req);
             await metric(env, "plan_granted", { plan, source: pend && pend.source }, req);
             out.premium_until_ms = grant.premium_until_ms;
@@ -669,22 +888,15 @@ export default {
         const data = evt.data || evt.checkout || evt;
         const bid = String(data.id || data.checkout_id || data.checkoutId || "");
         const status = String(evt.type || evt.event || data.status || "").toLowerCase();
-        const isCompleted = /completed/.test(status) || data.status === "completed";
         try {
           const lst = (await env.PREMIUM_KV.get("dlog", "json").catch(() => null)) || [];
           lst.unshift({ at: Date.now(), type: String(evt.type || evt.event || "").slice(0, 60), id: bid.slice(0, 40), status: status.slice(0, 30) });
           await env.PREMIUM_KV.put("dlog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
         } catch (e) {}
-        if (bid && (isCompleted || status.includes("checkout"))) {
+        if (bid) {
           try {
-            const info = await depixStatus(env, bid);
-            let email = info.email;
-            let uid = info.uid || "";
-            const pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
-            if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
-            if (pend && pend.uid && !uid) uid = String(pend.uid);
-            const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
-            if (info.paid && email) { await grantPurchase(env, email, bid, plan, uid); await metric(env, "payment_paid", { plan, source: pend && pend.source }, req); await metric(env, "plan_granted", { plan, source: pend && pend.source }, req); }
+            const reconciled = await reconcileDepixCheckout(env, bid);
+            if (reconciled.paid) { await metric(env, "payment_paid", { plan: reconciled.plan, source: reconciled.source }, req); await metric(env, "plan_granted", { plan: reconciled.plan, source: reconciled.source }, req); }
           } catch (e) { console.log("depix webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
@@ -833,7 +1045,8 @@ export default {
         await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
           uid, email, at: Date.now(), plan: requestedPlan, via: "abacate",
           terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
-        }), { expirationTtl: 86400 }).catch(() => {});
+        }), { expirationTtl: 30 * 86400 }).catch(() => {});
+        await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate" });
         return json({ ...r, plan: requestedPlan }, 200, cors);
       }
 
@@ -864,6 +1077,7 @@ export default {
           const uid = pend && pend.uid ? String(pend.uid) : "";
           out.plan = (pend && pend.plan) || (days === 1 ? "vip24h" : (days === 7 ? "vip7" : "vip30"));
           const grant = await grantPurchase(env, email, id, (pend && pend.plan) || (days === 7 ? "vip7" : "vip30"), uid);
+          await recordPaidCheckout(env, { id, email, plan: out.plan, provider: "abacate" });
           out.premium_until_ms = grant.premium_until_ms;
           out.world_credits = grant.world_credits;
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
@@ -890,7 +1104,11 @@ export default {
               pend = await env.PREMIUM_KV.get(pendKey(bid), "json").catch(() => null);
               if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
-            if (info.paid && email) await grantPurchase(env, email, bid, (pend && pend.plan) || "vip30", pend && pend.uid ? String(pend.uid) : "");
+            if (info.paid && email) {
+              const plan = (pend && pend.plan) || "vip30";
+              await grantPurchase(env, email, bid, plan, pend && pend.uid ? String(pend.uid) : "");
+              await recordPaidCheckout(env, { id: bid, email, plan, provider: "abacate" });
+            }
           } catch (e) { console.log("webhook erro: " + (e && e.message)); }
         }
         return json({ ok: true }, 200, cors);
@@ -932,6 +1150,7 @@ export default {
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
         }
         const grant = await grantPurchase(env, email, "kiwify:" + oid, plan);
+        await recordPaidCheckout(env, { id: "kiwify:" + oid, email, plan, provider: "kiwify" });
         await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, plan, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
         return json({ ok: true, granted: true, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits, plan }, 200, cors);
       }
@@ -993,6 +1212,9 @@ export default {
       console.error("request failed", e && e.message ? e.message : e);
       return json({ error: "Erro interno ao processar a solicitaÃ§Ã£o." }, 500, cors);
     }
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(reconcileRecentDepixCheckouts(env).catch((error) => console.log("depix reconcile erro: " + (error && error.message))));
   },
 };
 
