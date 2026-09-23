@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=16">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -135,7 +135,7 @@
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
         <span class="drop-title">Toque p/ escolher ou solte o .mcworld</span>
-        <span class="drop-sub">Até <b>10 MB grátis · 3 operações por dia</b> · arquivo maior = <b>resolver este mundo por R$ 5,99</b></span>
+        <span class="drop-sub">Limite conforme seu plano · selecione o mundo para verificar</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
       </label>
@@ -150,8 +150,37 @@
           <div class="wi-row"><span>Spawn</span><b id="wiSpawn">—</b></div>
           <div class="wi-row"><span>Conquistas</span><b id="wiStatus">—</b></div>
         </div>
+        <p class="wi-integrity" id="wiIntegrity" aria-live="polite">Verificação estrutural ainda não iniciada.</p>
+        <div class="map-actions" style="margin-top:10px">
+          <button type="button" class="btn-ghost btn-mini" id="passportDownload">Baixar passaporte JSON</button>
+          <button type="button" class="btn-ghost btn-mini" id="originalDownload">Baixar cópia original</button>
+          <button type="button" class="btn-ghost btn-mini" id="reportDownload" disabled>Baixar relatório JSON</button>
+          <a class="btn-ghost btn-mini" href="importar.html">Como importar</a>
+          <a class="btn-ghost btn-mini" href="objetivos.html">Livro de objetivos</a>
+        </div>
+        <section class="world-compare" aria-labelledby="compareTitle">
+          <h3 id="compareTitle">Comparar duas cópias</h3>
+          <p>O arquivo atual será comparado com outro mundo neste navegador. Não compara inventário de jogadores nem chunks.</p>
+          <div class="compare-controls">
+            <input type="file" id="compareFile" accept=".mcworld,.zip,.dat">
+            <button type="button" class="btn-ghost btn-mini" id="compareRun" disabled>Comparar mundo</button>
+            <button type="button" class="btn-ghost btn-mini" id="compareDownload" disabled>Baixar comparação JSON</button>
+          </div>
+          <p id="compareStatus" class="compare-status" role="status" aria-live="polite">Selecione uma segunda cópia.</p>
+          <div id="compareResults" class="compare-results"></div>
+        </section>
       </div>
 
+      <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
+        <div class="wi-title" id="backupTitle">Backups locais</div>
+        <p>Guarde uma cópia neste navegador antes de editar. O arquivo não é enviado; limpar os dados do navegador pode apagar estes backups.</p>
+        <div class="backup-save-row">
+          <input id="backupLabel" type="text" maxlength="80" placeholder="Nome desta cópia (opcional)" aria-label="Nome do backup">
+          <button type="button" class="btn-ghost btn-mini" id="saveBackup" disabled>Guardar original neste aparelho</button>
+        </div>
+        <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Escolha um mundo para guardar uma cópia local.</p>
+        <div id="backupList" class="backup-list"></div>
+      </section>
 
       <div id="mapPreview" class="mappreview" hidden>
         <div class="wi-title">Mapa 2D <span class="wi-sub">visualização da pasta db/ — nada é alterado · grátis</span></div>
@@ -161,6 +190,7 @@
           <button type="button" class="map-dim on" id="mapModePan">✋ Mover</button>
           <button type="button" class="map-dim" id="mapModeSel">▦ Selecionar</button>
           <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
+          <button type="button" class="map-dim" id="mapModePin">Colocar pin</button>
           <span id="mapHint" class="map-hint"></span>
         </div>
         <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
@@ -170,6 +200,13 @@
           <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
           <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
         </div>
+        <div class="map-actions">
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPng">Baixar mapa PNG</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPoster">Criar pôster do mundo</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportCard">Criar cartão HTML</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPins">Exportar pins JSON</button>
+        </div>
+        <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
         <a class="chunk-tool-link chunk-tool-repair" href="chunks.html">
           <span class="chunk-tool-pixel" aria-hidden="true"><img class="repair-pick" src="mc/item/iron_pickaxe.png" alt=""><img class="repair-rock" src="mc/block/bedrock.png" alt=""></span>
           <span class="chunk-tool-copy"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</span>
@@ -336,6 +373,24 @@
         </span>
       </label>
 
+      <div class="rule-preset-box">
+        <label for="rulePreset"><b>Presets rápidos de regras</b></label>
+        <p>Escolha um estilo para preencher os controles acima. Confira as mudanças antes de converter. Congelar o ciclo mantém a hora atual; não força meio-dia.</p>
+        <div class="rule-preset-controls">
+          <select id="rulePreset" aria-label="Preset de regras">
+            <option value="">Escolha um preset…</option>
+            <option value="calm">Sobrevivência tranquila</option>
+            <option value="hard">Difícil</option>
+            <option value="build">Construção</option>
+            <option value="access">Acessibilidade tranquila</option>
+            <option value="day">Congelar horário e clima atuais</option>
+            <option value="challenge">Desafio</option>
+          </select>
+          <button type="button" class="btn-ghost" id="applyRulePreset">Aplicar preset</button>
+        </div>
+        <p class="rule-preset-hint" id="rulePresetHint" aria-live="polite">O preset não altera o mundo até você iniciar a conversão.</p>
+      </div>
+
       <label class="opt locked" id="iconOpt">
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
@@ -460,8 +515,8 @@
 
   <!-- PLANOS -->
   <section class="section" id="planos">
-    <h2>Planos</h2>
-    <p class="plans-sub">Teste as ferramentas grátis. Pague apenas quando precisar resolver um mundo maior, vários mundos ou um lote.</p>
+    <h2>Escolha como quer usar</h2>
+    <p class="plans-sub">Compra única, sem cobrança automática: um crédito para trabalhar em um mundo, com reedições por 30 dias, ou passes para usar os recursos por 7 ou 30 dias.</p>
     <div class="plans plans-4">
       <div class="plan">
         <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
@@ -479,7 +534,7 @@
         <div class="price">R$ 5,99<small> · 1 mundo / 150 MB</small></div>
         <ul>
           <li class="yes">Um mundo de até <b>150 MB</b></li>
-          <li class="yes">Crédito consumido em <b>1 operação premium</b></li>
+          <li class="yes">Reedite o mesmo mundo por <b>30 dias</b> após a primeira edição concluída</li>
           <li class="yes">Modo de jogo, foto, clima e inventário</li>
           <li class="yes"><b>Recuperação Hardcore</b> quando o marcador existir</li>
         </ul>
@@ -487,29 +542,28 @@
         <p class="plan-note">Para uma necessidade pontual.</p>
       </div>
       <div class="plan plan-weekly">
-        <span class="vip-flag">Mais escolhido</span>
+        <span class="vip-flag">Para vários mundos</span>
         <h3>Passe 7 dias</h3>
         <div class="price">R$ 7,99<small> · até 500 MB</small></div>
         <ul>
-          <li class="yes">Mundos de até <b>500 MB</b></li>
-          <li class="yes">Lotes de até <b>5 arquivos</b></li>
-          <li class="yes">Todas as correções avançadas</li>
-          <li class="yes">Uso durante <b>7 dias</b></li>
+          <li class="yes">Até <b>5 mundos por lote</b></li>
+          <li class="yes">Mundos de até <b>500 MB cada</b></li>
+          <li class="yes">Recursos avançados por <b>7 dias</b></li>
         </ul>
-        <a class="btn-plan btn-pay" data-pay="vip7" href="#">Liberar 7 dias · R$ 7,99</a>
+        <a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe · R$ 7,99</a>
       </div>
       <div class="plan plan-vip">
-        <span class="vip-flag">Mais escolhido</span>
+        <span class="vip-flag">Melhor custo por dia</span>
         <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
-        <div class="price" id="price-monthly">R$ 24,90<small> · 30 dias</small></div>
+        <div class="price" id="price-monthly">R$ 24,90<small> · R$ 0,83/dia</small></div>
         <ul>
-          <li class="yes">Arquivos grandes + processamento em lote</li>
-          <li class="yes"><b>Remover addons</b> e tentar recuperar conquistas</li>
+          <li class="yes">Até <b>10 mundos por lote</b></li>
+          <li class="yes">Sem limite comercial de tamanho*</li>
+          <li class="yes">Recursos avançados durante <b>30 dias</b></li>
           <li class="yes">Modo, inventário, foto e clima</li>
-          <li class="yes">Uso recorrente durante <b>30 dias</b></li>
         </ul>
-        <a class="btn-plan btn-pay" data-pay="vip30" href="#">Liberar 30 dias · R$ 24,90</a>
-        <p class="plan-note">Melhor custo para uso recorrente.</p>
+        <a class="btn-plan btn-pay" data-pay="vip30" href="#">Comprar passe · R$ 24,90</a>
+        <p class="plan-note">Pagamento único. Não renova automaticamente.</p>
       </div>
       <div class="plan-section-label">Uso avançado</div>
       <div class="plan plan-creator">
@@ -517,14 +571,15 @@
         <div class="price">R$ 39,90<small> · 30 dias</small></div>
         <ul>
           <li class="yes">Arquivos grandes, sujeitos ao navegador</li>
-          <li class="yes">Lotes maiores</li>
-          <li class="yes">Addons e inventário avançado</li>
+          <li class="yes">Até <b>20 mundos por lote</b></li>
+          <li class="yes">Sem limite comercial de tamanho*</li>
+          <li class="yes">Recursos avançados por <b>30 dias</b></li>
           <li class="yes">Para criadores e donos de Realms</li>
         </ul>
-        <a class="btn-plan btn-pay" data-pay="creator" href="#">Liberar Criador · R$ 39,90 · 30 dias</a>
+        <a class="btn-plan btn-pay" data-pay="creator" href="#">Comprar Criador · R$ 39,90</a>
       </div>
     </div>
-    <p class="pay-note">Pix no checkout seguro. Acesso liberado após a confirmação. <b>Use o mesmo e-mail da sua conta Google.</b></p>
+    <p class="pay-note">*Arquivos grandes dependem da memória e capacidade do navegador. Pix no checkout seguro; o acesso começa após a confirmação. Os passes são compras únicas, sem renovação automática. <b>Use o mesmo e-mail da sua conta Google.</b></p>
   </section>
 
   <section class="section" id="como-funciona">
@@ -545,7 +600,9 @@
     <details class="faq"><summary>Arquivo vai p/ servidor?</summary><p>Não. Tudo no navegador.</p></details>
     <details class="faq"><summary>Vale o VIP?</summary><p>Ele libera arquivos maiores, lote, modo de jogo, foto, clima e recursos avançados de inventário. Se você não precisa disso, use o grátis.</p></details>
     <details class="faq"><summary>Como é o gemado?</summary><p>Monte hotbar/armadura/ender e baixe equipado. <b>Grátis: hotbar 2/dia.</b></p></details>
-    <details class="faq"><summary>Como assino?</summary><p>Pix no checkout, libera na hora.</p></details>
+    <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Não. O crédito de 1 mundo é avulso; os passes dão acesso por 7 ou 30 dias e não renovam sozinhos. Você só paga novamente se escolher fazer outra compra.</p></details>
+    <details class="faq"><summary>Qual plano escolher?</summary><p>Para uma operação premium em um mundo, use o crédito avulso. Para vários mundos em um lote, escolha 7 dias (até 5) ou 30 dias (até 10). O Criador aceita até 20 mundos por lote.</p></details>
+    <details class="faq"><summary>Como compro?</summary><p>Escolha a opção, entre com sua conta Google e pague no checkout Pix. O acesso é liberado após a confirmação.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Teste no Survival, sem behavior packs e guarde o original. Se houver falha técnica do serviço, envie o arquivo original, o resultado e o comprovante ao suporte; os pedidos são tratados conforme a <a href="reembolso.html">Política de Reembolso</a>.</p></details>
     <details class="faq"><summary>Onde acho o .mcworld?</summary><p>No jogo: lápis do mundo → Exportar.</p></details>
   </section>
@@ -555,6 +612,8 @@
       <a href="termos.html">Termos de Uso</a>
       <a href="privacidade.html">Privacidade (LGPD)</a>
       <a href="reembolso.html">Reembolso</a>
+      <a href="importar.html">Como importar</a>
+      <a href="objetivos.html">Livro de objetivos</a>
       <a href="minha-conta.html">Minha conta</a>
       <a href="mailto:ncmine75@gmail.com">Contato</a>
     </nav>
@@ -569,20 +628,24 @@
 <script src="vendor/jszip.min.js?v=14"></script>
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
-<script src="config.js?v=25"></script>
+<script src="config.js?v=26"></script>
 <script src="converter.js?v=16"></script>
 <script src="pixel-icons.js?v=14"></script>
-<script src="ferramentas-local.js?v=14"></script>
-<script src="mapa-2d.js?v=6"></script>
+<script src="ferramentas-local.js?v=15"></script>
+<script src="mapa-2d.js?v=9"></script>
 <script src="mapa-terreno.js?v=3"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
-<script src="db-common.js?v=5"></script>
-<script src="chunks.js?v=5"></script>
-<script src="player.js?v=6"></script>
-<script src="app.js?v=20"></script>
+<script src="db-common.js?v=8"></script>
+<script src="chunks.js?v=8"></script>
+<script src="player.js?v=8"></script>
+<script src="backups-local.js?v=2"></script>
+<script src="app.js?v=27"></script>
 <script src="firebase-config.js?v=13"></script>
-<script src="auth.js?v=14"></script>
-<script src="pagamento.js?v=22"></script>
+<script src="auth.js?v=15"></script>
+<script src="pagamento.js?v=27"></script>
+<script src="entitlements.js?v=3"></script>
+<script src="guia-site.js?v=3"></script>
+<script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>

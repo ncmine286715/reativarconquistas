@@ -2,7 +2,7 @@
    - usa o leitor LevelDB vendorizado (vendor/leveldb-reader.js, MIT/Mojang) — sem CDN
    - abre o mundo UMA vez e guarda em cache (chunks.js + player.js usam junto)
    - parse estrito de chave de chunk (qualquer tag; exclui chaves ASCII globais)
-   - VIP (mesma chave do app.js), montagem e validação do .mcworld de saída
+   - estado de benefícios do Worker, montagem e validação do .mcworld de saída
 */
 (function () {
   "use strict";
@@ -235,40 +235,25 @@
   function dropCache() { cache.seq++; cache.file = null; cache.data = null; }
   function peekCache(file) { return (cache.file === file && cache.data) ? cache.data : null; }
 
-  /* ---------- limites freemium (tudo local, por dia) ---------- */
-  var LIMITS = { freeResetChunks: 8, freeResetDaily: 1, freePlayerDaily: 2 };
-  function dayStr() {
-    var d = new Date();
-    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
-  }
-  function quotaLeft(key, daily) {
-    try {
-      var r = JSON.parse(localStorage.getItem(key) || "null");
-      if (r && r.day === dayStr()) return Math.max(0, daily - (+r.count || 0));
-    } catch (e) {}
-    return daily;
-  }
-  function quotaUse(key) {
-    try {
-      var r = JSON.parse(localStorage.getItem(key) || "null");
-      var c = (r && r.day === dayStr()) ? (+r.count || 0) : 0;
-      localStorage.setItem(key, JSON.stringify({ day: dayStr(), count: c + 1 }));
-    } catch (e) {}
-  }
-  function freeResetLeft() { return quotaLeft("rc_free_reset", LIMITS.freeResetDaily); }
-  function useFreeReset() { quotaUse("rc_free_reset"); }
-  function freePlayerLeft() { return quotaLeft("rc_free_player", LIMITS.freePlayerDaily); }
-  function useFreePlayer() { quotaUse("rc_free_player"); }
-
-  /* ---------- VIP (mesma chave do app.js) ---------- */
+  /* ---------- Estado do plano fornecido pelo Worker ---------- */
   function vipOk() {
     try {
       var r = window.RC_entitlementState || {};
-      return !!(r.ready && ((+r.until || 0) > Date.now() || (+r.world_credits || 0) > 0));
+      return !!((r.status === "ready" && r.active) || (r.ready && ((+r.until || 0) > Date.now() || (+r.world_credits || 0) > 0)));
     } catch (e) { return false; }
   }
   function vipNeed(msg) {
     if (vipOk()) return true;
+    var entState = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : (window.RC_entitlementState || {});
+    if (entState.status === "loading") return { html: "Verificando seu plano..." };
+    if (entState.status === "error") return { html: "Não foi possível verificar seu plano agora. Tente novamente. Seus benefícios não foram alterados." };
+    if (entState.status === "session_expired") return { html: "Sua sessão expirou. Entre novamente para verificar seus benefícios." };
+    if (entState.pending_payment) {
+      var pendingMessage = window.RC_entitlements && window.RC_entitlements.messageForPending
+        ? window.RC_entitlements.messageForPending(entState.pending_payment)
+        : "Seu pagamento ainda está em confirmação. Confira os benefícios em Minha conta; não faça outra compra.";
+      return { html: esc(pendingMessage) + " <a href='minha-conta.html'>Minha conta</a>" };
+    }
     var kw = "";
     try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl() || ""; } catch (e) {}
     var html = esc(msg) + " ";
@@ -284,6 +269,7 @@
   function assemble(data, newManifestBytes, logName, logBytes) {
     var jobs = [];
     var out = new JSZip();
+    try { out.comment = data.zip && data.zip.comment ? data.zip.comment : ""; } catch (e) {}
     data.zip.forEach(function (rel, entry) {
       if (entry.dir) return;
       if (rel === data.manifestName) { out.file(rel, newManifestBytes); return; }
@@ -306,8 +292,6 @@
   window.RC_dbx = {
     loadLib: loadLib, openWorld: openWorld, openFromBlob: openFromBlob, dropCache: dropCache, peekCache: peekCache,
     parseChunkKey: parseChunkKey, parseDigp: parseDigp, keyVariants: keyVariants,
-    limits: LIMITS, freeResetLeft: freeResetLeft, useFreeReset: useFreeReset,
-    freePlayerLeft: freePlayerLeft, useFreePlayer: useFreePlayer,
     vipOk: vipOk, vipNeed: vipNeed,
     assemble: assemble, downloadBlob: downloadBlob, esc: esc
   };

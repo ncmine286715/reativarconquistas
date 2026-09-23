@@ -1,14 +1,28 @@
 /* ReativaConquistas — Service Worker mínimo do Construtor 3D (beta).
    Deixa o app instalável e acelera a segunda visita com cache local.
    Versões com ?v= são chaves distintas: atualizar o ?v= atualiza o app. */
-var CACHE = 'rc-builder-v2';
+var CACHE = 'rc-builder-v12';
 var CORE = [
+  'index.html',
   'builder-lab.html',
-  'builder-lab.css?v=5',
-  'builder-lab.js?v=18',
+  'importar.html',
+  'objetivos.html',
+  'builder-lab.css?v=6',
+  'builder-lab.js?v=20',
+  'config.js?v=26',
+  'firebase-config.js?v=13',
+  'auth.js?v=15',
+  'pagamento.js?v=27',
+  'entitlements.js?v=3',
+  'guia-site.css?v=1',
+  'guia-site.js?v=3',
   'assets/null-apresenta.png',
   'assets/null-guia.png',
-  'style.css?v=13',
+  'style.css?v=16',
+  'mapa-2d.js?v=9',
+  'backups-local.js?v=2',
+  'app.js?v=27',
+  'ferramentas-local.js?v=15',
   'logo.png',
   'mc/item/ender_eye.png',
   'mc/item/oak_door.png',
@@ -27,7 +41,7 @@ var CORE = [
   'vendor/TransformControls.js',
   'nbt-bedrock.js',
   'leveldb-write.js',
-  'db-common.js',
+  'db-common.js?v=8',
   'builder-config.js',
   'builder-transform.js',
   'builder-placement.js',

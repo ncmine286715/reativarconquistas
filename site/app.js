@@ -1,16 +1,11 @@
 /* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
-   Grátis p/ mundos de até 10 MB (3/dia), com ferramentas simples liberadas.
+   Limites e recursos vêm do catálogo público do Worker.
    O pagamento entra quando o usuário precisa de mais volume, tamanho ou uma operação avançada.
 */
 (function () {
   "use strict";
 
   var CFG = window.RC_CONFIG || {};
-  var FREE_MAX_MB = CFG.FREE_MAX_MB || 10;
-  var PRE_MAX_MB = CFG.PRE_MAX_MB || 500;
-  var FREE_DAILY = CFG.FREE_DAILY || 5;
-  var FREE_MAX_PACKS = CFG.FREE_MAX_PACKS == null ? 1 : Number(CFG.FREE_MAX_PACKS);
-  if (!isFinite(FREE_MAX_PACKS) || FREE_MAX_PACKS < 0) FREE_MAX_PACKS = 1;
 
   /* ---------- quota grátis: N conversões por dia (VIP = ilimitado) ---------- */
   function freeDay() {
@@ -21,7 +16,12 @@
     return 0;
   }
   function freeLeft() {
-    return serverFreeQuota.ready ? Math.max(0, serverFreeQuota.remaining) : Math.max(0, FREE_DAILY - freeUsed());
+    return serverFreeQuota.ready ? Math.max(0, serverFreeQuota.remaining) : freeDailyLimit();
+  }
+  function freeDailyLimit() {
+    var caps = serverEntitlement.capabilities || {};
+    var daily = caps.convert && +caps.convert.daily_operations;
+    return Number.isFinite(daily) && daily > 0 ? daily : 0;
   }
   function consumeFree() {
     // The authoritative counter is maintained by /api/free-quota.
@@ -86,12 +86,153 @@
       badgeFile = $("badgeFile"), recoverHardcore = $("recoverHardcore");
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
+  var lastWorldPassport = null, lastWorldReport = null;
+  var compareInput = $("compareFile"), compareRunButton = $("compareRun"), compareDownloadButton = $("compareDownload"), compareStatus = $("compareStatus"), compareResults = $("compareResults");
+  var comparisonFile = null, lastComparison = null;
+  function canonicalCompareValue(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (Array.isArray(value)) return value.length ? JSON.stringify(value) : "—";
+    if (typeof value === "object") {
+      var ordered = {};
+      Object.keys(value).sort().forEach(function (key) { ordered[key] = value[key]; });
+      return JSON.stringify(ordered);
+    }
+    return String(value);
+  }
+  function compareSnapshot(file, rep) {
+    return {
+      file: { name: file.name, size_bytes: file.size },
+      world_name: rep.worldName && rep.worldName[0] || null,
+      seed: rep.seed && rep.seed[0] || null,
+      game_mode: rep.gameType || [],
+      difficulty: rep.difficulty || [],
+      spawn: rep.spawn || null,
+      gamerules: rep.gamerules || {},
+      achievements_flags_clean: !!rep.alreadyClean,
+      locked: rep.locked || {},
+      active_behavior_packs: rep.behaviorPacks || { active: 0, folders: [] }
+    };
+  }
+  function renderComparison(result) {
+    if (!compareResults) return;
+    compareResults.textContent = "";
+    var table = document.createElement("table"); table.className = "compare-table";
+    var thead = document.createElement("thead"), head = document.createElement("tr");
+    ["Campo", result.original.file.name, result.other.file.name, "Resultado"].forEach(function (name) { var th = document.createElement("th"); th.textContent = name; head.appendChild(th); });
+    thead.appendChild(head); table.appendChild(thead);
+    var body = document.createElement("tbody");
+    result.fields.forEach(function (field) {
+      var row = document.createElement("tr"), values = [field.label, canonicalCompareValue(field.original), canonicalCompareValue(field.other)];
+      values.forEach(function (value) { var td = document.createElement("td"); td.textContent = value; row.appendChild(td); });
+      var stateCell = document.createElement("td"); stateCell.textContent = field.changed ? "Diferente" : "Igual"; stateCell.className = field.changed ? "diff-changed" : "diff-same"; row.appendChild(stateCell); body.appendChild(row);
+    });
+    table.appendChild(body); compareResults.appendChild(table);
+  }
+  function clearComparison() {
+    lastComparison = null;
+    if (compareDownloadButton) compareDownloadButton.disabled = true;
+    if (compareResults) compareResults.textContent = "";
+    if (compareStatus) compareStatus.textContent = comparisonFile ? "Pronto para comparar as duas cópias." : "Selecione uma segunda cópia.";
+  }
+  if (compareInput) compareInput.addEventListener("change", function () {
+    comparisonFile = compareInput.files && compareInput.files[0] || null;
+    if (compareRunButton) compareRunButton.disabled = !comparisonFile || !selected;
+    clearComparison();
+  });
+  if (compareRunButton) compareRunButton.addEventListener("click", function () {
+    if (!selected || !comparisonFile || !window.RC_local) return;
+    var primaryFile = selected, otherFile = comparisonFile;
+    compareRunButton.disabled = true;
+    if (compareDownloadButton) compareDownloadButton.disabled = true;
+    if (compareStatus) compareStatus.textContent = "Lendo as duas cópias localmente…";
+    Promise.all([primaryFile.arrayBuffer(), otherFile.arrayBuffer()]).then(function (buffers) {
+      return Promise.all([window.RC_local.diagnoseAny(buffers[0], primaryFile.name), window.RC_local.diagnoseAny(buffers[1], otherFile.name)]);
+    }).then(function (reports) {
+      if (selected !== primaryFile || comparisonFile !== otherFile) return;
+      if (!reports[0].ok || !reports[1].ok) throw new Error("Uma das cópias não pôde ser lida como mundo Bedrock.");
+      var original = compareSnapshot(primaryFile, reports[0]), other = compareSnapshot(otherFile, reports[1]);
+      var labels = { world_name: "Nome do mundo", seed: "Seed", game_mode: "Modo", difficulty: "Dificuldade", spawn: "Spawn", gamerules: "Regras", achievements_flags_clean: "Flags de conquistas limpas", locked: "Travas de conquistas", active_behavior_packs: "Behavior packs" };
+      var fields = Object.keys(labels).map(function (key) { return { key: key, label: labels[key], original: original[key], other: other[key], changed: canonicalCompareValue(original[key]) !== canonicalCompareValue(other[key]) }; });
+      lastComparison = { format: "reativaconquistas-world-compare-v1", compared_at: new Date().toISOString(), original: original, other: other, fields: fields, limitations: ["Este comparador cobre metadados de level.dat e referências de Behavior Packs; não compara inventários de jogadores nem dados de chunks."] };
+      renderComparison(lastComparison);
+      if (compareStatus) compareStatus.textContent = fields.filter(function (f) { return f.changed; }).length + " diferença(s) nos campos comparados. Arquivos analisados no navegador.";
+      if (compareDownloadButton) compareDownloadButton.disabled = false;
+    }).catch(function (error) {
+      if (selected !== primaryFile || comparisonFile !== otherFile) return;
+      if (compareStatus) compareStatus.textContent = error.message || "Não foi possível comparar os mundos.";
+    }).then(function () { if (selected === primaryFile && comparisonFile === otherFile) compareRunButton.disabled = !selected || !comparisonFile; });
+  });
+  if (compareDownloadButton) compareDownloadButton.addEventListener("click", function () {
+    if (!lastComparison) return;
+    var base = (selected && selected.name || "mundo").replace(/\.(mcworld|zip|dat)$/i, "");
+    downloadLocalBlob(new Blob([JSON.stringify(lastComparison, null, 2)], { type: "application/json;charset=utf-8" }), base + "-comparacao.json");
+  });
+
+  var backupSaveButton = $("saveBackup"), backupLabelInput = $("backupLabel"), backupStatus = $("backupStatus"), backupList = $("backupList");
+  function formatBackupSize(bytes) { return bytes < 1048576 ? Math.max(1, Math.round(bytes / 1024)) + " KB" : (bytes / 1048576).toFixed(1) + " MB"; }
+  function paintLocalBackups() {
+    if (!backupList || !window.RC_backups) return;
+    backupList.textContent = "";
+    window.RC_backups.list().then(function (records) {
+      if (!records.length) { backupList.textContent = "Nenhum backup salvo neste navegador ainda."; return; }
+      records.forEach(function (record) {
+        var row = document.createElement("div"); row.className = "backup-row";
+        var meta = document.createElement("div"); meta.className = "backup-meta";
+        var label = document.createElement("b"); label.textContent = record.label || "Cópia de segurança";
+        var sub = document.createElement("small"); sub.textContent = record.name + " · " + formatBackupSize(record.size) + " · " + new Date(record.createdAt).toLocaleString("pt-BR");
+        meta.appendChild(label); meta.appendChild(sub);
+        var actions = document.createElement("div"); actions.className = "backup-actions";
+        var download = document.createElement("button"); download.type = "button"; download.className = "btn-ghost btn-mini"; download.textContent = "Baixar";
+        download.addEventListener("click", function () { window.RC_backups.download(record.id).catch(function (e) { if (backupStatus) backupStatus.textContent = e.message || "Não consegui baixar esse backup local."; }); });
+        var remove = document.createElement("button"); remove.type = "button"; remove.className = "btn-ghost btn-mini"; remove.textContent = "Excluir";
+        remove.addEventListener("click", function () {
+          if (!window.confirm("Excluir o backup local “" + (record.label || record.name) + "”?")) return;
+          window.RC_backups.remove(record.id).then(paintLocalBackups).catch(function (e) { if (backupStatus) backupStatus.textContent = e.message || "Não consegui excluir o backup."; });
+        });
+        actions.appendChild(download); actions.appendChild(remove); row.appendChild(meta); row.appendChild(actions); backupList.appendChild(row);
+      });
+    }).catch(function (e) { backupList.textContent = "Biblioteca local indisponível: " + String(e && e.message || e); });
+  }
+  if (backupSaveButton) backupSaveButton.addEventListener("click", function () {
+    if (!selected || !window.RC_backups) return;
+    backupSaveButton.disabled = true;
+    if (backupStatus) backupStatus.textContent = "Guardando uma cópia no armazenamento deste navegador…";
+    window.RC_backups.save(selected, backupLabelInput && backupLabelInput.value).then(function (record) {
+      if (backupStatus) backupStatus.textContent = "Backup guardado localmente: " + record.label + ".";
+      if (backupLabelInput) backupLabelInput.value = "";
+      paintLocalBackups();
+    }).catch(function (e) {
+      if (backupStatus) backupStatus.textContent = e.message || "O navegador não conseguiu guardar o backup.";
+    }).then(function () { backupSaveButton.disabled = !selected; });
+  });
+  paintLocalBackups();
+
+  var RULE_PRESETS = {
+    calm: { label: "Sobrevivência tranquila", values: { difficulty: "1", keepinv: "1", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "1", mobgriefing: "0", naturalregeneration: "1" } },
+    hard: { label: "Difícil", values: { difficulty: "3", keepinv: "0", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "0", mobgriefing: "1", naturalregeneration: "1" } },
+    build: { label: "Construção", values: { difficulty: "0", keepinv: "1", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "1", mobgriefing: "0", naturalregeneration: "1" } },
+    access: { label: "Acessibilidade tranquila", values: { difficulty: "0", keepinv: "1", showcoords: "1", daycycle: "0", weather: "0", immediaterespawn: "1", mobgriefing: "0", naturalregeneration: "1" } },
+    day: { label: "Congelar horário e clima atuais", values: { daycycle: "0", weather: "0" } },
+    challenge: { label: "Desafio", values: { difficulty: "3", keepinv: "0", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "0", mobgriefing: "1", naturalregeneration: "0" } }
+  };
+  var rulePresetSelect = $("rulePreset"), rulePresetButton = $("applyRulePreset"), rulePresetHint = $("rulePresetHint");
+  if (rulePresetButton) rulePresetButton.addEventListener("click", function () {
+    var preset = rulePresetSelect && RULE_PRESETS[rulePresetSelect.value];
+    if (!preset) { if (rulePresetHint) rulePresetHint.textContent = "Escolha um preset primeiro."; return; }
+    Object.keys(preset.values).forEach(function (id) {
+      var control = $(id);
+      if (!control) return;
+      control.value = preset.values[id];
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    if (rulePresetHint) rulePresetHint.textContent = "Preset aplicado: " + preset.label + ". Confira cada regra antes de converter.";
+  });
 
   // localStorage is not an authority. It may contain stale UI data, but only
   // a fresh entitlement response from the Worker can enable a paid operation.
-  var serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+  var serverEntitlement = { ready: false, status: "loading", active: false, until: 0, world_credits: 0, plan: "", email: "", max_file_mb: null, max_file_bytes: null, max_batch: 0, capabilities: {} };
   window.RC_entitlementState = serverEntitlement;
-  var serverFreeQuota = { ready: false, remaining: FREE_DAILY };
+  var serverFreeQuota = { ready: false, remaining: 0 };
 
   /* ---------- addons: pacotes de comportamento bloqueiam conquistas ---------- */
   function packCount(rep) {
@@ -184,11 +325,7 @@
     if (CFG.OPERATOR_CITY_UF) { var oc = $("opCity"); if (oc) oc.textContent = CFG.OPERATOR_CITY_UF; }
   }
 
-  /* ---------- Premium = conta (AbacatePay/Kiwify via Worker) ---------- */
-  // Cache local: { until, email }. Vale para logados E convidados
-  // (quem pagou sem login libera neste navegador via sucesso.html).
-  // E-mail vinculado: o usuário pode ter pago com um e-mail diferente do
-  // Google — dá para vincular esse e-mail de pagamento manualmente.
+  /* ---------- Benefícios da conta consultados no Worker ---------- */
   function googleEmail() {
     try {
       var u = (window.RC_auth && window.RC_auth.user()) || null;
@@ -202,46 +339,35 @@
     return serverEntitlement.ready ? String(serverEntitlement.email || "") : "";
   }
   function remotePlan() {
-    var p = serverEntitlement.ready ? serverEntitlement.plan : "";
-    return p === "vip7" || p === "creator" || p === "world1" ? p : "vip30";
+    return serverEntitlement.ready ? (serverEntitlement.plan || "free") : "";
   }
   function remoteWorldCredits() {
     return serverEntitlement.ready ? Math.max(0, +serverEntitlement.world_credits || 0) : 0;
   }
   function paidSizeLimitMB() {
     if (!remotePremOk()) return freeLimitMB();
-    var p = remotePlan();
-    return p === "creator" || p === "vip30" ? PRE_MAX_MB : (p === "vip7" ? 500 : 150);
+    return serverEntitlement.max_file_mb === null ? Infinity : (+serverEntitlement.max_file_mb || freeLimitMB());
   }
   function remotePremOk() {
-    return !!serverEntitlement.ready &&
-      (remoteWorldCredits() > 0 || remotePremUntil() > Date.now());
+    return !!serverEntitlement.ready && !!serverEntitlement.active;
   }
   function isPremiumAny() { return remotePremOk(); }
-  // Consulta o servidor para TODOS os e-mails conhecidos e guarda o melhor.
-  // Em falha total de rede, MANTÉM o cache (nunca apaga VIP de quem pagou).
+  // Consulta os benefícios vinculados ao UID da sessão Firebase atual.
   function refreshRemotePrem() {
-    serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+    if (!window.RC_entitlements) return Promise.reject(new Error("Entitlement service unavailable."));
+    serverEntitlement = Object.assign({}, serverEntitlement, { ready: false, status: "loading" });
     window.RC_entitlementState = serverEntitlement;
     paintQuota();
-    if (!loggedIn() || !window.RC_pay || !window.RC_pay.entitlements) return;
-    window.RC_pay.entitlements().then(function (e) {
-      // This is the only state that can authorize the UI. Do not persist it
-      // as a bearer value in localStorage.
-      serverEntitlement = {
-        ready: true,
-        until: +e.premium_until_ms || 0,
-        world_credits: Math.max(0, +e.world_credits || 0),
-        plan: String(e.plan || ""),
-        email: String(e.account_email || googleEmail() || "").toLowerCase()
-      };
+    return window.RC_entitlements.refresh().then(function (e) {
+      serverEntitlement = Object.assign({}, e, { ready: e.status === "ready", until: +e.premium_until_ms || 0, email: e.account_email || googleEmail() });
       window.RC_entitlementState = serverEntitlement;
       paintQuota();
-    }).catch(function () {
-      // Fail closed if the entitlement server cannot be reached.
-      serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+      return serverEntitlement;
+    }).catch(function (err) {
+      serverEntitlement = Object.assign({}, serverEntitlement, window.RC_entitlements.state(), { ready: false });
       window.RC_entitlementState = serverEntitlement;
       paintQuota();
+      throw err;
     });
   }
   function refreshFreeQuota() {
@@ -252,30 +378,51 @@
     }).catch(function () {
       // Keep the local display only as a fallback for a temporary outage;
       // submit() still attempts the server gate before processing.
-      serverFreeQuota = { ready: false, remaining: FREE_DAILY };
+      serverFreeQuota = { ready: false, remaining: freeDailyLimit() };
       paintQuota();
     });
   }
   function paintQuota() {
+    if (serverEntitlement.status === "loading") {
+      quotaBar.classList.remove("premium");
+      quotaText.textContent = "Verificando seu plano...";
+      updateSubmit();
+      return;
+    }
+    if (serverEntitlement.status === "error" || serverEntitlement.status === "session_expired") {
+      quotaBar.classList.remove("premium");
+      quotaText.textContent = serverEntitlement.status === "session_expired" ? "Sua sessão Google expirou. Entre novamente para verificar seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente.";
+      updateSubmit();
+      return;
+    }
     var vip = remotePremOk();
     if (vip) {
       quotaBar.classList.add("premium");
-      quotaText.innerHTML = "<strong>VIP ativo</strong>" +
-        (remotePremEmail() ? " em <strong>" + escapeHtml(remotePremEmail()) + "</strong>" : "") +
-        " até <strong>" + new Date(remotePremUntil()).toLocaleDateString("pt-BR") + "</strong> — recursos VIP desbloqueados. " +
+      var activePlan = serverEntitlement.plan_label || serverEntitlement.plan || "Plano pago";
+      var planState = serverEntitlement.plan === "world1"
+        ? " · <strong>" + (+serverEntitlement.world_credits || 0) + " crédito(s) de mundo</strong> · " + (+serverEntitlement.active_world_projects || 0) + " projeto(s) ativo(s)"
+        : " até <strong>" + new Date(serverEntitlement.expires_at || remotePremUntil()).toLocaleDateString("pt-BR") + "</strong>";
+      quotaText.innerHTML = "<strong>" + escapeHtml(activePlan) + " ativo</strong>" +
+        (remotePremEmail() ? " em <strong>" + escapeHtml(remotePremEmail()) + "</strong>" : "") + planState +
+        " — benefícios desbloqueados. " +
         "<a href='minha-conta.html'>Minha conta</a> · " +
         "<a href='#' id='vipRefresh'>Verificar de novo</a>";
     } else {
       quotaBar.classList.remove("premium");
-      var fl = freeLeft();
-      var lim = freeLimitMB();
-      var promoEnd = "";
-      try { promoEnd = new Date(CFG.PROMO_UNTIL).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch (e) {}
-      var promoTxt = "";
-      quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + FREE_DAILY + " hoje</b>)" + promoTxt +
-        (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o ilimitado com o VIP</b></a>"
-          : ". Mundos gigantes (acima de " + lim + " MB) — <a href='#planos'><b>libere com o VIP</b></a>") + "<br>" +
-        "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipRefresh'><b>Verificar de novo</b></a>. Use a mesma conta Google da compra.</span>";
+      if (serverEntitlement.pending_payment) {
+        var pendingMessage = window.RC_entitlements && window.RC_entitlements.messageForPending
+          ? window.RC_entitlements.messageForPending(serverEntitlement.pending_payment)
+          : "Seu pagamento ainda está em confirmação. Não faça outra compra.";
+        quotaText.innerHTML = escapeHtml(pendingMessage) + " <a href='minha-conta.html'><b>Minha conta</b></a> · " +
+          "<a href='#' id='vipRefresh'><b>Atualizar benefícios</b></a>";
+      } else {
+        var fl = freeLeft();
+        var lim = freeLimitMB();
+        quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + freeDailyLimit() + " hoje</b>)" +
+          (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o uso extra com um plano</b></a>"
+            : ". Mundos maiores que " + lim + " MB — <a href='#planos'><b>ver planos</b></a>") + "<br>" +
+          "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipRefresh'><b>Verificar de novo</b></a>. Use a mesma conta Google da compra.</span>";
+      }
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
     ["stripOpt"].forEach(function (id) {
@@ -297,19 +444,34 @@
   function loggedIn() {
     try { return !!((window.RC_auth && window.RC_auth.user()) || null); } catch (e) { return false; }
   }
-  // Recurso pago: quem já tem VIP no cache (logado ou não) usa direto;
-  // sem VIP -> entra com Google primeiro; logado sem VIP -> assinar.
-  function needPremium(msg, plan) {
-    if (remotePremOk()) return true;
-    if (!loggedIn()) {
-      setStatus("", escapeHtml(msg) + ' <a href="minha-conta.html"><b>Entre com Google</b></a> para continuar.');
-      try { if (window.RC_auth) window.RC_auth.openModal(); } catch (e) {}
-      return false;
-    }
-    lockedHint(msg, plan); return false;
-  }
+  // Recursos pagos só são oferecidos depois de carregar o estado do Worker.
   function lockedHint(msg, plan, context) {
     context = context || {};
+    var entitlement = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : (window.RC_entitlementState || {});
+    if (entitlement.status === "loading") {
+      setStatus("ok", "Verificando seu plano...");
+      return;
+    }
+    if (entitlement.status === "error" || entitlement.status === "session_expired") {
+      setStatus("err", entitlement.status === "session_expired"
+        ? "Sua sessão Google expirou. Entre novamente para verificar seus benefícios."
+        : "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar um plano existente.");
+      return;
+    }
+    if (entitlement.pending_payment) {
+      var pendingMessage = window.RC_entitlements && window.RC_entitlements.messageForPending
+        ? window.RC_entitlements.messageForPending(entitlement.pending_payment)
+        : "Seu pagamento ainda está em confirmação. Confira os benefícios em Minha conta; não faça outra compra.";
+      setStatus("err", escapeHtml(pendingMessage) + " <a href='minha-conta.html'>Minha conta</a>");
+      return;
+    }
+    if (entitlement.status === "ready" && entitlement.active) {
+      serverEntitlement = Object.assign({}, entitlement, { ready: true, until: +entitlement.premium_until_ms || 0, email: entitlement.account_email || googleEmail() });
+      window.RC_entitlementState = serverEntitlement;
+      paintQuota();
+      setStatus("ok", "Seu plano foi atualizado. Tente a operação novamente.");
+      return;
+    }
     try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("paywall_shown", Object.assign({ plan: plan || "", source: context.source || "feature_paywall" }, context)); } catch (e0) {}
     // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
     // Sem Kiwify: abre o modal AbacatePay como antes.
@@ -324,35 +486,85 @@
   }
 
   /* ---------- arquivo ---------- */
+  function showFilePaywall(worlds, sizeBytes, message) {
+    if (!window.RC_pay || !window.RC_pay.planCatalog) {
+      setStatus("err", escapeHtml(message) + " <a href='#planos'>Ver planos</a>");
+      return;
+    }
+    window.RC_pay.planCatalog().then(function (catalog) {
+      var oneWorld = catalog && catalog.world1;
+      if (!oneWorld) throw new Error("Plan catalog unavailable.");
+      var exceedsWorldCredit = oneWorld.max_file_bytes !== null && sizeBytes > +oneWorld.max_file_bytes;
+      var exceedsWorldBatch = +worlds > +oneWorld.max_batch;
+      lockedHint(message, exceedsWorldCredit || exceedsWorldBatch ? "vip7" : "world1", { worlds: worlds, world_size_mb: +(sizeBytes / 1048576).toFixed(1), source: "world_size_paywall" });
+    }).catch(function () {
+      setStatus("err", escapeHtml(message) + " Não foi possível consultar os planos agora. Tente novamente; não é necessário pagar outra vez por um plano já ativo. <a href='minha-conta.html'>Minha conta</a>");
+    });
+  }
+
   function friendlyFileErr(err) {
     var m = String((err && err.message) || err || "");
-    if (/FREE_QUOTA_EXCEEDED|QUOTA_EXCEEDED/i.test(m)) return "VocÃª usou as conversÃµes grÃ¡tis disponÃ­veis hoje. O VIP libera operaÃ§Ãµes premium.";
+    var code = String(err && err.payload && err.payload.code || err && err.code || "");
+    if (err && (err.status === 401 || code === "AUTH_EXPIRED")) return "Sua sessão Google expirou. Entre novamente para verificar seus benefícios.";
+    if (err && (err.status === 503 || err.status >= 500 || /failed to fetch|networkerror|load failed/i.test(m))) return "Não foi possível verificar seu plano ou iniciar a operação agora. Tente novamente. Nenhuma nova compra é necessária.";
+    if (code === "SIZE_LIMIT") {
+      var maxFileMb = err.payload && Object.prototype.hasOwnProperty.call(err.payload, "max_file_mb") ? err.payload.max_file_mb : serverEntitlement.max_file_mb;
+      return maxFileMb === null ? "Seu mundo excede a capacidade comercial deste plano." : "Seu mundo excede o limite do plano " + escapeHtml(serverEntitlement.plan_label || serverEntitlement.plan) + ". Limite: " + escapeHtml(maxFileMb) + " MB.";
+    }
+    if (code === "BATCH_LIMIT") return "Seu plano permite até " + escapeHtml((err.payload && err.payload.max_batch) || serverEntitlement.max_batch || 1) + " mundo(s) por lote.";
+    if (code === "WORLD_CREDIT_EXHAUSTED") return "Seu crédito de 1 mundo já foi utilizado. Reenvie o mundo marcado para continuar editando o mesmo projeto ou adquira outro crédito.";
+    if (code === "TOOL_QUOTA_EXCEEDED") return "O limite gratuito diário desta ferramenta foi atingido. Seu arquivo original permanece intacto.";
+    if (code === "NO_ENTITLEMENT") return "Este recurso exige um plano pago. Seus benefícios foram verificados agora.";
+    if (/FREE_QUOTA_EXCEEDED|QUOTA_EXCEEDED/i.test(m)) return "Você usou as conversões grátis disponíveis hoje. O plano pago libera operações premium.";
     if (/level\.dat n(o|ã)o encontrado/i.test(m)) return "Esse arquivo <b>não parece um mundo válido</b> (falta o level.dat dentro). Exporte de novo pelo jogo — veja <a href='#faq'><b>onde achar o .mcworld</b></a>.";
     if (/NBT|truncado|inválido|root não é|bytes sobrando|não é Compound/i.test(m)) return "Não consegui ler esse mundo (arquivo <b>corrompido ou incompleto</b>). Exporte/baixe de novo e tente.";
     if (/JSZip|central directory|corrupt|encrypted|senha/i.test(m)) return "Esse <b>.zip não abre</b> (corrompido ou com senha). Compacte de novo, sem senha.";
     return "Não deu certo: " + escapeHtml(m);
   }
 
-  function promoOn() {
-    try {
-      if (!CFG.PROMO_UNTIL || !CFG.PROMO_MAX_MB) return false;
-      return Date.now() < new Date(CFG.PROMO_UNTIL).getTime();
-    } catch (e) { return false; }
+  function presentOperationFailure(err) {
+    var code = String(err && err.payload && err.payload.code || "");
+    if (code === "PAYMENT_PENDING") {
+      setStatus("err", friendlyFileErr(err) + " <a href='minha-conta.html'>Minha conta</a>");
+      return;
+    }
+    if (code === "NO_ENTITLEMENT") {
+      showFilePaywall(selectedList.length || 1, selected && selected.size || 0, "Este recurso exige um plano pago. Seus benefícios foram consultados agora.");
+      return;
+    }
+    setStatus("err", friendlyFileErr(err));
   }
-  function freeLimitMB() { return promoOn() ? (CFG.PROMO_MAX_MB || FREE_MAX_MB) : FREE_MAX_MB; }
+  function freeLimitMB() {
+    if ((serverEntitlement.status === "ready" || serverEntitlement.status === "unauthenticated") && serverEntitlement.plan === "free") return +serverEntitlement.max_file_mb || 0;
+    return 0;
+  }
+  function freeAddPacksLimit() {
+    var caps = serverEntitlement.capabilities || {};
+    return Number.isFinite(+caps.add_behavior_packs) ? +caps.add_behavior_packs : 0;
+  }
+  function freeChunksLimit() {
+    var caps = serverEntitlement.capabilities || {};
+    var chunks = caps.chunks_restore || {};
+    return Number.isFinite(+chunks.max_chunks) ? +chunks.max_chunks : 0;
+  }
   function sizeLimitMB() { return remotePremOk() ? paidSizeLimitMB() : freeLimitMB(); }
-  function promoDaysLeft() {
-    try {
-      var ms = new Date(CFG.PROMO_UNTIL).getTime() - Date.now();
-      return ms > 0 ? Math.ceil(ms / 86400000) : 0;
-    } catch (e) { return 0; }
-  }
   function fmtSize(n) {
     if (n < 1024) return n + " B";
     if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
     return (n / 1048576).toFixed(2) + " MB";
   }
+  function worldProjectInfo(file) {
+    return window.RC_entitlements ? window.RC_entitlements.worldProjectInfo(file) : Promise.resolve({ project_id: "", fingerprint: "" });
+  }
+  function attachWorldProject(blob, projectId) {
+    return window.RC_entitlements ? window.RC_entitlements.markWorld(blob, projectId) : Promise.resolve(blob);
+  }
   function baseName(name) { return name.replace(/\.(mcworld|zip)$/i, "") + "-conquistas.mcworld"; }
+  function downloadLocalBlob(blob, name) {
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
 
   var ACCEPT = /\.(mcworld|zip|dat)$/i;
 
@@ -361,8 +573,48 @@
   function paintWorldInfo(rep, multi) {
     var box = $("worldInfo");
     if (!box) return;
-    if (!rep || !rep.ok) { box.hidden = true; return; }
+    if (!rep || !rep.ok) {
+      box.hidden = true; lastWorldPassport = null; lastWorldReport = null;
+      var reportButton = $("reportDownload"), integrityBox = $("wiIntegrity");
+      if (reportButton) reportButton.disabled = true;
+      if (integrityBox) integrityBox.textContent = "Verificação estrutural ainda não iniciada.";
+      return;
+    }
     box.hidden = false;
+    var sourceFile = selectedList.length ? selectedList[0] : selected;
+    var packTotal = packCount(rep);
+    lastWorldPassport = {
+      format: "reativaconquistas-world-passport-v1",
+      generated_at: new Date().toISOString(),
+      file: { name: sourceFile && sourceFile.name || "", size_bytes: sourceFile && sourceFile.size || null },
+      world: {
+        name: rep.worldName && rep.worldName[0] || "",
+        seed: rep.seed && rep.seed[0] || null,
+        game_modes: (rep.gameType || []).map(gmName),
+        difficulties: (rep.difficulty || []).map(diffName),
+        spawn: rep.spawn && rep.spawn[0] !== null && rep.spawn[0] !== undefined ? rep.spawn : null,
+        gamerules: rep.gamerules || {}
+      },
+      diagnosis: {
+        flag_status: rep.alreadyClean ? "nenhuma alteração de flags detectada" : "ajustes pendentes",
+        pending_adjustments: rep.wouldChange || [],
+        active_behavior_pack_count: packTotal,
+        behavior_pack_folders: rep.behaviorPacks && rep.behaviorPacks.folders || [],
+        locked: rep.locked || {}
+      },
+      notes: packTotal ? ["Há Behavior Packs detectados. Confira a compatibilidade e o estado de conquistas dentro do Minecraft."] : []
+    };
+    lastWorldReport = {
+      format: "reativaconquistas-world-report-v1",
+      generated_at: new Date().toISOString(),
+      file: lastWorldPassport.file,
+      diagnosis: lastWorldPassport.diagnosis,
+      world: lastWorldPassport.world,
+      integrity: null,
+      operation: null,
+      preserved: ["O arquivo original selecionado não foi sobrescrito."],
+      limitations: ["A leitura de level.dat não confirma todos os registros internos do LevelDB."]
+    };
     $("wiName").textContent = (rep.worldName && rep.worldName[0]) || "(sem nome no level.dat)";
     var seed = (rep.seed && rep.seed[0]) || null;
     $("wiSeed").textContent = seed || "—";
@@ -390,6 +642,21 @@
     if (multi) st += " (1º de " + multi + ")";
     $("wiStatus").textContent = st;
   }
+  var passportButton = $("passportDownload"), originalButton = $("originalDownload"), reportDownloadButton = $("reportDownload");
+  if (passportButton) passportButton.addEventListener("click", function () {
+    if (!lastWorldPassport) return;
+    var base = (lastWorldPassport.file.name || "mundo").replace(/\.(mcworld|zip|dat)$/i, "").replace(/[\\/:*?\"<>|]+/g, "-");
+    downloadLocalBlob(new Blob([JSON.stringify(lastWorldPassport, null, 2)], { type: "application/json;charset=utf-8" }), base + "-passaporte.json");
+  });
+  if (originalButton) originalButton.addEventListener("click", function () {
+    var sourceFile = selectedList.length ? selectedList[0] : selected;
+    if (sourceFile) downloadLocalBlob(sourceFile, sourceFile.name || "mundo-original.mcworld");
+  });
+  if (reportDownloadButton) reportDownloadButton.addEventListener("click", function () {
+    if (!lastWorldReport) return;
+    var base = (lastWorldReport.file.name || "mundo").replace(/\.(mcworld|zip|dat)$/i, "").replace(/[\\/:*?"<>|]+/g, "-");
+    downloadLocalBlob(new Blob([JSON.stringify(lastWorldReport, null, 2)], { type: "application/json;charset=utf-8" }), base + "-relatorio.json");
+  });
   var raioXSeq = 0;
   function raioX() {
     var box = $("filex");
@@ -400,11 +667,36 @@
     var f = selectedList.length > 1 ? selectedList[0] : selected;
     box.hidden = false;
     box.textContent = "Lendo mundo…";
-    f.arrayBuffer().then(function (ab) { return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
+    paintWorldInfo(null);
+    var integrityBox = $("wiIntegrity"), reportButton = $("reportDownload");
+    var analysisBuffer = null;
+    if (integrityBox) integrityBox.textContent = "Analisando arquivos e manifests localmente…";
+    if (reportButton) reportButton.disabled = true;
+    clearComparison();
+    f.arrayBuffer().then(function (ab) { analysisBuffer = ab; return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
       if (my !== raioXSeq) return;
       if (!rep.ok) { box.hidden = true; paintWorldInfo(null); return; }
       try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("world_analyzed", { worlds: selectedList.length || 1, world_size_mb: +(f.size / 1048576).toFixed(1), addons: packCount(rep) }); } catch (e0) {}
       paintWorldInfo(rep, selectedList.length > 1 ? selectedList.length : 0);
+      if (window.RC_local.inspectWorld) {
+        window.RC_local.inspectWorld(analysisBuffer, f.name, rep).then(function (integrity) {
+          if (my !== raioXSeq || !lastWorldReport) return;
+          lastWorldReport.integrity = integrity;
+          if (reportButton) reportButton.disabled = false;
+          if (integrityBox) {
+            var errors = integrity.checks.filter(function (c) { return c.status === "error"; }).length;
+            var warnings = integrity.checks.filter(function (c) { return c.status === "warning"; }).length;
+            var unknown = integrity.checks.filter(function (c) { return c.status === "unknown"; }).length;
+            integrityBox.textContent = "Estrutura: " + errors + " erro(s), " + warnings + " aviso(s)" + (unknown ? ", " + unknown + " item(ns) não verificáveis" : "") + ". " + integrity.checks.map(function (c) { return c.message; }).join(" ");
+          }
+          lastWorldPassport.integrity_summary = integrity.checks.map(function (c) { return { id: c.id, status: c.status, message: c.message }; });
+        }).catch(function (integrityError) {
+          if (my !== raioXSeq) return;
+          if (reportButton) reportButton.disabled = false;
+          if (lastWorldReport) lastWorldReport.integrity_error = String(integrityError && integrityError.message || integrityError);
+          if (integrityBox) integrityBox.textContent = "Verificação incompleta: " + String(integrityError && integrityError.message || integrityError) + ". O restante do diagnóstico continua disponível.";
+        });
+      }
       var df = (rep.difficulty && rep.difficulty.length === 1) ? diffName(rep.difficulty[0]) : null;
       var t = "Raio-X: " + (rep.alreadyClean ? "já limpo" : (rep.wouldChange.length + " ajustes pendentes"));
       if (df) t += " · dificuldade " + df;
@@ -424,6 +716,9 @@
     if (!files.length) {
       var got = Array.prototype.slice.call(list || []).map(function (f) { return f.name || "?"; }).slice(0, 3).join(", ");
       selected = null; selectedList = [];
+      if (backupSaveButton) backupSaveButton.disabled = true;
+      if (compareRunButton) compareRunButton.disabled = true;
+      clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
       setStatus("err", "Formato não suportado" + (got ? " (<b>" + escapeHtml(got) + "</b>)" : "") + ". Envie <b>.mcworld</b>, <b>.zip</b> do mundo ou <b>level.dat</b> — foto, .mcpack e .mcaddon <b>não são mundo</b>. Veja <a href='#faq'><b>onde achar o .mcworld</b></a>.");
       return;
@@ -431,17 +726,22 @@
     var empty = files.filter(function (f) { return !f.size; });
     if (empty.length) {
       selected = null; selectedList = [];
+      if (backupSaveButton) backupSaveButton.disabled = true;
+      if (compareRunButton) compareRunButton.disabled = true;
+      clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
       setStatus("err", "O arquivo <b>" + escapeHtml(empty[0].name) + "</b> está <b>vazio</b> (0 bytes). Exporte o mundo de novo.");
       return;
     }
     selectedList = files;
     selected = files[0];
-    var maxB = sizeLimitMB() * 1024 * 1024;
-    var big = files.filter(function (f) { return f.size > maxB; });
-    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), file_too_large: !!big.length }); } catch (e0) {}
+    if (backupSaveButton) backupSaveButton.disabled = false;
+    if (compareRunButton) compareRunButton.disabled = !comparisonFile;
+    if (backupStatus) backupStatus.textContent = "Cópia selecionada: pronta para guardar somente neste navegador.";
+    var big = [];
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1) }); } catch (e0) {}
     if (files.length > 1) {
-      fileName.textContent = files.length + " arquivos selecionados (lote = VIP)";
+      fileName.textContent = files.length + " arquivos selecionados (lote)";
       fileName.hidden = false;
       setStatus(null);
     } else if (selected) {
@@ -450,15 +750,44 @@
       setStatus(null);
     }
     raioX();
-    // Analisa localmente antes da oferta. O mundo nunca é enviado ao servidor.
-    if (big.length && !remotePremOk()) {
-      setTimeout(function () {
-        if (selected !== big[0]) return;
+    // O Worker decide o limite antes de qualquer mensagem de compra.
+    setStatus("ok", "Verificando seu plano e o limite deste arquivo...");
+    var selection = selected;
+    Promise.resolve(window.RC_entitlements ? window.RC_entitlements.load() : null).then(function (ent) {
+      if (selected !== selection) return;
+      if (!ent || (ent.status !== "ready" && ent.status !== "unauthenticated")) throw new Error("Entitlement unavailable");
+      serverEntitlement = Object.assign({}, ent, { ready: true, until: +ent.premium_until_ms || 0, email: ent.account_email || googleEmail() });
+      window.RC_entitlementState = serverEntitlement;
+      paintQuota();
+      var fileDecision = window.RC_entitlements.canUseFile(files);
+      if (fileDecision.status !== "ready" && fileDecision.status !== "unauthenticated") throw new Error("Entitlement unavailable");
+      var maxBytes = fileDecision.max_file_bytes;
+      var maxBatch = fileDecision.max_batch;
+      big = fileDecision.too_large || [];
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track(big.length ? "file_too_large" : "file_valid", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), plan: ent.plan }); } catch (e0) {}
+      if (files.length > maxBatch) {
+        var batchPlan = ent.status === "ready" ? (ent.plan_label || ent.plan) : "Plano gratuito";
+        setStatus("err", "Este plano permite até " + maxBatch + " mundo(s) por lote; você selecionou " + files.length + ". Plano detectado: <b>" + escapeHtml(batchPlan) + "</b>.");
+        if (ent.pending_payment) setStatus("err", "Seu pagamento do plano <b>" + escapeHtml(ent.pending_payment.plan_label || ent.pending_payment.plan) + "</b> ainda está em confirmação. Atualize os benefícios em <a href='minha-conta.html'>Minha conta</a>; não faça outra compra.");
+        else if (ent.status === "ready" && !ent.active) lockedHint("Seu plano gratuito permite até " + maxBatch + " mundo(s) por lote.", "vip7");
+        return;
+      }
+      if (big.length) {
         var mb = (big[0].size / 1048576).toFixed(1);
-        var suggested = files.length > 1 ? "vip7" : "world1";
-        lockedHint("Seu mundo tem " + mb + " MB. O modo grátis aceita mundos de até " + freeLimitMB() + " MB. " + (files.length > 1 ? "Para este lote, o Passe 7 dias é a opção mais prática." : "Resolva este mundo agora ou veja os outros planos."), suggested, { world_size_mb: +mb, worlds: files.length, source: "world_size_paywall" });
-      }, 350);
-    }
+        var limit = maxBytes === null ? "sem limite comercial" : (+(maxBytes / 1048576).toFixed(1) + " MB");
+        if (ent.status === "ready" && ent.active) setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. Seu plano <b>" + escapeHtml(ent.plan_label || ent.plan) + "</b> permite até <b>" + limit + "</b>.");
+        else {
+          setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. O plano gratuito permite até <b>" + limit + "</b>.");
+          if (ent.pending_payment) setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. O pagamento do plano <b>" + escapeHtml(ent.pending_payment.plan_label || ent.pending_payment.plan) + "</b> ainda está em confirmação. Atualize os benefícios em <a href='minha-conta.html'>Minha conta</a>; não faça outra compra.");
+          else showFilePaywall(files.length, big[0].size, "Seu mundo tem " + mb + " MB. O plano gratuito permite até " + limit + ".");
+        }
+        return;
+      }
+      setStatus("ok", "Mundo detectado: <b>" + (selected.size / 1048576).toFixed(1) + " MB</b><br>Seu plano: <b>" + escapeHtml(ent.plan_label || (ent.status === "ready" ? ent.plan : "Plano gratuito")) + "</b><br>Limite do seu plano: <b>" + (maxBytes === null ? "sem limite comercial" : limit) + "</b><br>✓ Arquivo permitido");
+    }).catch(function () {
+      if (selected !== selection) return;
+      setStatus("err", "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar uma assinatura existente.");
+    });
     updateSubmit();
   }
 
@@ -493,22 +822,6 @@
     // A foto do mundo é uma ferramenta simples e permanece gratuita.
   });
   var stripCb = $("stripPacks");
-  // O limite grátis real é validado no processamento via FREE_MAX_PACKS.
-  // banner de promoção com prazo (some sozinho quando expira)
-  (function promoBanner() {
-    try {
-      if (!promoOn()) return;
-      if ($("promoBanner")) return;
-      var conv = $("converter");
-      if (!conv) return;
-      var d = document.createElement("div");
-      d.id = "promoBanner";
-      d.className = "promo-banner";
-      var pd = promoDaysLeft();
-      d.innerHTML = "🔥 <b>PROMOÇÃO" + (pd ? " — termina em <b>" + pd + (pd === 1 ? " dia" : " dias") + "</b> (24/09)" : "") + ":</b> mundos de até <b>" + (CFG.PROMO_MAX_MB || 25) + " MB grátis</b>.";
-      conv.insertBefore(d, conv.firstChild);
-    } catch (e) {}
-  })();
   if (wantRename) wantRename.addEventListener("change", function () {
     if (wantRename.checked) renameInput.focus();
   });
@@ -573,7 +886,6 @@
   });
 
   /* ---------- instalar addons (.mcpack/.zip -> behavior/resource_packs) ---------- */
-  var FREE_INSTALL_PACKS = 2;
   var packInput = $("packFiles"), packBtn = $("packBtn"), packListEl = $("packList");
   var selectedPacks = [];
   function sanitizeFolder(s) {
@@ -713,12 +1025,32 @@
     return (v === 0 || v === 1) ? v : null;
   }
   function batchLimit() {
-    if (!isPremiumAny()) return 2;
-    var p = remotePlan();
-    return p === "creator" ? 20 : (p === "vip30" ? 10 : (p === "vip7" ? 5 : 1));
+    return serverEntitlement.status === "ready" || serverEntitlement.status === "unauthenticated" ? Math.max(1, +serverEntitlement.max_batch || 1) : 0;
   }
+  var submitEntitlementBypass = false;
   form.addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!submitEntitlementBypass) {
+      if (!window.RC_entitlements) { setStatus("err", "Não foi possível verificar seu plano agora. Tente novamente."); return; }
+      submit.disabled = true;
+      setStatus("ok", "Verificando seu plano...");
+      window.RC_entitlements.load().then(function (ent) {
+        if (ent.status !== "ready" && ent.status !== "unauthenticated") throw new Error("ENTITLEMENT_UNAVAILABLE");
+        serverEntitlement = Object.assign({}, ent, { ready: ent.status === "ready", until: +ent.premium_until_ms || 0, email: ent.account_email || "" });
+        window.RC_entitlementState = serverEntitlement;
+        paintQuota();
+        updateSubmit();
+        submitEntitlementBypass = true;
+        form.requestSubmit();
+        setTimeout(function () { submitEntitlementBypass = false; }, 0);
+      }).catch(function (err) {
+        submit.disabled = false;
+        var expired = err && (err.entitlement_status === "session_expired" || err.status === 401);
+        setStatus("err", expired ? "Sua sessão Google expirou. Entre novamente e atualize seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar um plano existente.");
+      });
+      return;
+    }
+    submitEntitlementBypass = false;
     try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_started", { worlds: selectedList.length || 1 }); } catch (e0) {}
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
@@ -772,9 +1104,10 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
+    if (stripPacks && !prem) { lockedHint("Remover pacotes de comportamento é um recurso pago.", "vip7"); return; }
     var addPacks = selectedPacks.map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
-    if (addPacks.length && !prem && addPacks.length > FREE_INSTALL_PACKS) {
-      lockedHint("Grátis: até " + FREE_INSTALL_PACKS + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
+    if (addPacks.length && !prem && addPacks.length > freeAddPacksLimit()) {
+      lockedHint("Grátis: até " + freeAddPacksLimit() + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
       return;
     }
 
@@ -786,7 +1119,7 @@
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });
     if (tooBig.length) {
-      if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). O VIP aceita arquivos de até " + PRE_MAX_MB + " MB e libera os recursos avançados.");
+      if (!remotePremOk()) lockedHint("Esse mundo passa de " + sizeLimitMB() + " MB (" + tooBig[0].name + "). Seu plano pago define o limite de arquivo e libera os recursos avançados.");
       else setStatus("err", "Arquivo acima do limite deste plano (máx. <b>" + paidSizeLimitMB() + " MB</b>): " + escapeHtml(tooBig[0].name));
       return;
     }
@@ -795,8 +1128,8 @@
       return;
     }
     // Limite leve do grátis: N conversões por dia (VIP = ilimitado).
-    if (!prem && freeLeft() <= 0) {
-      lockedHint("Você usou as " + FREE_DAILY + " conversões grátis de hoje. O VIP é ilimitado, sem espera.", "vip30");
+    if (!prem && serverFreeQuota.ready && serverFreeQuota.remaining <= 0) {
+      lockedHint("Você usou as " + freeDailyLimit() + " conversões grátis de hoje. O VIP é ilimitado, sem espera.", "vip30");
       return;
     }
     // Botão único: chunks + player entram no MESMO arquivo, se marcados
@@ -804,40 +1137,52 @@
     var wantPlayer = !!(window.RC_player && window.RC_player.hasEdits());
     // Resolver 1 mundo is a single-world entitlement, so any generated world
     // consumes it. Time-based plans only need this gate for premium features.
-    var premiumRequested = remotePlan() === "world1" || batch || wantChunks || wantPlayer || mode !== "keep" ||
-      wantsHardcore || wantsKeep || wantsTime || stripPacks || !!(wantIcon && wantIcon.checked) ||
-      addPacks.length > FREE_INSTALL_PACKS || selectedList.some(function (f) { return f.size > freeLimitMB() * 1024 * 1024; });
+    var playerAdvanced = !!(wantPlayer && window.RC_player && window.RC_player.requiresPremium && window.RC_player.requiresPremium());
+    var featureTools = ["convert"];
+    if (wantChunks) featureTools.push("chunks_restore");
+    if (wantPlayer) featureTools.push("player_basic");
+    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore || stripPacks ||
+      addPacks.length > freeAddPacksLimit() || selectedList.some(function (f) { return f.size > freeLimitMB() * 1024 * 1024; }) ||
+      (wantChunks && window.RC_reset.selCount() > freeChunksLimit()) || playerAdvanced;
     var operationId = "";
     try { operationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); } catch (eop) { operationId = String(Date.now()) + Math.random(); }
-    var entitlementCheck = Promise.resolve(null);
+    var operationDecision = null;
+    var worldInfo = { project_id: "", fingerprint: "" };
+    var worldInfoPromise = batch || /\.dat$/i.test(selected.name || "") ? Promise.resolve(worldInfo) : worldProjectInfo(selected).then(function (info) { worldInfo = info; return info; });
+    var entitlementCheck = null;
     if (premiumRequested) {
       if (!loggedIn() || !window.RC_pay || !window.RC_pay.authorizeOperation) {
         setStatus("err", "Esta operação exige uma autorização válida da conta Google. Entre novamente e tente de novo.");
         return;
       }
-      entitlementCheck = window.RC_pay.authorizeOperation(
+      if (remotePlan() === "world1" && /\.dat$/i.test(selected.name || "")) {
+        setStatus("err", "O crédito de 1 mundo precisa de um arquivo <b>.mcworld</b> completo. O arquivo <b>level.dat</b> avulso não identifica o mundo.");
+        return;
+      }
+      entitlementCheck = function () { return worldInfoPromise.then(function (info) { return window.RC_pay.authorizeOperation(
         selectedList.length,
         Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
         { mode: mode, hardcore: wantsHardcore, advanced_rules: wantsKeep || wantsTime,
-          advanced_tools: wantChunks || wantPlayer,
+          tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced,
           remove_behavior_packs: stripPacks,
-          add_packs: addPacks.length, rename: false, icon: !!(wantIcon && wantIcon.checked) }
-      ).catch(function (err) { throw err; });
+          add_packs: addPacks.length, rename: false, icon: !!(wantIcon && wantIcon.checked), tool: "convert" },
+        operationId,
+        info.project_id,
+        info.fingerprint
+      ); }).then(function (decision) {
+        operationDecision = decision;
+        if (!operationDecision.world_project_id && worldInfo.project_id) operationDecision.world_project_id = worldInfo.project_id;
+        return decision;
+      }).catch(function (err) { throw err; }); };
     }
-    var freeQuotaCheck = Promise.resolve(null);
     if (!premiumRequested) {
-      if (!window.RC_pay || !window.RC_pay.freeQuota) {
-        setStatus("err", "NÃ£o foi possÃ­vel validar a quota gratuita no servidor. Tente novamente.");
-        return;
-      }
-      freeQuotaCheck = window.RC_pay.freeQuota(false).then(function (q) {
-        serverFreeQuota = { ready: true, remaining: Math.max(0, +q.remaining || 0) };
-        paintQuota();
-        if (!q.allowed) throw new Error("FREE_QUOTA_EXCEEDED");
-        return q;
-      });
+      if (!window.RC_pay || !window.RC_pay.authorizeOperation) { setStatus("err", "Não foi possível validar a operação no servidor. Tente novamente."); return; }
+      entitlementCheck = function () { return worldInfoPromise.then(function (info) { return window.RC_pay.authorizeOperation(
+        selectedList.length, Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
+        { mode: mode, tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced },
+        operationId, info.project_id, info.fingerprint
+      ); }).then(function (decision) { operationDecision = decision; return decision; }); };
     }
-    var operationGate = Promise.all([entitlementCheck, freeQuotaCheck]);
     if ((wantChunks || wantPlayer) && (batch || /\.dat$/i.test(selected.name || ""))) {
       setStatus("err", "Reset de chunks e player gemado funcionam com <b>1 .mcworld por vez</b> (não no lote nem em level.dat avulso).");
       return;
@@ -850,6 +1195,11 @@
       var perr = window.RC_player.preflight();
       if (perr) { setStatus("err", perr); return; }
     }
+    if (batch && ((wantIcon.checked && iconBytes) || newName)) {
+      setStatus("err", "No lote, <b>foto e nome único</b> não se aplicam — um por vez para usá-los.");
+      return;
+    }
+    var operationGate = Promise.all([entitlementCheck(), worldInfoPromise]);
     function packLimitOf(err) {
       var g = /^PACK_LIMIT\|(\d+)\|(\d+)/.exec(String((err && err.message) || err || ""));
       return g ? { packs: +g[1], limit: +g[2] } : null;
@@ -908,16 +1258,28 @@
   }
 
     function finishSingle(outName, f, res, iconBytes, extras) {
-      var consume = premiumRequested && remotePlan() === "world1" && window.RC_pay && window.RC_pay.consumeOperation
-        ? window.RC_pay.consumeOperation(operationId, 1)
-        : Promise.resolve(null);
-      var consumeFreeRemote = !premUnlimited && window.RC_pay && window.RC_pay.freeQuota
-        ? window.RC_pay.freeQuota(true)
-        : Promise.resolve(null);
-      return consume.then(function () { return consumeFreeRemote; }).then(function () {
+      var projectId = (operationDecision && operationDecision.world_project_id) || worldInfo.project_id;
+      var prepareOutput = operationDecision && operationDecision.requires_credit && window.RC_entitlements
+        ? window.RC_entitlements.markWorldForCompletion(res.blob, projectId).then(function (finalized) { res.blob = finalized.blob; return finalized; })
+        : attachWorldProject(res.blob, projectId).then(function (blob) { res.blob = blob; return { blob: blob, fingerprint: "" }; });
+      var consumeFreeRemote = Promise.resolve(null);
+      return prepareOutput.then(function (finalized) {
+        if (operationDecision && operationDecision.requires_completion && window.RC_entitlements) return window.RC_entitlements.complete(operationId, finalized.fingerprint);
+        return null;
+      }).then(function (completed) {
+        if (completed && completed.credit_consumed && window.RC_entitlements) {
+          return window.RC_entitlements.refresh().then(function (ent) {
+            serverEntitlement = Object.assign({}, ent, { ready: ent.status === "ready", until: +ent.premium_until_ms || 0, email: ent.account_email || "" });
+            window.RC_entitlementState = serverEntitlement;
+            paintQuota();
+          }).catch(function () {});
+        }
+      }).then(function () { return consumeFreeRemote; }).then(function () {
+        if (lastWorldReport) lastWorldReport.operation = { completed_at: new Date().toISOString(), output_file: outName, changes: res.changes || [], warnings: res.warnings || [], additional_operations: extras || [], original_preserved: true };
         downloadBlob(res.blob, outName);
-        if (!premUnlimited) serverFreeQuota.remaining = Math.max(0, serverFreeQuota.remaining - 1);
-        paintQuota();
+        if (!premUnlimited && window.RC_pay && window.RC_pay.freeQuota) {
+          window.RC_pay.freeQuota(false).then(function (q) { serverFreeQuota = { ready: true, remaining: Math.max(0, +q.remaining || 0) }; paintQuota(); }).catch(function () {});
+        }
         try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1 }); } catch (e0) {}
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
@@ -944,7 +1306,8 @@
       }).then(function (res) {
         return finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
-        setStatus("err", friendlyFileErr(err));
+        if (operationId && window.RC_entitlements) window.RC_entitlements.release(operationId).catch(function () {});
+        presentOperationFailure(err);
         submit.disabled = false;
       });
       return;
@@ -952,12 +1315,11 @@
 
     // lote VIP: vale modo + regras (foto/nome: um por vez)
     if (batch) {
-      if ((wantIcon.checked && iconBytes) || newName) {
-        setStatus("err", "No lote, <b>foto e nome único</b> não se aplicam — um por vez para usá-los.");
-        submit.disabled = false;
-        return;
-      }
-      operationGate.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }); }).then(function (results) {
+      operationGate.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : freeAddPacksLimit(), addPacks: addPacks }); }).then(function (results) {
+        if (operationDecision && operationDecision.requires_completion && window.RC_entitlements) return window.RC_entitlements.complete(operationId).then(function () { return results; });
+        return results;
+      }).then(function (results) {
+        if (lastWorldReport) lastWorldReport.operations = results.map(function (r) { return { output_file: r.outName, changes: r.changes || [], warnings: r.warnings || [], original_preserved: true }; });
         results.forEach(function (r) {
           downloadBlob(r.blob, r.outName);
         });
@@ -970,8 +1332,9 @@
         setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {
+        if (operationId && window.RC_entitlements) window.RC_entitlements.release(operationId).catch(function () {});
         if (packLimitHint(err)) return;
-        setStatus("err", friendlyFileErr(err));
+        presentOperationFailure(err);
         submit.disabled = false;
       });
       return;
@@ -981,7 +1344,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : FREE_MAX_PACKS, addPacks: addPacks }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : freeAddPacksLimit(), addPacks: addPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {
@@ -1008,13 +1371,13 @@
         });
       }
       return chain.then(function (finalBlob) {
-        if (!premUnlimited) { if (wantChunks) window.RC_reset.useFree(); if (wantPlayer) window.RC_dbx.useFreePlayer(); }
         both.res.blob = finalBlob;
         return finishSingle(baseName(selected.name), selected, both.res, both.iconBytes, extras);
       });
     }).catch(function (err) {
+      if (operationId && window.RC_entitlements) window.RC_entitlements.release(operationId).catch(function () {});
       if (packLimitHint(err)) return;
-      setStatus("err", friendlyFileErr(err));
+      presentOperationFailure(err);
       submit.disabled = false;
     });
   });
@@ -1074,22 +1437,21 @@
   paintPresets();
   paintQuota();
   refreshFreeQuota();
-  document.addEventListener("rc-pay-ready", refreshFreeQuota);
-  refreshRemotePrem(); // Premium da conta (se logado) — atualiza a cota sozinho
+  document.addEventListener("rc-pay-ready", function () { refreshFreeQuota(); refreshRemotePrem().catch(function () {}); });
   document.addEventListener("rc-auth", function () {
     setTimeout(function () {
       var u = null;
       try { u = (window.RC_auth && window.RC_auth.user()) || null; } catch (e) {}
       if (!u) {
         // deslogou: limpa qualquer resto de Premium e volta pro grátis na hora
-        serverEntitlement = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
+        serverEntitlement = Object.assign({}, window.RC_entitlements ? window.RC_entitlements.state() : {}, { ready: false });
         window.RC_entitlementState = serverEntitlement;
-        serverFreeQuota = { ready: false, remaining: FREE_DAILY };
+        serverFreeQuota = { ready: false, remaining: 0 };
         paintQuota();
         return;
       }
       refreshFreeQuota();
-      refreshRemotePrem();
+      refreshRemotePrem().catch(function () {});
     }, 150);
   });
 })();

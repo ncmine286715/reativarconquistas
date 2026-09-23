@@ -24,10 +24,11 @@
 </div>
 </div>
 </div>
-<script src="config.js?v=25"></script>
+<script src="config.js?v=26"></script>
 <script src="firebase-config.js?v=13"></script>
-<script src="auth.js?v=14"></script>
-<script src="pagamento.js?v=22"></script>
+<script src="auth.js?v=15"></script>
+<script src="pagamento.js?v=27"></script>
+<script src="entitlements.js?v=3"></script>
 <script>
 (function () {
   try {
@@ -56,13 +57,6 @@
     });
   }
   function show(html) { document.getElementById("box").innerHTML = html; }
-  function freeLimitLabel() {
-    try {
-      var c = window.RC_CONFIG || {};
-      var promo = c.PROMO_UNTIL && c.PROMO_MAX_MB && Date.now() < new Date(c.PROMO_UNTIL).getTime();
-      return (promo ? c.PROMO_MAX_MB : (c.FREE_MAX_MB || 10)) + " MB";
-    } catch (e) { return "o limite grátis atual"; }
-  }
   function render() {
     if (!window.RC_auth || !window.RC_auth.enabled) {
       show("<p class='sub'>Conta indisponível agora. Volte ao <a href='index.html#converter'>conversor</a>.</p>");
@@ -78,81 +72,37 @@
       return;
     }
     document.getElementById("logout").hidden = false;
-    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando VIP…</p>");
-    if (window.RC_pay && window.RC_pay.entitlements) {
-      window.RC_pay.entitlements().then(function (ent) {
-        var credit = +ent.world_credits || 0;
-        var until = +ent.premium_until_ms || 0;
-        var line = credit > 0
-          ? "Resolver 1 mundo: <b>1 crédito disponível</b> (até 150 MB)"
-          : (until > Date.now() ? "Plano: <b>" + esc(ent.plan || "VIP") + "</b> até " + new Date(until).toLocaleDateString("pt-BR") : "Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)");
-        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p>" + line + "</p>" + (credit || until > Date.now() ? "<p><a href='index.html#converter'><b>Ir converter</b></a></p>" : "<p class='sub'><a href='index.html#planos'><b>Assinar um plano</b></a> para mundos maiores e recursos extras.</p>"));
-      }).catch(function () { show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Sem conexão com o servidor agora. Tente novamente.</p>"); });
-      return;
-    }
-    /* Legacy e-mail linking was removed: entitlements are UID-bound.
-    var emails = [];
-    try {
-      var le = (localStorage.getItem("rc_prem_email") || "").trim().toLowerCase();
-      if (u.email) emails.push(u.email.trim().toLowerCase());
-      if (le && emails.indexOf(le) < 0) emails.push(le);
-    } catch (e) { if (u.email) emails.push(u.email.trim().toLowerCase()); }
-    var pending = emails.length, best = 0, okAny = false;
-    if (!pending) {
-      show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
-        "<p><b>Plano:</b> Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)</p>" +
-        "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>");
-      return;
-    }
-    emails.forEach(function (em) {
-      window.RC_pay.remotePremiumMs(em).then(function (ms) {
-        okAny = true;
-        if (+ms > best) best = +ms;
-      }).catch(function () {}).then(function () {
-        if (--pending) return;
-        if (!okAny) {
-          show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
-            "<p class='sub'>Sem conexão com o servidor agora. <a href='#' id='retryVip'><b>Tentar de novo</b></a></p>");
-          document.getElementById("retryVip").addEventListener("click", function (e) { e.preventDefault(); render(); });
-          return;
+    show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Verificando seu plano…</p>");
+    if (window.RC_entitlements) {
+      window.RC_entitlements.load().then(function (ent) {
+        if (ent.status !== "ready") throw new Error("Entitlement response unavailable.");
+        var active = !!ent.active;
+        var limit = ent.max_file_mb === null ? "sem limite comercial" : ent.max_file_mb + " MB";
+        var until = ent.expires_at ? new Date(ent.expires_at).toLocaleDateString("pt-BR") : "";
+        var pendingAction = "";
+        if (ent.pending_payment && /^https:\/\//i.test(String(ent.pending_payment.checkout_url || ""))) {
+          pendingAction = "<p><a class='btn-ghost' href='" + esc(ent.pending_payment.checkout_url) + "' target='_blank' rel='noopener'>Abrir pagamento existente</a></p>";
+        } else if (ent.pending_payment && ent.pending_payment.provider === "depix" && ent.pending_payment.status === "checkout_creation_uncertain") {
+          pendingAction = "<p><button class='btn-ghost' id='resumePendingPayment' type='button'>Retomar a criação do Pix</button></p>";
         }
-        var prem = best > Date.now();
-        try {
-          if (prem) localStorage.setItem("rc_prem_remote", JSON.stringify({ until: best, email: u.email }));
-          else if (!((JSON.parse(localStorage.getItem("rc_prem_remote") || "null") || {}).until > Date.now())) localStorage.removeItem("rc_prem_remote");
-        } catch (e) {}
-        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" +
-          "<p><b>Plano:</b> " + (prem
-            ? "VIP até <b>" + new Date(best).toLocaleDateString("pt-BR") + "</b> · <a href='index.html#converter'><b>Ir converter</b></a>"
-            : "Grátis (mundos até " + freeLimitLabel() + ", 3 por dia)") + "</p>" +
-          (prem ? "" : "<p class='sub'><a href='index.html#planos'><b>Assinar o VIP</b></a> para mundos gigantes e recursos extras.</p>") +
-          "<p class='sub'>Pagou com <b>outro e-mail</b> (ex.: na Kiwify)? <a href='#' id='linkEmail'><b>Vincular e-mail do pagamento</b></a> · <a href='#' id='retryVip'>Verificar de novo</a></p>");
-        document.getElementById("retryVip").addEventListener("click", function (e) { e.preventDefault(); render(); });
-        document.getElementById("linkEmail").addEventListener("click", function (e) {
-          e.preventDefault();
-          var cur = "";
-          try { cur = localStorage.getItem("rc_prem_email") || ""; } catch (e2) {}
-          var em2 = window.prompt("Qual e-mail você usou no pagamento? (o VIP vale nele)", cur);
-          if (em2 === null) return;
-          em2 = String(em2).trim().toLowerCase();
-          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em2)) { alert("Informe um e-mail válido."); return; }
-          show("<p class='sub'>Verificando VIP em " + esc(em2) + "…</p>");
-          window.RC_pay.remotePremiumMs(em2).then(function (ms2) {
-            if (+ms2 > Date.now()) {
-              try {
-                localStorage.setItem("rc_prem_email", em2);
-                localStorage.setItem("rc_prem_remote", JSON.stringify({ until: +ms2, email: em2 }));
-              } catch (e3) {}
-              render();
-            } else {
-              alert("Nenhum VIP ativo em " + em2 + ". Confira o e-mail do pagamento.");
-              render();
-            }
-          }).catch(function () { alert("Sem conexão agora. Tente de novo em instantes."); render(); });
-        });
+        var details = "<p><b>Plano atual:</b> " + esc(ent.plan_label || ent.plan || "Plano gratuito") + "</p>" +
+          "<p><b>Status:</b> " + (active ? "Ativo" : "Gratuito") + (until ? " · <b>Expira:</b> " + esc(until) : "") + "</p>" +
+          (ent.plan === "world1" ? "<p><b>Créditos de mundo:</b> " + (+ent.world_credits || 0) + " · <b>Projetos ativos:</b> " + (+ent.active_world_projects || 0) + "</p><p><b>Limite por mundo:</b> " + esc(limit) + "</p>" : "<p><b>Limite por mundo:</b> " + esc(limit) + "</p>");
+        if (ent.pending_payment) details += "<p class='sub'><b>" + (ent.pending_payment.status === "checkout_creation_uncertain" ? "Cobrança em confirmação:" : "Pagamento em confirmação:") + "</b> " + esc(window.RC_entitlements.messageForPending(ent.pending_payment)) + "</p>";
+        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" + details + pendingAction +
+          "<p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>" +
+          (active ? "<p><a href='index.html#converter'><b>Ir converter</b></a></p>" : (ent.pending_payment ? "" : "<p class='sub'><a href='index.html#planos'><b>Ver planos</b></a> para mundos maiores e recursos extras.</p>")));
+        var resume = document.getElementById("resumePendingPayment");
+        if (resume) resume.onclick = function () { resume.disabled = true; if (window.RC_pay) window.RC_pay.checkout(ent.pending_payment.plan, null); };
+        var refresh = document.getElementById("refreshBenefits");
+        if (refresh) refresh.onclick = function () { refresh.disabled = true; window.RC_entitlements.refresh().then(render).catch(render); };
+      }).catch(function () {
+        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Não foi possível verificar seus benefícios agora. Tente novamente.</p><p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>");
+        var refresh = document.getElementById("refreshBenefits");
+        if (refresh) refresh.onclick = function () { window.RC_entitlements.refresh().then(render).catch(render); };
       });
-    });
-    */
+      return;
+    }
   }
   document.getElementById("logout").addEventListener("click", function () {
     if (!window.confirm("Sair da conta?")) return;
@@ -162,5 +112,6 @@
   render();
 })();
 </script>
+<script src="guia-site.js?v=3"></script>
 </body>
 </html>

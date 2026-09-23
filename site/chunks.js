@@ -33,9 +33,9 @@
   function paintSelUI() {
     var c = $("selCount");
     if (c) {
-      var n = selCount(), free = 8;
-      try { if (window.RC_dbx && window.RC_dbx.limits) free = window.RC_dbx.limits.freeResetChunks; } catch (e) {}
-      c.innerHTML = n ? ("<b>" + n + " pintado(s)</b>" + (n > free && !window.RC_dbx.vipOk() ? " · grátis até <b>" + free + "</b>" : "")) : "nada pintado ainda";
+      var n = selCount(), ent = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : {};
+      var free = ent.capabilities && ent.capabilities.chunks_restore && +ent.capabilities.chunks_restore.max_chunks;
+      c.innerHTML = n ? ("<b>" + n + " pintado(s)</b>" + (Number.isFinite(free) && ent.plan === "free" && n > free ? " · grátis até <b>" + free + "</b>" : "")) : "nada pintado ainda";
     }
     var an = $("analyzeBtn"), rs = $("resetBtn");
     if (an) an.disabled = !selCount();
@@ -167,6 +167,9 @@
   function analyze() {
     if (!curFile) { status("Escolha o <b>.mcworld</b> primeiro (passo 1)."); return; }
     if (!selCount()) return;
+    var entitlementState = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : { status: "loading" };
+    if (entitlementState.status === "loading") { status("Verificando seu plano... aguarde e tente novamente."); if (window.RC_entitlements) window.RC_entitlements.load().catch(function () {}); return; }
+    if (entitlementState.status === "error" || entitlementState.status === "session_expired") { status(entitlementState.status === "session_expired" ? "Sua sessão Google expirou. Entre novamente para verificar seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente."); return; }
     if (!window.RC_dbx || !window.RC_nbt2 || !window.RC_ldbw) { status("Módulos ainda carregando. Aguarde 5s e tente de novo."); return; }
     status('<span class="spin"></span> Analisando a seleção <b>sem alterar nada</b>…');
     var box = $("analysisBox");
@@ -369,11 +372,21 @@
     if (!selCount()) return null; // nada marcado = pula sem erro
     if (!window.RC_dbx || !window.RC_nbt2 || !window.RC_ldbw) return "Módulos ainda carregando. Aguarde e toque de novo.";
     if (!analysis) return "Analisando a seleção, aguarde 2s e toque de novo.";
+    var entitlementState = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : { status: "error" };
+    if (entitlementState.status === "loading") return "Verificando seu plano...";
+    if (entitlementState.status === "error" || entitlementState.status === "session_expired") return "Não foi possível verificar seu plano agora. Tente novamente.";
     var vip = window.RC_dbx.vipOk();
-    var freeN = window.RC_dbx.limits.freeResetChunks;
+    var freeN = +(entitlementState.capabilities && entitlementState.capabilities.chunks_restore && entitlementState.capabilities.chunks_restore.max_chunks) || 0;
+    if (window.RC_entitlements) {
+      var fileDecision = window.RC_entitlements.canUseFile([curFile]);
+      if (!fileDecision.allowed) {
+        if (entitlementState.pending_payment) status(esc(window.RC_entitlements.messageForPending(entitlementState.pending_payment)) + " <a href='minha-conta.html'>Minha conta</a>");
+        else status(entitlementState.active ? "Seu arquivo excede o limite de " + fileDecision.max_file_mb + " MB do plano " + (entitlementState.plan_label || entitlementState.plan) + "." : "Este arquivo excede o limite gratuito de " + fileDecision.max_file_mb + " MB. Consulte os planos para mundos maiores.");
+        return;
+      }
+    }
     if (!vip) {
       if (selCount() > freeN) return window.RC_dbx.vipNeed("Grátis: até " + freeN + " chunks por dia (" + selCount() + " selecionados). O VIP é ilimitado.").html;
-      if (window.RC_dbx.freeResetLeft() <= 0) return window.RC_dbx.vipNeed("Você já usou seu reset grátis de hoje. O VIP reseta sem limite, todo dia.").html;
     }
     var ack = $("resetAck");
     if (ack && !ack.checked) return "Confirme que fez backup e deseja restaurar a área selecionada pela seed.";
@@ -487,7 +500,7 @@
   }
   window.RC_reset = {
     preflight: preflightChunks, applyToBlob: applyToBlobChunks,
-    selCount: selCount, useFree: function () { try { window.RC_dbx.useFreeReset(); } catch (e) {} }
+    selCount: selCount
   };
 
   function doReset() {
@@ -495,19 +508,22 @@
     if (!selCount()) return;
     if (!window.RC_dbx || !window.RC_nbt2 || !window.RC_ldbw) { status("Módulos ainda carregando. Aguarde 5s e tente de novo."); return; }
       if (!analysis) { status("Rode <b>Analisar seleção</b> primeiro — ela mostra o estado dos chunks antes da restauração."); return; }
+    var entState = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : { status: "error" };
+    if (entState.status !== "ready" && entState.status !== "unauthenticated") { status(entState.status === "session_expired" ? "Sua sessão Google expirou. Entre novamente." : "Não foi possível verificar seu plano agora. Tente novamente."); return; }
+    var fileDecision = window.RC_entitlements.canUseFile([curFile]);
+    if (!fileDecision.allowed && fileDecision.status !== "ready" && fileDecision.status !== "unauthenticated") { status("Não foi possível verificar seu plano agora. Tente novamente."); return; }
+    if (!fileDecision.allowed) {
+      if (entState.pending_payment) status(esc(window.RC_entitlements.messageForPending(entState.pending_payment)) + " <a href='minha-conta.html'>Minha conta</a>");
+      else status("Seu arquivo excede o limite de " + fileDecision.max_file_mb + " MB do plano " + (entState.plan_label || entState.plan) + ".");
+      return;
+    }
     var vip = window.RC_dbx.vipOk();
-    var freeN = window.RC_dbx.limits.freeResetChunks;
+    var freeN = +(entState.capabilities && entState.capabilities.chunks_restore && entState.capabilities.chunks_restore.max_chunks) || 0;
     if (!vip) {
       if (selCount() > freeN) {
         var need = window.RC_dbx.vipNeed("Grátis: até " + freeN + " chunks por dia (" + selCount() + " selecionados). O VIP é ilimitado.");
         status(need.html);
         try { document.getElementById("planos").scrollIntoView({ behavior: "smooth" }); } catch (e) {}
-        return;
-      }
-      if (window.RC_dbx.freeResetLeft() <= 0) {
-        var need2 = window.RC_dbx.vipNeed("Você já usou seu reset grátis de hoje. O VIP reseta sem limite, todo dia.");
-        status(need2.html);
-        try { document.getElementById("planos").scrollIntoView({ behavior: "smooth" }); } catch (e2) {}
         return;
       }
     }
@@ -541,6 +557,9 @@
     status('<span class="spin"></span> Gerando mundo novo <b>no seu navegador</b>… (original intacto)');
     if (btn) btn.disabled = true;
     var data, ops, delCount = 0, sel = new Set(window.RC_sel), targetHex = {};
+    var standaloneOperationId = "";
+    var standaloneDecision = null;
+    try { standaloneOperationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); } catch (eop) { standaloneOperationId = String(Date.now()) + Math.random(); }
     var vilKeys = [], vilDel = 0;
     function hexOf(u8) {
       var h = "";
@@ -554,7 +573,18 @@
         targetHex[hexOf(vs[q])] = 1;
       }
     }
-    window.RC_dbx.openWorld(curFile).then(function (d) {
+    window.RC_entitlements.load().then(function (ent) {
+      if (ent.status !== "ready" && ent.status !== "unauthenticated") throw new Error(ent.status === "session_expired" ? "Sua sessão Google expirou. Entre novamente." : "Não foi possível verificar seu plano agora. Tente novamente.");
+      var decision = window.RC_entitlements.canUseFile([curFile]);
+      if (decision.status !== "ready" && decision.status !== "unauthenticated") throw new Error("Não foi possível verificar seu plano agora. Tente novamente.");
+      if (!decision.allowed) throw new Error("Arquivo acima do limite de " + decision.max_file_mb + " MB deste plano.");
+      return window.RC_entitlements.worldProjectInfo(curFile).then(function (info) {
+        return window.RC_entitlements.checkOperation({ worlds: 1, size_bytes: curFile.size,
+          features: { tools: ["chunks_restore"], chunks_count: sel.size }, operation_id: standaloneOperationId,
+          world_project_id: info.project_id, world_fingerprint: info.fingerprint
+        }).then(function (result) { standaloneDecision = result; if (!standaloneDecision.world_project_id) standaloneDecision.world_project_id = info.project_id; return null; });
+      });
+    }).then(function () { return window.RC_dbx.openWorld(curFile); }).then(function (d) {
       data = d;
       ops = [];
       var entries = Array.from(d.db.keys.entries());
@@ -658,25 +688,33 @@
             return { left: left, hasPlayer: hasPlayer, live1: live1, live2: live2 };
         }).then(function (chk) {
           var base = String(curFile.name || "mundo.mcworld").replace(/\.(mcworld|zip)$/i, "");
-          window.RC_dbx.downloadBlob(r.blob, base + "-chunks-restauradas.mcworld");
+          var outputPromise = standaloneDecision.requires_credit
+            ? window.RC_entitlements.markWorldForCompletion(r.blob, standaloneDecision.world_project_id || "")
+            : window.RC_entitlements.markWorld(r.blob, standaloneDecision.world_project_id || "").then(function (blob) { return { blob: blob, fingerprint: "" }; });
+          return outputPromise.then(function (finalized) {
+            if (standaloneDecision.requires_completion) return window.RC_entitlements.complete(standaloneOperationId, finalized.fingerprint).then(function () { return finalized.blob; });
+            return finalized.blob;
+          }).then(function (blob) {
+          window.RC_dbx.downloadBlob(blob, base + "-chunks-restauradas.mcworld");
           window.RC_dbx.dropCache();
           try { window.RC_modified = new Set(sel); } catch (e) {}
           ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); window.RC_sel.clear(); analysis = null;
           var ar = $("analysisBox"); if (ar) { ar.hidden = true; ar.innerHTML = ""; }
           var ack2 = $("resetAck"); if (ack2) ack2.checked = false;
           var wasVip = window.RC_dbx.vipOk();
-          if (!wasVip) window.RC_dbx.useFreeReset();
-          var tail = wasVip ? "" : "<br>Reset grátis usado hoje. " + (window.RC_dbx.freeResetLeft() > 0 ? "" : "Amanhã libera outro — ou <a href='#planos'><b>VIP é ilimitado</b></a>.");
+          var tail = wasVip ? "" : "<br>Uso grátis confirmado pelo servidor.";
           status("✅ <b>Restauração concluída!</b> Download iniciado: <b>" + esc(base) + "-chunks-restauradas.mcworld</b> — <b>" + delCount + "</b> registros restaurados pela seed em <b>" + sel.size + "</b> chunk(s)" + (vilDel ? (" + <b>" + vilDel + "</b> de vila") : "") + ". " +
             "Chaves: " + chk.live1 + " → " + chk.live2 + " · player " + (chk.hasPlayer ? "intacto ✓" : "ausente (como no original)") + ". " +
             "<br><b>Para regenerar sem vazio:</b> 1) importe o arquivo novo; 2) abra o <b>mundo novo</b> (mesmo nome — confira); 3) vá até a área e <b>aguarde gerar</b>; 4) se ficar descarregado, <b>feche e reabra</b> o mundo. No celular, regenere em <b>lotes pequenos</b>. Mapas antigos mostram a área velha — explore para atualizar. " +
             "<b>Guarde o original.</b>" + tail);
           paintSelUI();
+          });
         });
       });
     }).catch(function (err) {
-      status("Não deu certo: " + esc(String((err && err.message) || err).slice(0, 260)) + " <b>Nada foi baixado; seu original está intacto.</b>");
+      status(esc(window.RC_entitlements.messageForError(err)) + " <b>Nada foi baixado; seu original permanece intacto.</b>");
     }).then(function () {
+      if (standaloneOperationId && window.RC_entitlements) window.RC_entitlements.release(standaloneOperationId).catch(function () {});
       var b2 = $("resetBtn");
       if (b2) b2.disabled = !selCount();
     });

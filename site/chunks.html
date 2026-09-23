@@ -7,7 +7,7 @@
 <meta name="description" content="Selecione no mapa as áreas com lag ou corrompidas do seu mundo Minecraft Bedrock e recrie apenas essas chunks pela seed. Tudo roda no navegador.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=16">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -92,36 +92,37 @@
 
   <section class="section chunk-plans" id="planos">
     <h2>Precisa restaurar uma área maior?</h2>
-    <p class="plans-sub">O teste gratuito é para áreas pequenas. O VIP libera restaurações sem limite diário e seleções maiores.</p>
-    <div class="map-actions"><a class="btn-plan btn-pay" data-pay="vip7" href="#">Liberar 7 dias · R$ 7,99</a><a class="btn-ghost" href="index.html#planos">Comparar todos os planos</a></div>
+    <p class="plans-sub">O teste gratuito cobre áreas pequenas. O passe de 7 dias amplia o uso e custa R$ 7,99 em pagamento único, sem renovação automática.</p>
+    <div class="map-actions"><a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe de 7 dias · R$ 7,99</a><a class="btn-ghost" href="index.html#planos">Comparar todos os planos</a></div>
   </section>
 </main>
 
 <script src="vendor/jszip.min.js?v=14"></script>
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
-<script src="config.js?v=25"></script>
+<script src="config.js?v=26"></script>
 <script src="converter.js?v=16"></script>
-<script src="ferramentas-local.js?v=14"></script>
-<script src="mapa-2d.js?v=6"></script>
+<script src="ferramentas-local.js?v=15"></script>
+<script src="mapa-2d.js?v=7"></script>
 <script src="mapa-terreno.js?v=3"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
-<script src="db-common.js?v=5"></script>
-<script src="chunks.js?v=6"></script>
+<script src="db-common.js?v=8"></script>
+<script src="chunks.js?v=8"></script>
 <script src="firebase-config.js?v=13"></script>
-<script src="auth.js?v=14"></script>
-<script src="pagamento.js?v=22"></script>
+<script src="auth.js?v=15"></script>
+<script src="pagamento.js?v=27"></script>
+<script src="entitlements.js?v=3"></script>
 <script>
 (function () {
   var root = document.documentElement;
   document.addEventListener("click", function (e) { var b = e.target && e.target.closest && e.target.closest(".theme-btn"); if (!b) return; e.preventDefault(); var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark"; root.setAttribute("data-theme", next); try { localStorage.setItem("rc_theme", next); } catch (x) {} });
-  var state = window.RC_entitlementState = { ready: false, until: 0, world_credits: 0, plan: "", email: "" };
-  function refresh() { var u = window.RC_auth && window.RC_auth.user && window.RC_auth.user(); if (!u || !window.RC_pay || !window.RC_pay.entitlements) { state.ready = false; state.until = 0; state.world_credits = 0; state.plan = ""; return; } window.RC_pay.entitlements().then(function (e) { state.ready = true; state.until = +e.premium_until_ms || 0; state.world_credits = Math.max(0, +e.world_credits || 0); state.plan = String(e.plan || ""); state.email = String(e.email || u.email || ""); }).catch(function () { state.ready = false; }); }
+  function refresh() { if (window.RC_entitlements) window.RC_entitlements.refresh().catch(function () {}); }
   if (window.RC_auth) window.RC_auth.onChange(refresh);
   document.addEventListener("rc-pay-ready", refresh);
   refresh();
 })();
 </script>
+<script src="guia-site.js?v=3"></script>
 </body>
 </html>

@@ -119,6 +119,12 @@
 
   function itemState(it) { return JSON.stringify([it.name, it.count, it.damage, it.ench, it.display, it.unbr, it.keep, it.dura, it.repair]); }
   function areaChanged(area) { return model[area].some(function(it,i) { return itemState(it) !== orig[area + "State"][i]; }); }
+  function requiresPremiumPlayer() {
+    if (!model || !orig) return false;
+    if (areaChanged("armor") || areaChanged("ender") || model.level !== (orig.level || 0)) return true;
+    for (var s = 0; s < 36; s++) if (model.inv[s].name && itemState(model.inv[s]) !== orig.invState[s] && overEnchant(model.inv[s])) return true;
+    return false;
+  }
   function isEmpty(it) { return !it.name; }
 
   /* ---------- carregar ---------- */
@@ -591,7 +597,17 @@
   }
 
   function doSave() {
+    var entState = window.RC_entitlements && window.RC_entitlements.state ? window.RC_entitlements.state() : { status: "loading" };
+    if (entState.status === "loading") { status("Verificando seu plano... aguarde e tente novamente."); if (window.RC_entitlements) window.RC_entitlements.load().catch(function () {}); return; }
+    if (entState.status === "error" || entState.status === "session_expired") { status(entState.status === "session_expired" ? "Sua sessão Google expirou. Entre novamente para verificar seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente."); return; }
     if (!curFile || !model) { status("Escolha o <b>.mcworld</b> e aguarde o player carregar."); return; }
+    var fileDecision = window.RC_entitlements.canUseFile([curFile]);
+    if (fileDecision.status !== "ready" && fileDecision.status !== "unauthenticated") { status("Não foi possível verificar seu plano agora. Tente novamente."); return; }
+    if (!fileDecision.allowed) {
+      if (entState.pending_payment) status(esc(window.RC_entitlements.messageForPending(entState.pending_payment)) + " <a href='minha-conta.html'>Minha conta</a>");
+      else status("Seu arquivo excede o limite de " + fileDecision.max_file_mb + " MB do plano " + (entState.plan_label || entState.plan) + ".");
+      return;
+    }
     if (!window.RC_ldbw) { status("Módulos ainda carregando. Aguarde 5s e tente de novo."); return; }
     var vip = window.RC_dbx.vipOk();
     if (!vip) {
@@ -618,19 +634,22 @@
         try { document.getElementById("planos").scrollIntoView({ behavior: "smooth" }); } catch (e2) {}
         return;
       }
-      if (window.RC_dbx.freePlayerLeft() <= 0) {
-        var need3 = window.RC_dbx.vipNeed("Você usou seus 2 saves grátis de player hoje. O VIP salva sem limite.");
-        status(need3.html);
-        try { document.getElementById("planos").scrollIntoView({ behavior: "smooth" }); } catch (e3) {}
-        return;
-      }
     }
     var ack = $("playerAck");
     if (ack && !ack.checked) { status("Marque <b>“Fiz backup e entendo que é irreversível”</b> para continuar."); return; }
     status('<span class="spin"></span> Gravando player <b>no seu navegador</b>… (original intacto)');
     var btn = $("playerSaveBtn");
     if (btn) btn.disabled = true;
-    tick().then(function () {
+    var standaloneOperationId = "";
+    try { standaloneOperationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); } catch (eop) { standaloneOperationId = String(Date.now()) + Math.random(); }
+    var standaloneDecision = null;
+    var entitlementStart = window.RC_entitlements.worldProjectInfo(curFile).then(function (info) {
+      return window.RC_entitlements.checkOperation({ worlds: 1, size_bytes: curFile.size,
+        features: { tools: ["player_basic"], player_advanced: requiresPremiumPlayer() }, operation_id: standaloneOperationId,
+        world_project_id: info.project_id, world_fingerprint: info.fingerprint
+      }).then(function (decision) { standaloneDecision = decision; if (!standaloneDecision.world_project_id) standaloneDecision.world_project_id = info.project_id; });
+    });
+    entitlementStart.then(function () { return tick(); }).then(function () {
       var N = T(), nb;
       try {
         nb = buildNewPlayerBytes();
@@ -679,20 +698,25 @@
             db2.keys.forEach(function (v) { if (v) live2++; });
             if (live2 !== live1) throw new Error("validação: contagem de chaves mudou (" + live1 + "→" + live2 + "). Nada foi baixado.");
             return occ;
-        }).then(function (occ2) {
+        }).then(async function (occ2) {
           var base = String(curFile.name || "mundo.mcworld").replace(/\.(mcworld|zip)$/i, "");
+          var finalized = standaloneDecision.requires_credit
+            ? await window.RC_entitlements.markWorldForCompletion(r.blob, standaloneDecision.world_project_id || "")
+            : { blob: await window.RC_entitlements.markWorld(r.blob, standaloneDecision.world_project_id || ""), fingerprint: "" };
+          r.blob = finalized.blob;
+          if (standaloneDecision.requires_completion) await window.RC_entitlements.complete(standaloneOperationId, finalized.fingerprint);
           window.RC_dbx.downloadBlob(r.blob, base + "-player.mcworld");
           window.RC_dbx.dropCache();
           var wasVip = window.RC_dbx.vipOk();
-          if (!wasVip) window.RC_dbx.useFreePlayer();
-          var tail = wasVip ? "" : "<br>Save grátis usado (" + window.RC_dbx.freePlayerLeft() + " restantes hoje). <a href='#planos'><b>VIP salva sem limite</b></a> + armadura, ender e encantos até 255.";
+          var tail = wasVip ? "" : "<br>Uso grátis confirmado pelo servidor.";
           status("Pronto! Download iniciado: <b>" + esc(base) + "-player.mcworld</b> — inventário com <b>" + occ2 + " item(ns)</b>, armadura e ender chest aplicados. " +
             "Chunks: <b>0 alterados</b> (só o player mudou) ✓. <b>Guarde o original.</b> Para continuar editando, reenvie o arquivo novo no passo 1." + tail);
         });
       });
     }).catch(function (err) {
-      status("Não deu certo: " + esc(String((err && err.message) || err).slice(0, 260)) + " <b>Nada foi baixado; seu original está intacto.</b>");
+      status(esc(window.RC_entitlements.messageForError(err)) + " <b>Nada foi baixado; seu original permanece intacto.</b>");
     }).then(function () {
+      if (standaloneOperationId && window.RC_entitlements) window.RC_entitlements.release(standaloneOperationId).catch(function () {});
       var b2 = $("playerSaveBtn");
       if (b2) b2.disabled = false;
     });
@@ -716,9 +740,6 @@
           var oe = overEnchant(model.inv[s]);
           if (oe) return window.RC_dbx.vipNeed("Grátis: encantos até o máximo vanilla (" + esc(enchName(oe.id)) + " " + oe.mx + "). Nv " + oe.lvl + " é VIP (até 255).").html;
         }
-      }
-      if (window.RC_dbx.freePlayerLeft() <= 0) {
-        return window.RC_dbx.vipNeed("Você usou seus 2 saves grátis de player hoje. O VIP salva sem limite.").html;
       }
     }
     var ack = $("playerAck");
@@ -793,7 +814,7 @@
       });
     });
   }
-  window.RC_player = { preflight: preflightPlayer, applyToBlob: applyToBlob, hasEdits: hasEdits };
+  window.RC_player = { preflight: preflightPlayer, applyToBlob: applyToBlob, hasEdits: hasEdits, requiresPremium: requiresPremiumPlayer };
 
   function dbDataKeyBytes() {
     // chave exata do player (bytes originais do banco)
