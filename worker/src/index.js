@@ -5,35 +5,31 @@
    -> payment_url -> volta em sucesso.html?checkout_id=chk_... -> GET /api/depix/status
    -> webhook POST /api/depix/webhook (HMAC X-DePix-Signature com DEPIX_WEBHOOK_SECRET).
    Endpoints (chamados por site/pagamento.js e site/auth.js):
-      POST /api/auth/register {email,name,password} -> {token,email,name}
-      POST /api/auth/login    {email,password} -> {token,email,name}
-      GET  /api/auth/me      (Bearer) -> {email,name,premium_until_ms}
-      POST /api/auth/logout  (Bearer) -> {ok:true}
-      POST /api/depix/create   {email, name, plan?, payer_tax_number} -> {url, id, plan}
-                               (plan "vip24h"|"vip30", padrão "vip30")
+      POST /api/depix/create   {name, plan, payer_tax_number} -> {url, id, plan}
+                               (plano sempre explícito; vínculo ao Firebase UID autenticado)
       GET  /api/depix/status?id=chk_... -> {status, paid, email, plan?, premium_until_ms?}
       POST /api/depix/webhook   (chamado pelo Depix App; verifica HMAC)
       POST /api/depix/simulate {id} (TESTE local: sk_test_ marca como pago)
       POST /api/abacate/create   {email, name, plan?} -> {url, id, plan} (reserva)
       GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, plan?, premium_until_ms?}
       POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
-      GET  /api/premium?email=X -> {premium_until_ms}
+      GET  /api/premium (Bearer Firebase) -> compatibility alias for /api/entitlements
       GET  /api/config -> flags públicas
       POST /api/kiwify/webhook[?secret=...] (reserva — backup em site/backup-kiwify-*)
     Secrets (via API: nunca neste arquivo nem no git):
       DEPIX_API_KEY (sk_test_ p/ teste, sk_live_ p/ produção),
       DEPIX_WEBHOOK_SECRET (whsec_... do painel Depix > My Business),
       ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET, KIWIFY_TOKEN
-    Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_24H,
-      KIWIFY_PID_WORLD1, KIWIFY_PID_7D, KIWIFY_PID_30D, KIWIFY_PID_CREATOR,
+    Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_WORLD1,
+      ABACATEPAY_PRODUCT_ID_24H (legado), KIWIFY_PID_WORLD1, KIWIFY_PID_7D,
+      KIWIFY_PID_24H (legado), KIWIFY_PID_30D, KIWIFY_PID_CREATOR,
       PUBLIC_BASE_URL, ALLOWED_ORIGINS,
       DEPIX_TEST_MODE ("1" = teste).
-    KV: PREMIUM_KV (contas, sessões, pendentes, premium).
+    KV: PREMIUM_KV (pendências, recibos, auditoria e migração legada por e-mail).
 */
 
-const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "ACTIVE", "PAYMENT_CONFIRMED", "CONFIRMED"]);
+const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "PAYMENT_CONFIRMED"]);
 const TERMS_VERSION = "2026-09-20-v1.6";
-const FREE_DAILY = 3;
 const SECURITY_REWARD_DAYS = 9999;
 
 function json(data, status = 200, cors = {}) {
@@ -82,25 +78,87 @@ function withSecurityHeaders(response) {
 }
 
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120));
-const validPw = (p) => typeof p === "string" && p.length >= 8 && p.length <= 128;
 const premKey = (email) => "prem:" + email.trim().toLowerCase();
 const premUidKey = (uid) => "premuid:" + String(uid || "").trim().slice(0, 160);
 const pendKey = (id) => "pend:" + id;
-const acctKey = (email) => "acct:" + email.trim().toLowerCase();
-const sessKey = (t) => "sess:" + t;
 const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
-const SESS_TTL = 30 * 86400;
-const PLAN_LIMITS = {
-  world1: { maxMb: 150, batch: 1, kind: "credit" },
-  vip7: { maxMb: 500, batch: 5, kind: "time" },
-  vip30: { maxMb: Infinity, batch: 10, kind: "time" },
-  creator: { maxMb: Infinity, batch: 20, kind: "time" },
-};
-const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired"]);
-const PLAN_PRICES = { world1: 599, vip7: 799, vip30: 2490, creator: 3990 };
+// A única fonte de permissões, limites e preços. Os clientes recebem somente
+// a projeção pública deste catálogo; cada autorização usa estes mesmos dados.
+export const PLAN_LIMITS = Object.freeze({
+  free: Object.freeze({
+    label: "Plano gratuito", duration_days: 0, price_cents: 0,
+    max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: {
+      restore_achievements: true, change_mode: false, hardcore: false,
+      advanced_rules: true, change_difficulty: true, world_icon: true,
+      rename: true, remove_behavior_packs: false, add_behavior_packs: 2,
+      chunks_restore: { max_chunks: 8, daily_operations: 1 },
+      player: { basic_inventory: true, armor: false, ender_chest: false, xp: false, max_enchantment: "vanilla", daily_operations: 2 },
+      builder: { daily_operations: 3 },
+      convert: { daily_operations: 3 }
+    }
+  }),
+  world1: Object.freeze({
+    label: "Crédito de 1 mundo", duration_days: 0, price_cents: 599,
+    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
+    kind: "world_credit", project_window_days: 30,
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true, repeated_operations_same_world: true }
+  }),
+  vip24h: Object.freeze({
+    label: "Passe 24 horas (legado)", duration_days: 1, price_cents: 599,
+    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true }
+  }),
+  vip7: Object.freeze({
+    label: "Passe 7 dias", duration_days: 7, price_cents: 799,
+    max_file_mb: 500, max_file_bytes: 500 * 1024 * 1024, max_batch: 5,
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true }
+  }),
+  vip30: Object.freeze({
+    label: "Passe 30 dias", duration_days: 30, price_cents: 2490,
+    max_file_mb: null, max_file_bytes: null, max_batch: 10,
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true }
+  }),
+  creator: Object.freeze({
+    label: "Criador", duration_days: 30, price_cents: 3990,
+    max_file_mb: null, max_file_bytes: null, max_batch: 20,
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true }
+  })
+});
+const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
+const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
+  id, label: plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
+  max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
+  allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
+  project_window_days: plan.project_window_days || 0
+}]).filter(([id]) => id !== "vip24h")));
+const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
+const PURCHASABLE_PLAN_IDS = new Set(["world1", "vip7", "vip30", "creator"]);
+const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
+const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
+const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
+const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall"]);
+const TELEMETRY_REASONS = new Set(["terms", "email", "document", "session_expired", "unavailable"]);
+const TELEMETRY_ERRORS = new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
 const ADMIN_HISTORY_LIMIT = 300;
 const ADMIN_HISTORY_TTL = 400 * 86400;
 const ABANDONED_AFTER_MS = 20 * 60 * 1000;
+const ABACATE_PENDING_MS = 24 * 60 * 60 * 1000;
+function checkoutLockUntil(checkout) {
+  const explicitExpiry = timestampMs(checkout && (checkout.expires_at || (checkout.result && checkout.result.expires_at)));
+  if (explicitExpiry) return explicitExpiry;
+  const startedAt = +((checkout && (checkout.at || checkout.created_at)) || 0);
+  return startedAt + (checkout && checkout.provider === "abacate" ? ABACATE_PENDING_MS : ABANDONED_AFTER_MS);
+}
+function checkoutIsPending(checkout, now = Date.now()) {
+  return !!checkout && ["creating", "ready"].includes(checkout.status) && checkoutLockUntil(checkout) > now;
+}
 function analyticsDay(ms = Date.now()) { return new Date(ms).toISOString().slice(0, 10); }
 function cleanDimension(value, max = 40) { return String(value || "").replace(/[^a-zA-Z0-9_:\-.]/g, "_").slice(0, max); }
 function deviceType(ua) { return /mobile|android|iphone|ipad/i.test(ua || "") ? "mobile" : "desktop"; }
@@ -134,7 +192,7 @@ export function isAdminEmail(env, email) {
 
 export function classifyAdminCheckout(item, now = Date.now()) {
   if (item && item.status === "paid") return "paid";
-  return item && now - (+item.at || 0) >= ABANDONED_AFTER_MS ? "abandoned" : "pending";
+  return item && now >= checkoutLockUntil(item) ? "abandoned" : "pending";
 }
 
 async function adminUser(req, env) {
@@ -190,6 +248,7 @@ async function recordCheckout(env, entry) {
     plan: normalizeDepixPlan(entry.plan),
     amount_cents: PLAN_PRICES[normalizeDepixPlan(entry.plan)] || 0,
     provider: String(entry.provider || "depix").slice(0, 20),
+    expires_at: timestampMs(entry.expires_at),
     source: cleanDimension(entry.source, 40),
     status: "pending"
   });
@@ -206,18 +265,31 @@ async function recordPaidCheckout(env, entry) {
     checkout.status = "paid";
     checkout.paid_at = paidAt;
     if (entry.email) checkout.email = String(entry.email).trim().toLowerCase().slice(0, 120);
+    if (entry.uid) checkout.uid = String(entry.uid).slice(0, 160);
     if (entry.plan) checkout.plan = normalizeDepixPlan(entry.plan);
   }
   await saveAdminList(env, "admin:checkouts", checkouts);
 
   const purchases = await adminList(env, "admin:purchases");
-  if (purchases.some((item) => item.id === id)) return;
   const plan = normalizeDepixPlan(entry.plan || (checkout && checkout.plan));
+  const existingPurchase = purchases.find((item) => item.id === id);
+  if (existingPurchase) {
+    existingPurchase.paid_at = paidAt;
+    if (entry.email) existingPurchase.email = String(entry.email).trim().toLowerCase().slice(0, 120);
+    if (entry.uid) existingPurchase.uid = String(entry.uid).slice(0, 160);
+    if (plan) existingPurchase.plan = plan;
+    if (plan) existingPurchase.amount_cents = PLAN_PRICES[plan] || 0;
+    if (entry.provider) existingPurchase.provider = String(entry.provider).slice(0, 20);
+    if (entry.source) existingPurchase.source = cleanDimension(entry.source, 40);
+    await saveAdminList(env, "admin:purchases", purchases);
+    return;
+  }
   purchases.unshift({
     id,
     at: checkout ? checkout.at : paidAt,
     paid_at: paidAt,
     email: String(entry.email || (checkout && checkout.email) || "").trim().toLowerCase().slice(0, 120),
+    uid: String(entry.uid || (checkout && checkout.uid) || "").slice(0, 160),
     plan,
     amount_cents: PLAN_PRICES[plan] || 0,
     provider: String(entry.provider || (checkout && checkout.provider) || "depix").slice(0, 20),
@@ -244,13 +316,17 @@ async function reconcileDepixCheckout(env, id) {
   if (!id) throw new Error("ID da cobrança obrigatório.");
   const info = await depixStatus(env, id);
   const pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+  if (info.uid && pend && pend.uid && String(info.uid) !== String(pend.uid)) throw new Error("UID do provedor não corresponde ao UID do checkout.");
   const email = String(info.email || (pend && pend.email) || "").trim().toLowerCase();
   const uid = String(info.uid || (pend && pend.uid) || "").trim().slice(0, 160);
-  const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
+  const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+  if (!plan) throw new Error("Pagamento confirmado sem um plano reconhecido.");
   if (!info.paid) return { id, paid: false, status: info.status, email, plan };
   if (!validEmail(email)) throw new Error("Pagamento confirmado, mas sem e-mail válido para liberar o plano.");
-  const grant = await grantPurchase(env, email, id, plan, uid);
-  await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: pend && pend.source });
+  const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: info.paid_at });
+  const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at);
+  await env.PREMIUM_KV.delete(receipt.key);
+  await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
   await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
   return { id, paid: true, status: info.status, email, plan, source: pend && pend.source, ...grant };
 }
@@ -265,59 +341,33 @@ async function listDepixCheckouts(env, status) {
   return Array.isArray(data.checkouts) ? data.checkouts : [];
 }
 
-async function reconcileRecentDepixCheckouts(env) {
+export async function reconcileRecentDepixCheckouts(env) {
   const all = [];
-  for (const status of ["processing", "approved", "completed"]) {
+  for (const status of ["approved", "completed"]) {
     all.push(...await listDepixCheckouts(env, status));
   }
   const seen = new Set();
   const results = [];
   for (const checkout of all) {
     const id = String(checkout.id || "").trim().slice(0, 180);
-    if (!id || seen.has(id)) continue;
+    if (!id || !isDepixReleasableStatus(checkout.status) || seen.has(id)) continue;
     seen.add(id);
     let metadata = checkout.metadata || {};
     if (typeof metadata === "string") { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
     const email = String(metadata.email || "").trim().toLowerCase();
     const uid = String(metadata.firebase_uid || "").trim().slice(0, 160);
     const rawPlan = String(metadata.plan || "");
-    if (!validEmail(email) || !["world1", "vip7", "vip30", "creator", "vip24h"].includes(rawPlan)) continue;
+    if (!validEmail(email) || !normalizeDepixPlan(rawPlan)) continue;
     const plan = normalizeDepixPlan(rawPlan);
-    const grant = await grantPurchase(env, email, id, plan, uid);
-    await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: "automatic_reconcile" });
+    const paidAt = timestampMs(checkout.paid_at || checkout.approved_at || checkout.completed_at || checkout.updated_at);
+    const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: paidAt });
+    const grant = await grantPurchase(env, email, id, plan, uid, "depix", paidAt);
+    await env.PREMIUM_KV.delete(receipt.key);
+    await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: "automatic_reconcile" });
     await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
     results.push({ id, paid: true, status: String(checkout.status || ""), email, plan, ...grant });
   }
   return { checked: seen.size, recovered: results.length, results };
-}
-
-function b64(bytes) {
-  let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s);
-}
-function unb64(s) {
-  const bin = atob(s);
-  const o = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
-  return o;
-}
-async function hashPw(pw, saltB64) {
-  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, key, 256);
-  return { salt: b64(salt), hash: b64(new Uint8Array(bits)) };
-}
-function newToken() {
-  return [...crypto.getRandomValues(new Uint8Array(32))].map((x) => x.toString(16).padStart(2, "0")).join("");
-}
-async function sessionEmail(req, env) {
-  const h = req.headers.get("Authorization") || "";
-  const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
-  if (!t || t.length > 128) return "";
-  const s = await env.PREMIUM_KV.get(sessKey(t), "json").catch(() => null);
-  if (!s || s.exp < Date.now()) return "";
-  return s.email || "";
 }
 
 // Valida o ID token do Firebase no servidor. O navegador nunca escolhe qual
@@ -326,14 +376,18 @@ async function firebaseUser(req, env) {
   const h = req.headers.get("Authorization") || "";
   const token = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
   const apiKey = String(env.FIREBASE_WEB_API_KEY || "").trim();
-  if (!token || token.length > 4096 || !apiKey) return null;
+  if (!token || token.length > 4096) return null;
+  if (!apiKey) { const error = new Error("Firebase verification is unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error; }
   try {
     const resp = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(apiKey), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken: token }),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      if (resp.status >= 500 || resp.status === 429) { const error = new Error("Firebase verification is temporarily unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error; }
+      return null;
+    }
     const data = await resp.json();
     const u = data && data.users && data.users[0];
     if (!u || !u.localId || !validEmail(u.email)) return null;
@@ -343,7 +397,8 @@ async function firebaseUser(req, env) {
       name: String(u.displayName || "").slice(0, 80),
     };
   } catch (e) {
-    return null;
+    if (e && e.code === "AUTH_UNAVAILABLE") throw e;
+    const error = new Error("Firebase verification is temporarily unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error;
   }
 }
 async function rlTake(env, key, limit, ttl) {
@@ -357,32 +412,19 @@ function quotaIdentity(req, fb) {
   if (fb && fb.uid) return "uid:" + fb.uid;
   return "ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80);
 }
-async function premiumUntil(env, email) {
-  const rec = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
-  return rec && rec.until > Date.now() ? rec.until : 0;
-}
-async function premiumUntilAccount(env, uid, email) {
-  const byUid = uid ? await env.PREMIUM_KV.get(premUidKey(uid), "json").catch(() => null) : null;
-  const byEmail = email ? await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null) : null;
-  const until = Math.max((byUid && +byUid.until) || 0, (byEmail && +byEmail.until) || 0);
-  // Migração transparente: VIP antigo por e-mail passa a acompanhar a conta Google.
-  if (uid && until > Date.now() && (!byUid || +byUid.until < until)) {
-    await env.PREMIUM_KV.put(premUidKey(uid), JSON.stringify({ until, email, plan: (byEmail && byEmail.plan) || "vip30", migrated_at: Date.now() })).catch(() => {});
-  }
-  return until > Date.now() ? until : 0;
-}
-
 export function isSecurityResearcherReward(env, email) {
   const configured = String(env.SECURITY_REWARD_EMAIL || "").trim().toLowerCase();
   return !!configured && configured === String(email || "").trim().toLowerCase();
 }
 
 async function abacateCreate(env, email, name, uid, origin, plan) {
-  plan = plan === "vip24h" ? "vip24h" : "vip30";
-  const pid = plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID;
+  const pid = plan === "world1" ? env.ABACATEPAY_PRODUCT_ID_WORLD1
+    : plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H
+    : env.ABACATEPAY_PRODUCT_ID;
   if (!pid) {
-    throw new Error(plan === "vip24h"
-      ? "Passe 24h não configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)."
+    throw new Error(plan === "world1"
+      ? "Produto de 1 mundo não configurado no servidor (ABACATEPAY_PRODUCT_ID_WORLD1)."
+      : plan === "vip24h" ? "Produto legado de 24 horas não configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)."
       : "Produto não configurado no servidor (ABACATEPAY_PRODUCT_ID).");
   }
   const base = (origin || String(env.PUBLIC_BASE_URL || "")).replace(/\/+$/, "");
@@ -410,7 +452,7 @@ async function abacateCreate(env, email, name, uid, origin, plan) {
   }
   const d = data.data || data;
   if (!d.url) throw new Error("AbacatePay não retornou URL de pagamento.");
-  return { url: d.url, id: d.id, plan };
+  return { url: d.url, id: d.id, plan, expires_at: timestampMs(d.expiresAt || d.expires_at) };
 }
 
 async function abacateStatus(env, id) {
@@ -429,29 +471,28 @@ async function abacateStatus(env, id) {
       const meta = b.metadata || {};
       const cust = b.customer || {};
       const email = String(meta.email || cust.email || "").toLowerCase();
-      return { status: status || "UNKNOWN", paid: PAID.has(status) || /PAID/.test(status), email };
+      return { status: status || "UNKNOWN", paid: isPaidPaymentStatus(status), email, uid: String(meta.firebase_uid || "").slice(0, 160), plan: normalizeDepixPlan(meta.plan),
+        paid_at: timestampMs(b.paidAt || b.paid_at || b.approvedAt || b.approved_at || b.completedAt || b.updatedAt || b.updated_at) };
     } catch (e) { last = e; }
   }
   throw new Error("Não consegui consultar a cobrança agora (" + (last && last.message) + ").");
 }
 
 /* ---------- Depix: preços em centavos p/ teste e produção ---------- */
-function normalizeDepixPlan(plan) {
-  if (plan === "vip24h") return "world1"; // legacy id now maps to the R$ 5,99 credit
-  return ["world1", "vip7", "vip30", "creator"].includes(plan) ? plan : "vip30";
+export function normalizeDepixPlan(plan) {
+  const value = String(plan || "").trim();
+  return Object.prototype.hasOwnProperty.call(PLAN_LIMITS, value) && value !== "free" ? value : "";
+}
+export function isPaidPaymentStatus(status) {
+  return PAID.has(String(status || "").trim().toUpperCase());
 }
 function depixAmount(plan) {
   plan = normalizeDepixPlan(plan);
-  return { world1: 599, vip7: 799, vip30: 2490, creator: 3990 }[plan];
-}
-function depixPlanDays(plan) {
-  plan = normalizeDepixPlan(plan);
-  if (plan === "world1") return 0;
-  return plan === "vip7" ? 7 : 30;
+  return plan ? PLAN_LIMITS[plan].price_cents : 0;
 }
 function depixPlanLabel(plan) {
   plan = normalizeDepixPlan(plan);
-  return ({ world1: "Resolver 1 mundo", vip7: "Passe 7 dias", vip30: "Passe 30 dias", creator: "Criador" })[plan];
+  return plan ? PLAN_LIMITS[plan].label : "";
 }
 
 // Kiwify envia o produto no webhook. IDs configurados no Worker têm
@@ -463,13 +504,15 @@ export function normalizeKiwifyPlan(body, env) {
   const rawName = product.product_name || product.name || body.product_name || body.productName || "";
   const name = String(rawName).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const ids = [
-    [env.KIWIFY_PID_WORLD1 || env.KIWIFY_PID_24H, "world1"],
+    [env.KIWIFY_PID_WORLD1, "world1"],
+    [env.KIWIFY_PID_24H, "vip24h"],
     [env.KIWIFY_PID_7D, "vip7"],
     [env.KIWIFY_PID_30D, "vip30"],
     [env.KIWIFY_PID_CREATOR, "creator"]
   ];
   for (const [configured, plan] of ids) if (configured && pid && pid === String(configured).trim()) return plan;
   if (["1 mundo", "resolver 1 mundo"].includes(name)) return "world1";
+  if (["vip 24h", "passe 24h", "24 horas"].includes(name)) return "vip24h";
   if (["passe 7 dias", "7 dias"].includes(name)) return "vip7";
   if (["vip 30 dias", "passe 30 dias", "30 dias"].includes(name)) return "vip30";
   if (name === "criador") return "creator";
@@ -505,7 +548,7 @@ async function verifyDepixSignature(rawBody, header, secret) {
     return hex === v1;
   } catch (e) { return false; }
 }
-async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req) {
+async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req, requestId = "") {
   if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
   plan = normalizeDepixPlan(plan);
   var amount = depixAmount(plan);
@@ -519,6 +562,7 @@ async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req) {
   if (!siteBase) siteBase = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
   var body = {
     amount: amount,
+    idempotency_key: String(requestId || "").slice(0, 100),
     payer_tax_number: cleanDoc(doc),
     description: "ReativaConquistas — " + depixPlanLabel(plan),
     expires_in: 1200,
@@ -529,7 +573,8 @@ async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req) {
       email: email,
       payer_email: String(payerEmail || "").trim().toLowerCase(),
       name: name || "",
-      plan: plan
+      plan: plan,
+      request_id: String(requestId || "").slice(0, 100)
     }
   };
   var resp = await fetch("https://api.depixapp.com/api/checkouts", {
@@ -545,7 +590,7 @@ async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req) {
     throw new Error("Depix recusou (" + resp.status + "): " + msg);
   }
   if (!data.id || !data.payment_url) throw new Error("Depix não retornou link de pagamento.");
-  return { url: data.payment_url, id: data.id, plan: plan };
+  return { url: data.payment_url, id: data.id, plan: plan, expires_at: timestampMs(data.expires_at || data.expiresAt) };
 }
 async function depixStatus(env, id) {
   if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY).");
@@ -564,49 +609,24 @@ async function depixStatus(env, id) {
     paid: paid,
     uid: String(meta.firebase_uid || "").slice(0, 160),
     email: String(meta.email || "").toLowerCase(),
-    plan: normalizeDepixPlan(meta.plan)
+    plan: normalizeDepixPlan(meta.plan),
+    paid_at: timestampMs(c.paid_at || c.approved_at || c.completed_at || c.updated_at)
   };
 }
 
-export function isDepixReleasableStatus(status) {
-  return ["processing", "approved", "completed"].includes(String(status || "").toLowerCase());
+function timestampMs(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+  if (typeof value === "string" && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
 }
 
-async function grantPremium(env, email, billingId, days, uid = "", plan = "") {
-  days = [1, 7, 30].includes(+days) ? +days : 30;
-  email = email.trim().toLowerCase();
-  uid = String(uid || "").trim().slice(0, 160);
-  billingId = String(billingId || "").trim().slice(0, 180);
-  const now = Date.now();
-
-  // Polling e webhooks podem repetir a MESMA confirmação. Não some o plano
-  // novamente quando o ID da cobrança/pedido já foi processado.
-  if (billingId) {
-    const previous = await env.PREMIUM_KV.get(grantKey(billingId), "json").catch(() => null);
-    // Um ID de cobrança só pode conceder benefício uma vez, mesmo se o
-    // provedor repetir o webhook ou retornar metadata diferente.
-    if (previous && (+previous.until > 0 || +previous.world_credits > 0)) {
-      return +previous.until || 0;
-    }
-  }
-
-  const curEmail = await env.PREMIUM_KV.get(premKey(email), "json").catch(() => null);
-  const curUid = uid ? await env.PREMIUM_KV.get(premUidKey(uid), "json").catch(() => null) : null;
-  const baseUntil = Math.max(now, (curEmail && +curEmail.until) || 0, (curUid && +curUid.until) || 0);
-  const until = baseUntil + days * 86400000;
-
-  const record = { until, email, uid, plan: plan || (days === 7 ? "vip7" : (days === 30 ? "vip30" : "vip24h")), billing_id: billingId, granted_at: now };
-  await env.PREMIUM_KV.put(premKey(email), JSON.stringify(record));
-  if (uid) await env.PREMIUM_KV.put(premUidKey(uid), JSON.stringify(record));
-
-  if (billingId) {
-    await env.PREMIUM_KV.put(
-      grantKey(billingId),
-      JSON.stringify({ email, uid, plan: record.plan, until, days, granted_at: now }),
-      { expirationTtl: 400 * 86400 }
-    ).catch(() => {});
-  }
-  return until;
+export function isDepixReleasableStatus(status) {
+  return ["approved", "completed"].includes(String(status || "").toLowerCase());
 }
 
 async function entitlementStub(env, uid, email) {
@@ -619,81 +639,252 @@ async function entitlementStub(env, uid, email) {
 // nesse caso, o crédito fica inicialmente indexado pelo e-mail. Ao consultar
 // a conta, aceitamos o mesmo e-mail como identidade legada; compras novas
 // autenticadas continuam usando o UID.
-async function worldCreditState(env, fb) {
-  if (!env.ENTITLEMENTS) return { stub: null, worldCredits: 0 };
-  const uidStub = await entitlementStub(env, fb.uid, fb.email);
-  const uidRes = await uidStub.fetch("https://entitlements/state");
-  const uidCredits = uidRes.ok ? +((await uidRes.json()).world_credits || 0) : 0;
-  if (uidCredits > 0 || !fb.email || fb.email === fb.uid) return { stub: uidStub, worldCredits: uidCredits };
-  const emailStub = await entitlementStub(env, "", fb.email);
-  const emailRes = await emailStub.fetch("https://entitlements/state");
-  const emailCredits = emailRes.ok ? +((await emailRes.json()).world_credits || 0) : 0;
-  return emailCredits > 0 ? { stub: emailStub, worldCredits: emailCredits } : { stub: uidStub, worldCredits: 0 };
+function paymentReceiptKey(identityKind, identity, provider, billingId) {
+  return "payrec:" + identityKind + ":" + encodeURIComponent(String(identity || "")) + ":" + cleanDimension(provider, 20) + ":" + encodeURIComponent(String(billingId || "").slice(0, 180));
 }
 
-async function grantPurchase(env, email, billingId, plan, uid = "") {
+async function persistConfirmedPayment(env, payment) {
+  const plan = normalizeDepixPlan(payment.plan);
+  const id = String(payment.id || payment.billing_id || "").trim().slice(0, 180);
+  const provider = cleanDimension(payment.provider || "depix", 20);
+  const uid = String(payment.uid || "").trim().slice(0, 160);
+  const email = String(payment.email || "").trim().toLowerCase();
+  if (!id || !plan || (!uid && !validEmail(email))) throw new Error("Pagamento confirmado sem identidade ou plano válido.");
+  const identityKind = uid ? "uid" : "email";
+  const identity = uid || email;
+  const key = paymentReceiptKey(identityKind, identity, provider, id);
+  const paidAt = timestampMs(payment.paid_at) || Date.now();
+  await env.PREMIUM_KV.put(key, JSON.stringify({ id, provider, uid, email, plan, paid_at: paidAt }), { expirationTtl: 400 * 86400 });
+  return { key, id, provider, uid, email, plan, paid_at: paidAt };
+}
+
+async function grantPurchase(env, email, billingId, plan, uid = "", provider = "depix", paidAt = 0) {
   plan = normalizeDepixPlan(plan);
-  if (plan === "world1") {
-    const stub = await entitlementStub(env, uid, email);
-    const r = await stub.fetch("https://entitlements/grant", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, billing_id: billingId, email, uid })
-    });
-    if (!r.ok) throw new Error("Não consegui registrar o crédito de mundo.");
-    const out = await r.json();
-    return { premium_until_ms: 0, world_credits: +out.world_credits || 0 };
+  if (!plan) throw new Error("Plano de pagamento não reconhecido; benefício não concedido.");
+  if (!env.ENTITLEMENTS) throw new Error("Armazenamento de benefícios indisponível.");
+  const stub = await entitlementStub(env, uid, email);
+  const idempotencyKey = cleanDimension(provider, 20) + ":" + String(billingId || "").trim().slice(0, 180);
+  const r = await stub.fetch("https://entitlements/grant", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plan, billing_id: idempotencyKey, email, uid, paid_at: timestampMs(paidAt) || Date.now() })
+  });
+  if (!r.ok) throw new Error("Não consegui registrar o benefício da compra.");
+  const out = await r.json();
+  const grant = { premium_until_ms: +out.premium_until_ms || 0, world_credits: +out.world_credits || 0, plan: out.plan || plan, duplicate: out.duplicate === true };
+  if (!grant.duplicate && provider !== "manual") {
+    await metric(env, "payment_paid", { plan, source: provider });
+    await metric(env, "plan_granted", { plan, source: provider });
   }
-  const days = plan === "vip24h" ? 1 : (plan === "vip7" ? 7 : 30);
-  return { premium_until_ms: await grantPremium(env, email, billingId, days, uid, plan), world_credits: 0 };
+  return grant;
 }
 
-async function accountEntitlements(env, fb) {
-  const reward = isSecurityResearcherReward(env, fb.email);
-  const rewardUntil = reward ? Date.now() + SECURITY_REWARD_DAYS * 86400000 : 0;
-  const until = Math.max(await premiumUntilAccount(env, fb.uid, fb.email), rewardUntil);
-  const creditState = await worldCreditState(env, fb);
-  const worldCredits = creditState.worldCredits;
-  const recUid = await env.PREMIUM_KV.get(premUidKey(fb.uid), "json").catch(() => null);
-  const recEmail = await env.PREMIUM_KV.get(premKey(fb.email), "json").catch(() => null);
-  const rec = recUid || recEmail;
-  const plan = reward ? "creator" : (rec && rec.plan && PLAN_LIMITS[rec.plan] ? rec.plan : (until > Date.now() ? "vip30" : (worldCredits > 0 ? "world1" : "")));
-  return { premium_until_ms: until, world_credits: worldCredits, plan };
+async function reconcileKnownPayments(env, uid, email) {
+  const prefixes = ["payrec:uid:" + encodeURIComponent(uid) + ":"];
+  if (email) prefixes.push("payrec:email:" + encodeURIComponent(email.toLowerCase()) + ":");
+  for (const prefix of prefixes) {
+    let cursor;
+    do {
+      const page = await env.PREMIUM_KV.list({ prefix, cursor, limit: 100 });
+      for (const item of page.keys || []) {
+        const receipt = await env.PREMIUM_KV.get(item.name, "json");
+        if (!receipt) continue;
+        await grantPurchase(env, email, receipt.id, receipt.plan, uid, receipt.provider, receipt.paid_at);
+        await recordPaidCheckout(env, { id: receipt.provider === "kiwify" ? "kiwify:" + receipt.id : receipt.id,
+          email: receipt.email || email, uid, plan: receipt.plan, provider: receipt.provider, paid_at: receipt.paid_at, source: "entitlement_reconcile" });
+        await env.PREMIUM_KV.delete(item.name);
+      }
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+  }
+}
+
+async function reconcilePendingCheckouts(env, uid, email, checkouts) {
+  const recent = (Array.isArray(checkouts) ? checkouts : [])
+    .filter((item) => checkoutIsPending(item))
+    .sort((a, b) => +b.created_at - +a.created_at);
+  const uncertainCreation = recent.find((item) => item.status === "creating" && !item.id);
+  const candidates = recent
+    .filter((item) => item.id)
+    .sort((a, b) => +b.created_at - +a.created_at)
+    .slice(0, 20);
+  let latestPending = uncertainCreation ? { plan: uncertainCreation.plan, provider: uncertainCreation.provider, status: "checkout_creation_uncertain", created_at: +uncertainCreation.created_at, request_id: uncertainCreation.request_id || "", checkout_url: "" } : null;
+  let unavailable = false;
+  let recovered = false;
+  for (const checkout of candidates) {
+    const provider = checkout.provider === "abacate" ? "abacate" : "depix";
+    const id = String(checkout.id).slice(0, 180);
+    const cacheKey = "paycheck:" + encodeURIComponent(uid) + ":" + provider + ":" + encodeURIComponent(id);
+    let info = await env.PREMIUM_KV.get(cacheKey, "json").catch(() => null);
+    if (!info) {
+      try { info = provider === "depix" ? await depixStatus(env, id) : await abacateStatus(env, id); }
+      catch (error) {
+        unavailable = true;
+        await metric(env, "entitlement_load_error", { reason: "unavailable" });
+        continue;
+      }
+      await env.PREMIUM_KV.put(cacheKey, JSON.stringify({ paid: info.paid === true, status: String(info.status || "unknown"), paid_at: timestampMs(info.paid_at) }), { expirationTtl: info.paid === true ? 30 : 5 }).catch(() => {});
+    }
+    if (info.paid !== true) {
+      if (!latestPending || +checkout.created_at > +latestPending.created_at) latestPending = { plan: checkout.plan, provider, status: info.status || "pending", created_at: +checkout.created_at, request_id: checkout.request_id || "", checkout_url: checkout.checkout_url || "" };
+      continue;
+    }
+    const plan = normalizeDepixPlan(checkout.plan);
+    if (!plan || (info.plan && info.plan !== plan) || (info.uid && info.uid !== uid)) {
+      unavailable = true;
+      continue;
+    }
+    try {
+      const paidAt = timestampMs(info.paid_at);
+      const receipt = await persistConfirmedPayment(env, { id, email: info.email || email, uid, plan, provider, paid_at: paidAt });
+      await grantPurchase(env, info.email || email, id, plan, uid, provider, paidAt);
+      await env.PREMIUM_KV.delete(receipt.key);
+      await recordPaidCheckout(env, { id, email: info.email || email, uid, plan, provider, source: "entitlement_reconcile" });
+      recovered = true;
+    } catch (error) {
+      // Keep the provider's paid result cached and the checkout available for a later grant retry.
+      unavailable = true;
+    }
+  }
+  return { pending_payment: latestPending, unavailable, recovered };
+}
+
+async function readObjectState(stub) {
+  const response = await stub.fetch("https://entitlements/state");
+  if (!response.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
+  return response.json();
+}
+
+export async function getUserEntitlements(env, firebaseUid, user = {}) {
+  const uid = String(firebaseUid || "").trim().slice(0, 160);
+  const email = String(user.email || "").trim().toLowerCase();
+  if (!uid || !validEmail(email)) throw new Error("AUTH_REQUIRED");
+
+  // Recibos confirmados ficam no KV até o Durable Object confirmar a concessão.
+  // Esta leitura no próximo login/status recupera falhas temporárias de grant.
+  await reconcileKnownPayments(env, uid, email);
+
+  const uidStub = await entitlementStub(env, uid, email);
+  let uidState = await readObjectState(uidStub);
+  const pendingReconciliation = await reconcilePendingCheckouts(env, uid, email, uidState.pending_payments);
+  if (pendingReconciliation.recovered) uidState = await readObjectState(uidStub);
+
+  // Migra concessões antigas por e-mail somente após validar o e-mail no token Google.
+  const legacyEmailStub = await entitlementStub(env, "", email);
+  const legacyEmailState = await readObjectState(legacyEmailStub);
+  if (+legacyEmailState.revision > 0) {
+    const importRes = await uidStub.fetch("https://entitlements/import", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "legacy-email:" + email, revision: legacyEmailState.revision, state: legacyEmailState })
+    });
+    if (!importRes.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
+  }
+
+  const uidRecord = await env.PREMIUM_KV.get(premUidKey(uid), "json");
+  const emailRecord = await env.PREMIUM_KV.get(premKey(email), "json");
+  const legacyRecord = (+((emailRecord && emailRecord.until) || 0) > +((uidRecord && uidRecord.until) || 0)) ? emailRecord : uidRecord;
+  if (legacyRecord && +legacyRecord.until > +uidState.premium_until_ms) {
+    const legacyPlan = normalizeDepixPlan(legacyRecord.plan);
+    if (!legacyPlan || PLAN_LIMITS[legacyPlan].kind !== "time") {
+      await metric(env, "entitlement_load_error", { reason: "invalid_legacy_plan" });
+      throw new Error("ENTITLEMENT_UNAVAILABLE");
+    }
+    const migrated = await uidStub.fetch("https://entitlements/migrate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ premium_until_ms: +legacyRecord.until, plan: legacyPlan })
+    });
+    if (!migrated.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
+  }
+
+  const state = await readObjectState(uidStub);
+  const now = Date.now();
+  const reward = isSecurityResearcherReward(env, email);
+  const timeUntil = Math.max(+state.premium_until_ms || 0, reward ? now + SECURITY_REWARD_DAYS * 86400000 : 0);
+  const activeProjects = (state.world_projects || []).filter((project) => +project.expires_at > now);
+  const storedTimePlan = timeUntil > now ? normalizeDepixPlan(state.plan) : "";
+  if (timeUntil > now && !reward && (!storedTimePlan || PLAN_LIMITS[storedTimePlan].kind !== "time")) {
+    await metric(env, "entitlement_load_error", { reason: "invalid_active_plan" });
+    throw new Error("ENTITLEMENT_UNAVAILABLE");
+  }
+  const timePlan = reward ? "creator" : storedTimePlan;
+  const worldCredits = Math.max(0, +state.world_credits || 0);
+  const plan = timePlan || ((worldCredits || activeProjects.length) ? "world1" : "free");
+  if (plan === "free" && pendingReconciliation.unavailable) throw new Error("ENTITLEMENT_UNAVAILABLE");
+  const definition = PLAN_LIMITS[plan];
+  const active = plan !== "free";
+  const expiresAt = plan === "world1"
+    ? (activeProjects.length ? Math.max(...activeProjects.map((project) => +project.expires_at || 0)) : null)
+    : (timeUntil > now ? (reward ? timeUntil : (+state.plan_expires_at > now ? +state.plan_expires_at : timeUntil)) : null);
+  return {
+    authenticated: true, active, status: active ? "active" : "free", plan,
+    plan_label: definition.label, expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+    premium_until_ms: plan === "world1" ? 0 : (timeUntil > now ? timeUntil : 0),
+    world_credits: worldCredits, active_world_projects: activeProjects.length,
+    world_projects: activeProjects.map((project) => ({ id: project.id, expires_at: +project.expires_at })),
+    max_file_mb: definition.max_file_mb, max_file_bytes: definition.max_file_bytes,
+    max_batch: definition.max_batch, allowed_tools: definition.allowed_tools,
+    capabilities: definition.capabilities, account_email: email,
+    pending_payment: plan === "free" && pendingReconciliation.pending_payment ? {
+      ...pendingReconciliation.pending_payment,
+      plan_label: PLAN_LIMITS[pendingReconciliation.pending_payment.plan]?.label || "plano pago"
+    } : null
+  };
 }
 
 export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), features = {}) {
-  worlds = Math.max(1, Math.min(100, Number(worlds) || 1));
-  sizeBytes = Math.max(0, Number(sizeBytes) || 0);
-  const mode = String(features.mode || "keep").toLowerCase();
-  const hardcore = features.hardcore === true;
-  const advancedRules = features.advanced_rules === true;
-  const advancedTools = features.advanced_tools === true;
-  const removePacks = features.remove_behavior_packs === true;
+  worlds = Number(worlds);
+  sizeBytes = Number(sizeBytes);
+  if (!Number.isSafeInteger(worlds) || worlds < 1 || worlds > 100 || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1) {
+    return { allowed: false, code: "INVALID_REQUEST" };
+  }
+  features = features && typeof features === "object" ? features : {};
+  const free = PLAN_LIMITS.free;
+  const tools = Array.from(new Set((Array.isArray(features.tools) ? features.tools : [features.tool || "convert"]).map((tool) => String(tool || "").trim().toLowerCase()).filter(Boolean)));
+  if (!tools.length) tools.push("convert");
+  if (tools.some((tool) => !KNOWN_TOOL_IDS.has(tool))) return { allowed: false, code: "TOOL_NOT_INCLUDED" };
+  const knownTools = new Set(free.allowed_tools);
+  const maxChunks = +free.capabilities.chunks_restore.max_chunks;
+  const chunkCount = Math.max(0, Number(features.chunks_count) || 0);
+  const playerAdvanced = features.player_advanced === true;
   const addPacks = Math.max(0, Math.min(1000, Number(features.add_packs) || 0));
-  const rename = features.rename === true;
-  const icon = features.icon === true;
-  // Derive the paid requirement on the server. A client-provided premium
-  // flag is intentionally ignored.
-  const hasFeatureRequest = Object.keys(features).length > 0;
-  const premiumFeature = !hasFeatureRequest || mode !== "keep" || hardcore || advancedRules || advancedTools || removePacks ||
-    addPacks > 1 || rename || icon || worlds > 1 || sizeBytes > 10 * 1024 * 1024;
-  let plan = ent && ent.plan || "";
-  const activeTimePlan = (+((ent && ent.premium_until_ms) || 0) > now) && plan !== "world1";
-  if (!activeTimePlan && +(ent && ent.world_credits || 0) > 0 && worlds === 1 && sizeBytes <= PLAN_LIMITS.world1.maxMb * 1024 * 1024) plan = "world1";
-  if (!premiumFeature) return { allowed: true, plan: "free", max_batch: 1, max_mb: 10 };
-  const lim = PLAN_LIMITS[plan];
-  if (!lim || (!activeTimePlan && plan !== "world1")) return { allowed: false, code: "NO_ENTITLEMENT" };
-  if (plan === "world1" && +(ent && ent.world_credits || 0) < 1) return { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" };
-  if (worlds > lim.batch) return { allowed: false, code: "BATCH_LIMIT", plan, max_batch: lim.batch };
-  if (isFinite(lim.maxMb) && sizeBytes > lim.maxMb * 1024 * 1024) return { allowed: false, code: "SIZE_LIMIT", plan, max_mb: lim.maxMb };
-  return { allowed: true, plan, max_batch: lim.batch, max_mb: isFinite(lim.maxMb) ? lim.maxMb : null };
-}
+  const toolRequiresPremium = tools.some((tool) => !knownTools.has(tool) ||
+    (tool === "chunks_restore" && chunkCount > maxChunks) ||
+    (tool === "player_basic" && playerAdvanced));
+  const paidFeature = sizeBytes > free.max_file_bytes || worlds > free.max_batch ||
+    (features.mode && String(features.mode).toLowerCase() !== "keep") || features.hardcore === true ||
+    features.remove_behavior_packs === true ||
+    addPacks > free.capabilities.add_behavior_packs || playerAdvanced ||
+    toolRequiresPremium;
 
-// Dias de VIP a partir do plano guardado no pendente (padrão: 30).
-function planDays(pend) {
-  if (pend && pend.plan === "vip24h") return 1;
-  if (pend && pend.plan === "vip7") return 7;
-  if (pend && pend.plan === "world1") return 0;
-  return 30;
+  const timeActive = +((ent && ent.premium_until_ms) || 0) > now && ent.plan !== "world1";
+  if (timeActive && (!PLAN_LIMITS[ent.plan] || PLAN_LIMITS[ent.plan].kind !== "time")) {
+    return { allowed: false, code: "PLAN_UNVERIFIED" };
+  }
+  const hasWorldBenefit = +(ent && ent.world_credits || 0) > 0 || +(ent && ent.active_world_projects || 0) > 0;
+  const plan = timeActive ? ent.plan : (hasWorldBenefit ? "world1" : "free");
+  const worldPlanActive = !timeActive && hasWorldBenefit;
+  const planDefinition = PLAN_LIMITS[plan];
+  if (tools.some((tool) => !planDefinition.allowed_tools.includes(tool))) {
+    return { allowed: false, code: "TOOL_NOT_INCLUDED", plan };
+  }
+  if (!paidFeature && timeActive) {
+    const limit = PLAN_LIMITS[plan];
+    return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb, requires_completion: false };
+  }
+  if (!paidFeature && !worldPlanActive) {
+    return { allowed: true, plan: "free", max_batch: free.max_batch, max_file_mb: free.max_file_mb,
+      free_quota_tools: tools.map((tool) => ({ tool, limit: tool === "convert" ? free.capabilities.convert.daily_operations : (tool === "chunks_restore" ? free.capabilities.chunks_restore.daily_operations : (tool === "player_basic" ? free.capabilities.player.daily_operations : (tool === "builder" ? free.capabilities.builder.daily_operations : 0))) })).filter((item) => item.limit > 0) };
+  }
+  if (plan === "free" && ent.pending_payment) {
+    return { allowed: false, code: "PAYMENT_PENDING", plan: "free", pending_plan: ent.pending_payment.plan };
+  }
+  if (plan === "free") return { allowed: false, code: "NO_ENTITLEMENT", plan: "free" };
+  const limit = PLAN_LIMITS[plan];
+  if (worlds > limit.max_batch) return { allowed: false, code: "BATCH_LIMIT", plan, max_batch: limit.max_batch };
+  if (limit.max_file_bytes !== null && sizeBytes > limit.max_file_bytes) {
+    return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: limit.max_file_mb, max_file_bytes: limit.max_file_bytes };
+  }
+  return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb,
+    requires_credit: plan === "world1", requires_completion: plan === "world1" };
 }
 
 export default {
@@ -763,7 +954,7 @@ export default {
         if (!["world1", "vip24h", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inválido." }, 400, cors);
         if (reason.length < 3) return json({ error: "Informe o motivo da liberação." }, 400, cors);
         const billingId = "manual:" + Date.now() + ":" + crypto.randomUUID();
-        const grant = await grantPurchase(env, email, billingId, plan);
+        const grant = await grantPurchase(env, email, billingId, plan, "", "manual");
         await recordAdminAction(env, { admin: admin.email, email, plan, reason, billing_id: billingId });
         return json({ ok: true, email, plan, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits }, 200, cors);
       }
@@ -792,7 +983,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: 30, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, world1_cents: 599, pass7_cents: 799, premium30_cents: 2490, creator_cents: 3990 }, 200, cors);
+        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -804,11 +995,11 @@ export default {
         if (!(await rlTake(env, "rl-free-quota:" + ip, 120, 86400))) return json({ error: "Muitas consultas de quota." }, 429, cors);
         let body = {};
         try { body = await req.json(); } catch { body = {}; }
-        const fb = await firebaseUser(req, env).catch(() => null);
+        const fb = await firebaseUser(req, env);
         const day = new Date().toISOString().slice(0, 10);
         const identity = quotaIdentity(req, fb);
         if (env.ENTITLEMENTS) {
-          const stub = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + identity));
+          const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + identity));
           const result = await stub.fetch("https://entitlements/free-quota", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ day, consume: body.consume === true })
@@ -823,7 +1014,7 @@ export default {
           used += 1;
           await env.PREMIUM_KV.put(key, String(used), { expirationTtl: 2 * 86400 });
         }
-        return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, used >= FREE_DAILY ? 402 : 200, cors);
+        return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, body.consume === true && used >= FREE_DAILY ? 402 : 200, cors);
       }
 
       // ---------- Depix: criar checkout Pix ----------
@@ -831,12 +1022,15 @@ export default {
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const plan = normalizeDepixPlan(body.plan);
+        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inválido ou indisponível para compra." }, 400, cors);
         const source = cleanDimension(body.source, 40);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
         const email = fb.email;
         const name = fb.name;
         const uid = fb.uid;
+        const requestId = String(body.request_id || "").trim().slice(0, 100);
+        if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
         const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
         const payerEmail = String(body.payer_email || "").trim().toLowerCase().slice(0, 120);
         if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
@@ -850,13 +1044,35 @@ export default {
         if (!(await rlTake(env, "rl-depix-v2:" + uid + ":" + ip, 12, 900))) {
           return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
         }
+        const checkoutStub = await entitlementStub(env, uid, email);
+        const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan, provider: "depix" })
+        });
+        const beginData = await begin.json();
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout já foi iniciado. Aguarde o resultado antes de tentar outra vez.", pending: beginData.pending === true }, begin.status, cors);
+        let providerRequestId = requestId;
+        if (beginData.retry_request_id) {
+          providerRequestId = String(beginData.retry_request_id).slice(0, 100);
+          const retryBegin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: providerRequestId, plan, provider: "depix" })
+          });
+          const retryData = await retryBegin.json();
+          if (!retryBegin.ok) return json({ error: retryData.error || "Este checkout esta em verificacao.", pending: retryData.pending === true }, retryBegin.status, cors);
+          Object.assign(beginData, retryData);
+        }
+        if (!beginData.create) return json(beginData.result, 200, cors);
         try {
-          const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req);
+          const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req, providerRequestId);
+          const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: providerRequestId, plan, result: r })
+          });
+          if (!saved.ok) throw new Error("Cobrança iniciada, mas não consegui guardar o checkout. Não tente pagar novamente; atualize o status em alguns instantes.");
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan, source, via: "depix",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
           }), { expirationTtl: 30 * 86400 }).catch(() => {});
-          await recordCheckout(env, { id: r.id, uid, email, plan, source, provider: "depix" });
+          await recordCheckout(env, { id: r.id, uid, email, plan, source, provider: "depix", expires_at: r.expires_at });
           await metric(env, "payment_pending", { plan, source }, req);
           await metric(env, "pix_create_success", { plan, source }, req);
           return json(r, 200, cors);
@@ -881,25 +1097,31 @@ export default {
           let email = info.email;
           let uid = info.uid || "";
           let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+          if (info.uid && pend && pend.uid && String(info.uid) !== String(pend.uid)) {
+            return json({ error: "Esta cobrança não corresponde à identidade gravada no checkout." }, 403, cors);
+          }
           if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
           if (pend && pend.uid && !uid) uid = String(pend.uid);
-          if ((pend && pend.uid && String(pend.uid) !== fb.uid) || (email && email !== fb.email)) {
+          const ownerUid = String(info.uid || (pend && pend.uid) || "");
+          if (ownerUid ? ownerUid !== fb.uid : (email && email !== fb.email)) {
             return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
           }
-          const plan = normalizeDepixPlan((pend && pend.plan) || info.plan || "vip30");
+          const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+          if (info.paid && !plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           out.plan = plan;
           if (email) out.email = email;
           if (info.paid && email) {
-            const grant = await grantPurchase(env, email, id, plan, uid);
-            await recordPaidCheckout(env, { id, email, plan, provider: "depix", source: pend && pend.source });
-            await metric(env, "payment_paid", { plan, source: pend && pend.source }, req);
-            await metric(env, "plan_granted", { plan, source: pend && pend.source }, req);
+            const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: info.paid_at });
+            const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at);
+            await env.PREMIUM_KV.delete(receipt.key);
+            await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
             out.premium_until_ms = grant.premium_until_ms;
             out.world_credits = grant.world_credits;
             await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
           }
           return json(out, 200, cors);
         } catch (e) {
+          console.log("depix status erro: " + cleanDimension((e && e.message) || e, 120));
           return json({ error: String((e && e.message) || e) }, 502, cors);
         }
       }
@@ -926,8 +1148,8 @@ export default {
         if (bid) {
           try {
             const reconciled = await reconcileDepixCheckout(env, bid);
-            if (reconciled.paid) { await metric(env, "payment_paid", { plan: reconciled.plan, source: reconciled.source }, req); await metric(env, "plan_granted", { plan: reconciled.plan, source: reconciled.source }, req); }
-          } catch (e) { console.log("depix webhook erro: " + (e && e.message)); }
+            if (reconciled.paid === false) return json({ ok: true, paid: false }, 200, cors);
+          } catch (e) { console.log("depix webhook erro: " + (e && e.message)); return json({ error: "Pagamento confirmado ou pendente de concessão; o recibo será reconciliado." }, 503, cors); }
         }
         return json({ ok: true }, 200, cors);
       }
@@ -965,12 +1187,22 @@ export default {
         if (!(await rlTake(env, "rl-log:" + ip, 20, 3600))) return json({ ok: false }, 429, cors);
         let body = {};
         try { body = await req.json(); } catch { body = {}; }
+        const rawMessage = String(body.message || "").toLowerCase();
+        const safeMessage = /cpf|cnpj|document/.test(rawMessage) ? "document_error"
+          : /email|e-mail/.test(rawMessage) ? "email_error"
+          : /timeout|timed out/.test(rawMessage) ? "timeout"
+          : /failed to fetch|network|conex/.test(rawMessage) ? "network"
+          : /401|auth|conta google/.test(rawMessage) ? "authentication"
+          : /429|rate|tentativas/.test(rawMessage) ? "rate_limited"
+          : /5\d\d|provider|depix|abacate/.test(rawMessage) ? "payment_provider"
+          : "client_error";
+        let page = "/";
+        try { page = new URL(String(body.href || "/"), url.origin).pathname.slice(0, 120) || "/"; } catch (e) {}
         const entry = {
           at: Date.now(),
-          step: String(body.step || "").slice(0, 40),
-          msg: String(body.message || "").slice(0, 300),
-          href: String(body.href || "").slice(0, 120),
-          ua: (req.headers.get("User-Agent") || "").slice(0, 120),
+          step: new Set(["selftest", "depix-create", "create-alt"]).has(String(body.step || "")) ? String(body.step) : "other",
+          msg: safeMessage,
+          href: page
         };
         const lst = (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [];
         lst.unshift(entry);
@@ -992,74 +1224,28 @@ export default {
         try { body = await req.json(); } catch { body = {}; }
         const event = String(body.event || "").trim().slice(0, 40);
         if (!ANALYTICS_EVENTS.has(event)) return json({ ok: false }, 400, cors);
-        await metric(env, event, { plan: body.plan, source: body.source, reason: body.reason, error_type: body.error_type }, req);
+        const plan = PLAN_LIMITS[String(body.plan || "")] ? String(body.plan) : "";
+        const source = TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "";
+        const reason = TELEMETRY_REASONS.has(String(body.reason || "")) ? String(body.reason) : "";
+        const error_type = TELEMETRY_ERRORS.has(String(body.error_type || "")) ? String(body.error_type) : "";
+        await metric(env, event, { plan, source, reason, error_type }, req);
         return json({ ok: true }, 200, cors);
       }
-      // ---------- contas: registro ----------
-      if (url.pathname === "/api/auth/register" && req.method === "POST") {
-        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-reg:" + ip, 10, 3600))) return json({ error: "Muitas contas criadas. Aguarde 1 hora." }, 429, cors);
-        let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
-        const email = String(body.email || "").trim().toLowerCase();
-        const name = String(body.name || "").trim().slice(0, 80);
-        if (name.length < 2) return json({ error: "Informe seu nome." }, 400, cors);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
-        if (!validPw(body.password)) return json({ error: "A senha precisa de 8 a 128 caracteres." }, 400, cors);
-        if (await env.PREMIUM_KV.get(acctKey(email)).catch(() => null)) {
-          return json({ error: "Este e-mail já tem conta. Faça login.", code: "EXISTS" }, 409, cors);
-        }
-        const { salt, hash } = await hashPw(body.password);
-        await env.PREMIUM_KV.put(acctKey(email), JSON.stringify({ name, salt, hash, created: Date.now() }));
-        const token = newToken();
-        await env.PREMIUM_KV.put(sessKey(token), JSON.stringify({ email, exp: Date.now() + SESS_TTL * 1000 }), { expirationTtl: SESS_TTL });
-        return json({ token, email, name }, 200, cors);
-      }
-
-      // ---------- contas: login ----------
-      if (url.pathname === "/api/auth/login" && req.method === "POST") {
-        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-login:" + ip, 20, 3600))) return json({ error: "Muitas tentativas. Aguarde 1 hora." }, 429, cors);
-        let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
-        const email = String(body.email || "").trim().toLowerCase();
-        const acct = await env.PREMIUM_KV.get(acctKey(email), "json").catch(() => null);
-        if (!acct) return json({ error: "E-mail ou senha incorretos." }, 401, cors);
-        const { hash } = await hashPw(String(body.password || ""), acct.salt);
-        if (hash !== acct.hash) return json({ error: "E-mail ou senha incorretos." }, 401, cors);
-        const token = newToken();
-        await env.PREMIUM_KV.put(sessKey(token), JSON.stringify({ email, exp: Date.now() + SESS_TTL * 1000 }), { expirationTtl: SESS_TTL });
-        return json({ token, email, name: acct.name || "" }, 200, cors);
-      }
-
-      // ---------- contas: quem sou ----------
-      if (url.pathname === "/api/auth/me" && req.method === "GET") {
-        const email = await sessionEmail(req, env);
-        if (!email) return json({ error: "Sessão inválida. Entre de novo." }, 401, cors);
-        const acct = await env.PREMIUM_KV.get(acctKey(email), "json").catch(() => null);
-        return json({ email, name: (acct && acct.name) || "", premium_until_ms: await premiumUntil(env, email) }, 200, cors);
-      }
-
-      // ---------- contas: sair ----------
-      if (url.pathname === "/api/auth/logout" && req.method === "POST") {
-        const h = req.headers.get("Authorization") || "";
-        const t = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
-        if (t) await env.PREMIUM_KV.delete(sessKey(t)).catch(() => {});
-        return json({ ok: true }, 200, cors);
-      }
-
       // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
         if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const requestedPlan = normalizeDepixPlan(body.plan);
+        if (!requestedPlan) return json({ error: "Plano inválido." }, 400, cors);
         if (!["world1", "vip30"].includes(requestedPlan)) return json({ error: "Este provedor reserva só suporta Resolver 1 mundo e Passe 30 dias; use o Pix principal para este plano." }, 400, cors);
-        const providerPlan = requestedPlan === "world1" ? "vip24h" : "vip30";
-        if (providerPlan === "vip24h" && !env.ABACATEPAY_PRODUCT_ID_24H) return json({ error: "Produto Resolver 1 mundo não configurado no servidor." }, 502, cors);
+        const providerPlan = requestedPlan;
+        if (providerPlan === "world1" && !env.ABACATEPAY_PRODUCT_ID_WORLD1) return json({ error: "Produto Resolver 1 mundo não configurado no servidor." }, 502, cors);
         if (providerPlan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
+        const requestId = String(body.request_id || "").trim().slice(0, 100);
+        if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
         if (body.terms_accepted !== true) {
           return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
         }
@@ -1070,14 +1256,33 @@ export default {
         if (!(await rlTake(env, "rl-alt-v2:" + uid + ":" + ip, 12, 900))) {
           return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
         }
-        const origin = req.headers.get("Origin") || "";
-        const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", providerPlan);
-        await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
-          uid, email, at: Date.now(), plan: requestedPlan, via: "abacate",
-          terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
-        }), { expirationTtl: 30 * 86400 }).catch(() => {});
-        await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate" });
-        return json({ ...r, plan: requestedPlan }, 200, cors);
+        const checkoutStub = await entitlementStub(env, uid, email);
+        const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, provider: "abacate" })
+        });
+        const beginData = await begin.json();
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout já foi iniciado. Aguarde o resultado.", pending: beginData.pending === true }, begin.status, cors);
+        if (!beginData.create) return json(beginData.result, 200, cors);
+        try {
+          const origin = req.headers.get("Origin") || "";
+          const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", providerPlan);
+          const safe = { id: r.id, url: r.url, plan: requestedPlan, expires_at: r.expires_at };
+          const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
+          });
+          if (!saved.ok) throw new Error("Checkout iniciado, mas não consegui guardar o link. Não gere outra cobrança; consulte o suporte.");
+          await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
+            uid, email, at: Date.now(), plan: requestedPlan, via: "abacate",
+            terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
+          }), { expirationTtl: 30 * 86400 }).catch(() => {});
+          await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate", expires_at: r.expires_at });
+          return json(safe, 200, cors);
+        } catch (e) {
+          await checkoutStub.fetch("https://entitlements/checkout-failed", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, error: String((e && e.message) || e).slice(0, 200) })
+          }).catch(() => {});
+          return json({ error: String((e && e.message) || e) }, 502, cors);
+        }
       }
 
       // ---------- status ----------
@@ -1092,22 +1297,25 @@ export default {
         }
         const info = await abacateStatus(env, id);
         const out = { status: info.status, paid: info.paid, email: info.email };
-        let email = info.email;
-        let pend = null;
-        if (!email || info.paid) {
-          pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
-          if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
+        let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+        let email = String(info.email || (pend && pend.email) || "").toLowerCase();
+        if (pend && info.uid && pend.uid && String(pend.uid) !== info.uid) return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
+        if (pend && info.email && pend.email && String(pend.email).toLowerCase() !== String(info.email).toLowerCase()) return json({ error: "A identidade desta cobrança não confere com o checkout." }, 403, cors);
+        const ownerUid = String(info.uid || (pend && pend.uid) || "");
+        if (ownerUid ? ownerUid !== fb.uid : (email && email !== fb.email)) {
+          return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
         }
+        if (!ownerUid && !email) return json({ error: "Não consegui associar esta cobrança à sua conta Google." }, 409, cors);
         if (info.paid && email) {
-          pend = pend || await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
-          if ((pend && pend.uid && String(pend.uid) !== fb.uid) || (email && email !== fb.email)) {
-            return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
-          }
-          const days = planDays(pend);
-          const uid = pend && pend.uid ? String(pend.uid) : "";
-          out.plan = (pend && pend.plan) || (days === 1 ? "vip24h" : (days === 7 ? "vip7" : "vip30"));
-          const grant = await grantPurchase(env, email, id, (pend && pend.plan) || (days === 7 ? "vip7" : "vip30"), uid);
-          await recordPaidCheckout(env, { id, email, plan: out.plan, provider: "abacate" });
+          out.plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+          if (!out.plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado não corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          const uid = String(info.uid || (pend && pend.uid) || fb.uid);
+          const paidAt = timestampMs(info.paid_at);
+          const receipt = await persistConfirmedPayment(env, { id, email, uid, plan: out.plan, provider: "abacate", paid_at: paidAt });
+          const grant = await grantPurchase(env, email, id, out.plan, uid, "abacate", paidAt);
+          await env.PREMIUM_KV.delete(receipt.key);
+          await recordPaidCheckout(env, { id, email, uid, plan: out.plan, provider: "abacate" });
           out.premium_until_ms = grant.premium_until_ms;
           out.world_credits = grant.world_credits;
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
@@ -1135,11 +1343,23 @@ export default {
               if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
             if (info.paid && email) {
-              const plan = (pend && pend.plan) || "vip30";
-              await grantPurchase(env, email, bid, plan, pend && pend.uid ? String(pend.uid) : "");
-              await recordPaidCheckout(env, { id: bid, email, plan, provider: "abacate" });
+              if (info.uid && pend && String(pend.uid || "") && String(pend.uid) !== info.uid) throw new Error("identidade de pagamento incompatível");
+              if (pend && info.email && String(pend.email || "").toLowerCase() && String(pend.email).toLowerCase() !== email) throw new Error("identidade de pagamento incompatível");
+              const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+              if (!plan) throw new Error("plano não reconhecido");
+              if (info.plan && info.plan !== plan) throw new Error("plano de pagamento incompatível");
+              const uid = String(info.uid || (pend && pend.uid) || "");
+              const paidAt = timestampMs(info.paid_at);
+              const receipt = await persistConfirmedPayment(env, { id: bid, email, uid, plan, provider: "abacate", paid_at: paidAt });
+              if (uid) {
+                const grant = await grantPurchase(env, email, bid, plan, uid, "abacate", paidAt);
+                await env.PREMIUM_KV.delete(receipt.key);
+                await recordPaidCheckout(env, { id: bid, email, uid, plan, provider: "abacate" });
+              } else {
+                await recordPaidCheckout(env, { id: bid, email, plan, provider: "abacate" });
+              }
             }
-          } catch (e) { console.log("webhook erro: " + (e && e.message)); }
+          } catch (e) { console.log("abacate webhook erro: " + (e && e.message)); return json({ error: "Pagamento será conciliado automaticamente." }, 503, cors); }
         }
         return json({ ok: true }, 200, cors);
       }
@@ -1158,7 +1378,7 @@ export default {
         try { body = await req.json(); } catch { body = {}; }
         const evt = String(body.webhook_event_type || body.event || body.type || "");
         const status = String(body.order_status || body.status || body.orderStatus || "").toLowerCase();
-        const approvedStatus = ["paid", "approved", "completed", "active", "payment_confirmed", "confirmed"].includes(status);
+        const approvedStatus = ["paid", "approved", "completed", "payment_confirmed", "confirmed"].includes(status);
         const approvedEvent = /^(order_approved|purchase_approved|compra_aprovada)$/.test(evt.toLowerCase());
         const approved = approvedEvent || (!evt && approvedStatus);
         const email = String((body.Customer && body.Customer.email) || (body.customer && body.customer.email) || (body.Client && body.Client.email) || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
@@ -1168,7 +1388,7 @@ export default {
         // log cru (últimos 50) p/ depurar sem adivinhar formato
         try {
           const lst = (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [];
-          lst.unshift({ at: Date.now(), evt, status, email, pid, oid, plan });
+          lst.unshift({ at: Date.now(), evt, status, pid, oid, plan });
           await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
         } catch (e) {}
         if (!approved || !validEmail(email) || !plan || !oid) {
@@ -1179,10 +1399,10 @@ export default {
           const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
         }
-        const grant = await grantPurchase(env, email, "kiwify:" + oid, plan);
+        await persistConfirmedPayment(env, { id: oid, email, plan, provider: "kiwify" });
         await recordPaidCheckout(env, { id: "kiwify:" + oid, email, plan, provider: "kiwify" });
         await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, plan, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
-        return json({ ok: true, granted: true, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits, plan }, 200, cors);
+        return json({ ok: true, paid: true, benefit_pending_account_claim: true, plan }, 200, cors);
       }
       // Visor do log Kiwify (só com o segredo): ver o que chegou.
       if (url.pathname === "/api/kiwify/log" && req.method === "GET") {
@@ -1196,51 +1416,102 @@ export default {
       if (url.pathname === "/api/entitlements" && req.method === "GET") {
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
-        return json(await accountEntitlements(env, fb), 200, cors);
+        const ent = await getUserEntitlements(env, fb.uid, fb);
+        await metric(env, "entitlement_loaded", { plan: ent.plan }, req);
+        return json(ent, 200, cors);
       }
 
       if (url.pathname === "/api/entitlements/check" && req.method === "POST") {
         const fb = await firebaseUser(req, env);
-        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sessão Google inválida." }, 401, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
-        const ent = await accountEntitlements(env, fb);
+        if (!Number.isSafeInteger(body.worlds) || body.worlds < 1 || body.worlds > 100 || !Number.isSafeInteger(body.size_bytes) || body.size_bytes < 1) {
+          return json({ error: "Invalid file size or world count.", code: "INVALID_REQUEST" }, 400, cors);
+        }
+        const ent = fb ? await getUserEntitlements(env, fb.uid, fb) : { plan: "free", premium_until_ms: 0, world_credits: 0, active_world_projects: 0 };
         const features = body.features && typeof body.features === "object" ? body.features : {};
         const decision = checkEntitlement(ent, body.worlds, body.size_bytes, Date.now(), features);
+        const operationId = String(body.operation_id || "").trim().slice(0, 120);
+        if (decision.allowed && (decision.requires_credit || (decision.free_quota_tools && decision.free_quota_tools.length)) && !operationId) {
+          return json({ allowed: false, code: "OPERATION_ID_REQUIRED", plan: decision.plan }, 400, cors);
+        }
+        const quotaOwner = fb ? ("uid:" + fb.uid) : ("ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80));
+        const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + quotaOwner));
+        if (decision.allowed && decision.free_quota_tools && decision.free_quota_tools.length) {
+          const path = "/reserve-quota";
+          const quotaStates = [];
+          for (const item of decision.free_quota_tools) {
+            const quota = await stub.fetch("https://entitlements" + path, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ operation_id: operationId, tool: item.tool, limit: item.limit, day: new Date().toISOString().slice(0, 10) })
+            });
+            const quotaState = await quota.json();
+            if (!quota.ok || quotaState.allowed === false) {
+              if (operationId) await stub.fetch("https://entitlements/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation_id: operationId }) });
+              const denied = { allowed: false, code: "TOOL_QUOTA_EXCEEDED", tool: item.tool, remaining: 0 };
+              await metric(env, "premium_operation_denied", { plan: ent.plan, reason: denied.code }, req);
+              return json(denied, 403, cors);
+            }
+            quotaStates.push({ tool: item.tool, remaining: quotaState.remaining });
+          }
+          decision.free_quota_remaining = quotaStates;
+          decision.requires_completion = !!operationId;
+        }
+        if (decision.allowed && decision.requires_credit && operationId) {
+          const projectId = String(body.world_project_id || "").trim().slice(0, 120);
+          const worldFingerprint = String(body.world_fingerprint || "").trim().slice(0, 160);
+          const reservation = await stub.fetch("https://entitlements/reserve-world", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, candidate_project_id: crypto.randomUUID() })
+          });
+          const reservationData = await reservation.json();
+          if (!reservation.ok) {
+            const denied = { allowed: false, code: reservationData.code || "WORLD_CREDIT_EXHAUSTED", plan: ent.plan };
+            await metric(env, "premium_operation_denied", { plan: ent.plan, reason: denied.code }, req);
+            return json(denied, reservation.status, cors);
+          }
+          decision.world_project_id = reservationData.world_project_id;
+          decision.requires_completion = true;
+        }
+        if (!decision.allowed) await metric(env, "premium_operation_denied", { plan: ent.plan, reason: decision.code }, req);
+        else if (decision.plan !== "free") await metric(env, "premium_operation_authorized", { plan: decision.plan }, req);
         return json({ ...decision, world_credits: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
       }
 
-      if (url.pathname === "/api/entitlements/consume" && req.method === "POST") {
+      if (["/api/entitlements/complete", "/api/entitlements/consume", "/api/entitlements/release"].includes(url.pathname) && req.method === "POST") {
         const fb = await firebaseUser(req, env);
-        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sessão Google inválida." }, 401, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const operationId = String(body.operation_id || "").trim().slice(0, 120);
-        const worlds = Math.max(1, Math.min(1, Number(body.worlds) || 1));
         if (!operationId) return json({ error: "operation_id obrigatório." }, 400, cors);
-        const ent = await accountEntitlements(env, fb);
-        if (ent.plan !== "world1" && ent.world_credits <= 0) return json({ consumed: true, plan: ent.plan || "time" }, 200, cors);
-        const creditState = await worldCreditState(env, fb);
-        const stub = creditState.stub || await entitlementStub(env, fb.uid, fb.email);
-        const r = await stub.fetch("https://entitlements/consume", {
+        const quotaOwner = fb ? ("uid:" + fb.uid) : ("ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80));
+        const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + quotaOwner));
+        const action = url.pathname.endsWith("/release") ? "/release" : "/complete";
+        const r = await stub.fetch("https://entitlements" + action, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ operation_id: operationId, worlds })
+          body: JSON.stringify({ operation_id: operationId, world_project_id: String(body.world_project_id || "").slice(0, 120), world_fingerprint: String(body.world_fingerprint || "").slice(0, 64) })
         });
         const out = await r.json();
+        if (r.ok && out.credit_consumed) await metric(env, "credit_consumed", { plan: "world1" }, req);
         return json(out, r.status, cors);
       }
 
       if (url.pathname === "/api/premium" && req.method === "GET") {
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
-        const ent = await accountEntitlements(env, fb);
-        return json({ ...ent, account_email: fb.email, account_uid: fb.uid }, 200, cors);
+        const ent = await getUserEntitlements(env, fb.uid, fb);
+        return json({ ...ent, account_email: fb.email }, 200, cors);
       }
 
       return json({ error: "rota desconhecida" }, 404, cors);
     } catch (e) {
       console.error("request failed", e && e.message ? e.message : e);
-      return json({ error: "Erro interno ao processar a solicitaÃ§Ã£o." }, 500, cors);
+      if (e && (e.code === "AUTH_UNAVAILABLE" || e.message === "ENTITLEMENT_UNAVAILABLE")) {
+        return json({ error: e.message === "ENTITLEMENT_UNAVAILABLE" ? "Não foi possível verificar seus benefícios agora. Tente novamente." : "Não foi possível verificar sua sessão Google agora. Tente novamente." }, 503, cors);
+      }
+      return json({ error: "Erro interno ao processar a solicitação." }, 500, cors);
     }
   },
   async scheduled(event, env, ctx) {
@@ -1256,40 +1527,316 @@ export class EntitlementDO {
   constructor(state) { this.state = state; }
   async fetch(req) {
     const url = new URL(req.url);
-    const data = (await this.state.storage.get("entitlement")) || { world_credits: 0, purchases: {}, consumed: {} };
-    if (url.pathname === "/state") return json({ world_credits: data.world_credits || 0 });
     let body = {};
     try { body = await req.json(); } catch { body = {}; }
+    const fresh = () => ({ world_credits: 0, premium_until_ms: 0, plan: "", time_passes: [], revision: 0, purchases: {}, consumed: {}, world_projects: {}, world_fingerprints: {}, reservations: {}, completed_ops: {}, quotas: {}, imports: {}, checkouts: {} });
+    const normalize = (data) => Object.assign(fresh(), data || {});
+    const run = (fn) => this.state.storage.transaction(async (txn) => {
+      const data = normalize(await txn.get("entitlement"));
+      const result = await fn(data);
+      if (!result || result.persist !== false) await txn.put("entitlement", data);
+      return result || {};
+    });
+    const current = normalize(await this.state.storage.get("entitlement"));
+    const publicState = (data) => {
+      const now = Date.now();
+      const passes = Array.isArray(data.time_passes) ? data.time_passes : [];
+      const currentPass = passes.filter((pass) => +pass.starts_at <= now && +pass.expires_at > now).sort((a, b) => +a.starts_at - +b.starts_at)[0];
+      const queuedUntil = passes.reduce((end, pass) => Math.max(end, +pass.expires_at || 0), 0);
+      return {
+      world_credits: Math.max(0, +data.world_credits || 0),
+      premium_until_ms: Math.max(+data.premium_until_ms || 0, queuedUntil),
+      plan: String((currentPass && currentPass.plan) || data.plan || ""),
+      plan_expires_at: +((currentPass && currentPass.expires_at) || data.premium_until_ms || 0),
+      revision: (+data.revision || 0) || Object.keys(data.purchases || {}).length,
+      world_projects: Object.entries(data.world_projects || {}).filter(([, project]) => +project.expires_at > now)
+        .map(([id, project]) => ({ id, expires_at: +project.expires_at })),
+      pending_payments: Object.entries(data.checkouts || {}).filter(([, checkout]) => checkoutIsPending(checkout))
+        .map(([request_id, checkout]) => ({ request_id, id: checkout.result && checkout.result.id || "", checkout_url: checkout.result && checkout.result.url || "", plan: checkout.plan, provider: checkout.provider || "depix", created_at: +checkout.at || 0, expires_at: checkoutLockUntil(checkout), status: checkout.status }))
+    };
+    };
+    if (url.pathname === "/state") return json(publicState(current));
+
     if (url.pathname === "/free-quota") {
       const day = String(body.day || "").replace(/[^0-9-]/g, "").slice(0, 10);
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: "Dia invÃ¡lido." }, 400);
-      const key = "freequota:" + day;
-      let used = +(await this.state.storage.get(key)) || 0;
-      if (body.consume === true) {
-        if (used >= FREE_DAILY) return json({ allowed: false, code: "QUOTA_EXCEEDED", used, remaining: 0 }, 402);
-        used += 1;
-        await this.state.storage.put(key, used);
-      }
-      return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, used >= FREE_DAILY ? 402 : 200);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: "Invalid day." }, 400);
+      const result = await run((data) => {
+        const key = "convert:" + day;
+        let used = +data.quotas[key] || 0;
+        if (body.consume === true && used < FREE_DAILY) used += 1;
+        data.quotas[key] = used;
+        return { value: { allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) } };
+      });
+      return json(result.value, body.consume === true && !result.value.allowed ? 402 : 200);
     }
+
     if (url.pathname === "/grant") {
       const bid = String(body.billing_id || "").slice(0, 180);
-      if (bid && data.purchases[bid]) return json({ world_credits: data.world_credits || 0 });
-      if (body.plan === "world1") data.world_credits = (data.world_credits || 0) + 1;
-      if (bid) data.purchases[bid] = { plan: body.plan, at: Date.now() };
-      await this.state.storage.put("entitlement", data);
-      return json({ world_credits: data.world_credits || 0 });
+      const plan = normalizeDepixPlan(body.plan);
+      if (!bid || !plan) return json({ error: "Invalid payment or plan." }, 400);
+      const result = await run((data) => {
+        if (data.purchases[bid]) return { persist: false, value: { ...publicState(data), duplicate: true } };
+        const now = Date.now();
+        const definition = PLAN_LIMITS[plan];
+        if (definition.kind === "world_credit") data.world_credits = (+data.world_credits || 0) + 1;
+        else {
+          data.time_passes = Array.isArray(data.time_passes) ? data.time_passes : [];
+          const priorUntil = Math.max(+data.premium_until_ms || 0, ...data.time_passes.map((pass) => +pass.expires_at || 0));
+          const confirmedAt = Math.min(timestampMs(body.paid_at) || now, now);
+          const startsAt = Math.max(confirmedAt, priorUntil);
+          const expiresAt = startsAt + definition.duration_days * 86400000;
+          data.time_passes.push({ plan, starts_at: startsAt, expires_at: expiresAt, billing_id: bid });
+          data.premium_until_ms = Math.max(priorUntil, expiresAt);
+          if (startsAt <= now) data.plan = plan;
+        }
+        data.purchases[bid] = { plan, at: now };
+        const billingParts = bid.split(":");
+        const provider = billingParts.shift() || "";
+        const providerId = billingParts.join(":");
+        for (const checkout of Object.values(data.checkouts || {})) {
+          if (checkout.provider === provider && checkout.result && checkout.result.id === providerId) {
+            checkout.status = "paid";
+            checkout.paid_at = timestampMs(body.paid_at) || now;
+          }
+        }
+        data.revision = (+data.revision || 0) + 1;
+        return { value: { ...publicState(data), duplicate: false } };
+      });
+      return json(result.value);
     }
-    if (url.pathname === "/consume") {
-      const op = String(body.operation_id || "").slice(0, 120);
-      if (!op) return json({ error: "operation_id obrigatório." }, 400);
-      if (data.consumed[op]) return json({ consumed: true, duplicate: true, world_credits: data.world_credits || 0 });
-      if ((data.world_credits || 0) < 1) return json({ error: "Crédito de mundo já utilizado.", code: "WORLD_CREDIT_EXHAUSTED" }, 409);
-      data.world_credits -= 1;
-      data.consumed[op] = { worlds: 1, at: Date.now() };
-      await this.state.storage.put("entitlement", data);
-      return json({ consumed: true, world_credits: data.world_credits });
+
+    if (url.pathname === "/migrate") {
+      const result = await run((data) => {
+        const until = +body.premium_until_ms || 0;
+        const plan = normalizeDepixPlan(body.plan);
+        if (until > Date.now() && (!plan || PLAN_LIMITS[plan].kind !== "time")) {
+          return { persist: false, status: 400, value: { error: "Active legacy entitlement requires a known time plan." } };
+        }
+        if (until > +data.premium_until_ms) {
+          data.premium_until_ms = until; data.plan = plan; data.revision = (+data.revision || 0) + 1;
+        }
+        return { value: publicState(data) };
+      });
+      return json(result.value, result.status || 200);
     }
-    return json({ error: "rota desconhecida" }, 404);
+
+    if (url.pathname === "/import") {
+      const source = String(body.source || "").slice(0, 200);
+      const snapshot = body.state && typeof body.state === "object" ? body.state : {};
+      const revision = Math.max(0, +body.revision || 0);
+      if (!source || !revision) return json({ error: "Invalid import source." }, 400);
+      const result = await run((data) => {
+        const importedUntil = +snapshot.premium_until_ms || 0;
+        const importedPlan = normalizeDepixPlan(snapshot.plan);
+        if (importedUntil > Date.now() && (!importedPlan || PLAN_LIMITS[importedPlan].kind !== "time")) {
+          return { persist: false, status: 400, value: { error: "Active legacy entitlement requires a known time plan." } };
+        }
+        const previous = data.imports[source] || { revision: 0, credits: 0 };
+        if (revision <= previous.revision) return { persist: false, value: publicState(data) };
+        const delta = Math.max(0, (+snapshot.world_credits || 0) - (+previous.credits || 0));
+        data.world_credits = (+data.world_credits || 0) + delta;
+        if (importedUntil > +data.premium_until_ms) {
+          data.premium_until_ms = importedUntil;
+          data.plan = importedPlan;
+        }
+        (snapshot.world_projects || []).forEach((project) => {
+          const id = String(project.id || "").slice(0, 120);
+          if (id && +project.expires_at > Date.now() && !data.world_projects[id]) data.world_projects[id] = { expires_at: +project.expires_at, created_at: Date.now(), operations: {} };
+        });
+        data.imports[source] = { revision, credits: +snapshot.world_credits || 0 };
+        data.revision = (+data.revision || 0) + 1;
+        return { value: publicState(data) };
+      });
+      return json(result.value, result.status || 200);
+    }
+
+    if (["/checkout-begin", "/checkout-result", "/checkout-failed"].includes(url.pathname)) {
+      const requestId = String(body.request_id || "").trim().slice(0, 100);
+      const plan = normalizeDepixPlan(body.plan);
+      const provider = body.provider === "abacate" ? "abacate" : "depix";
+      if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId) || !plan) return json({ error: "Invalid checkout identity." }, 400);
+      const result = await run((data) => {
+        const currentCheckout = data.checkouts[requestId];
+        if (url.pathname === "/checkout-begin") {
+          if (currentCheckout) {
+            if (currentCheckout.plan !== plan || (currentCheckout.provider && currentCheckout.provider !== provider)) return { persist: false, status: 409, value: { error: "Checkout request ID was already used for another plan or provider." } };
+            if (["creating", "ready"].includes(currentCheckout.status) && !checkoutIsPending(currentCheckout)) {
+              return { persist: false, status: 409, value: { error: "Esta cobrança expirou ou não teve resposta confirmada. Reabra o checkout para iniciar uma nova tentativa." } };
+            }
+            if (currentCheckout.status === "ready") return { persist: false, value: { create: false, result: currentCheckout.result } };
+            // DePix deduplicates POST /checkouts by idempotency_key. A retry
+            // with this same request ID can safely recover the provider result.
+            if (currentCheckout.status === "creating" && provider === "depix") return { persist: false, value: { create: true, retry: true } };
+            return { persist: false, status: 409, value: { error: "Este checkout já foi iniciado ou está em verificação. Não será criada outra cobrança com o mesmo pedido.", pending: currentCheckout.status === "creating" } };
+          }
+          const pendingCheckout = Object.entries(data.checkouts).filter(([, checkout]) => checkoutIsPending(checkout))
+            .sort((a, b) => (+b[1].at || 0) - (+a[1].at || 0))[0];
+          if (pendingCheckout) {
+            const [pendingRequestId, pending] = pendingCheckout;
+            if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.id) {
+              return { persist: false, value: { create: false, result: pending.result, duplicate: true } };
+            }
+            if (pending.status === "creating" && provider === "depix" && pending.provider === "depix" && pending.plan === plan) {
+              return { persist: false, value: { create: true, retry: true, retry_request_id: pendingRequestId } };
+            }
+            return { persist: false, status: 409, value: { error: "Já existe uma cobrança em andamento nesta conta. Confira o pagamento ou aguarde até 20 minutos antes de iniciar outra, para evitar uma cobrança duplicada.", pending: true, pending_plan: pending.plan } };
+          }
+          data.checkouts[requestId] = { plan, provider, status: "creating", at: Date.now() };
+          return { value: { create: true } };
+        }
+        if (!currentCheckout || currentCheckout.plan !== plan) return { persist: false, status: 409, value: { error: "Checkout request not found." } };
+        if (url.pathname === "/checkout-result") {
+          if (currentCheckout.status === "ready") return { persist: false, value: { saved: true, duplicate: true } };
+          const safeResult = body.result && typeof body.result === "object" ? {
+            id: String(body.result.id || "").slice(0, 180), url: String(body.result.url || "").slice(0, 1000), plan,
+            expires_at: timestampMs(body.result.expires_at)
+          } : null;
+          if (!safeResult || !safeResult.id || !/^https:\/\//i.test(safeResult.url)) return { persist: false, status: 400, value: { error: "Invalid checkout result." } };
+          currentCheckout.status = "ready"; currentCheckout.result = safeResult; currentCheckout.ready_at = Date.now();
+          return { value: { saved: true } };
+        }
+        // A provider timeout is ambiguous: it may already have created a
+        // charge. Keep the account lock until checkout expiry to avoid a retry
+        // creating a second payment.
+        currentCheckout.error = String(body.error || "Checkout result uncertain.").slice(0, 200);
+        currentCheckout.last_error_at = Date.now();
+        return { value: { saved: true } };
+      });
+      return json(result.value, result.status || 200);
+    }
+
+    if (url.pathname === "/quota-state" || url.pathname === "/reserve-quota") {
+      const tool = String(body.tool || "").trim().toLowerCase().slice(0, 40);
+      const day = String(body.day || "").replace(/[^0-9-]/g, "").slice(0, 10);
+      const operationId = String(body.operation_id || "").slice(0, 120);
+      const reservationId = operationId ? operationId + ":quota:" + tool : "";
+      const limit = Math.max(0, Math.min(100, Number(body.limit) || 0));
+      if (!tool || !limit || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: "Invalid quota." }, 400);
+      const result = await run((data) => {
+        const key = tool + ":" + day;
+        const used = +data.quotas[key] || 0;
+        const pending = Object.values(data.reservations).filter((r) => r.kind === "quota" && r.quota_key === key && +r.expires_at > Date.now()).length;
+        if (url.pathname === "/reserve-quota" && operationId && data.completed_ops[operationId]) {
+          return { persist: false, value: { allowed: true, used, remaining: Math.max(0, limit - used), duplicate: true } };
+        }
+        if (url.pathname === "/reserve-quota" && operationId && data.reservations[reservationId]) {
+          return { persist: false, value: { allowed: true, used, remaining: Math.max(0, limit - used - pending), duplicate: true } };
+        }
+        if (used + pending >= limit) return { persist: false, value: { allowed: false, used, remaining: 0 } };
+        if (url.pathname === "/reserve-quota") {
+          if (!operationId) return { persist: false, value: { allowed: false, used, remaining: 0 } };
+          data.reservations[reservationId] = { kind: "quota", operation_id: operationId, quota_key: key, expires_at: Date.now() + 3600000 };
+        }
+        return { value: { allowed: true, used, remaining: Math.max(0, limit - used - pending - (url.pathname === "/reserve-quota" ? 1 : 0)) } };
+      });
+      return json(result.value, result.value.allowed ? 200 : 402);
+    }
+
+    if (url.pathname === "/reserve-world") {
+      const operationId = String(body.operation_id || "").slice(0, 120);
+      const projectId = String(body.world_project_id || "").slice(0, 120);
+      const fingerprintRaw = String(body.world_fingerprint || "").toLowerCase().slice(0, 64);
+      const fingerprint = /^[a-f0-9]{64}$/.test(fingerprintRaw) ? fingerprintRaw : "";
+      const candidateId = String(body.candidate_project_id || "").slice(0, 120);
+      if (!operationId || !candidateId) return json({ error: "Invalid project reservation." }, 400);
+      if (!fingerprint) return json({ error: "World fingerprint unavailable.", code: "WORLD_ID_UNAVAILABLE" }, 400);
+      const result = await run((data) => {
+        if (data.completed_ops[operationId]) {
+          const completedProject = data.completed_ops[operationId].project_id;
+          if (completedProject && (data.world_fingerprints[fingerprint] === completedProject || (data.world_projects[completedProject] && data.world_projects[completedProject].fingerprints && data.world_projects[completedProject].fingerprints[fingerprint]))) {
+            return { persist: false, value: { allowed: true, world_project_id: completedProject, duplicate: true } };
+          }
+          return { persist: false, status: 409, value: { allowed: false, code: "OPERATION_ID_REUSED" } };
+        }
+        if (data.reservations[operationId]) {
+          const prior = data.reservations[operationId];
+          if (prior.fingerprint === fingerprint && (!projectId || !prior.project_id || projectId === prior.project_id)) return { persist: false, value: { allowed: true, world_project_id: prior.project_id, duplicate: true } };
+          return { persist: false, status: 409, value: { allowed: false, code: "OPERATION_ID_REUSED" } };
+        }
+        let chosenId = projectId;
+        if (!chosenId && fingerprint && data.world_fingerprints[fingerprint]) chosenId = data.world_fingerprints[fingerprint];
+        const project = chosenId ? data.world_projects[chosenId] : null;
+        if (chosenId && (!project || +project.expires_at <= Date.now())) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_PROJECT_EXPIRED" } };
+        if (project && projectId) {
+          const knownFingerprints = project.fingerprints && typeof project.fingerprints === "object" ? project.fingerprints : {};
+          const known = !!knownFingerprints[fingerprint] || data.world_fingerprints[fingerprint] === chosenId;
+          if (!known && Object.keys(knownFingerprints).length) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_MISMATCH" } };
+          if (!known) {
+            project.fingerprints = knownFingerprints;
+            project.fingerprints[fingerprint] = true;
+            data.world_fingerprints[fingerprint] = chosenId;
+          }
+        }
+        let isNew = false;
+        if (!project) {
+          const pendingMatch = fingerprint && Object.values(data.reservations).find((r) => r.kind === "world" && r.fingerprint === fingerprint && +r.expires_at > Date.now());
+          if (pendingMatch) { chosenId = pendingMatch.project_id; isNew = true; }
+          else {
+            const pendingIds = new Set(Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).map((r) => r.project_id));
+            if ((+data.world_credits || 0) <= pendingIds.size) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" } };
+            chosenId = candidateId; isNew = true;
+          }
+        }
+        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, fingerprint, expires_at: Date.now() + 3600000 };
+        return { value: { allowed: true, world_project_id: chosenId, new_project: isNew } };
+      });
+      return json(result.value, result.status || (result.value.allowed ? 200 : 409));
+    }
+
+    if (url.pathname === "/complete" || url.pathname === "/consume") {
+      const operationId = String(body.operation_id || "").slice(0, 120);
+      const outputFingerprintRaw = String(body.world_fingerprint || "").toLowerCase().slice(0, 64);
+      const outputFingerprint = /^[a-f0-9]{64}$/.test(outputFingerprintRaw) ? outputFingerprintRaw : "";
+      if (!operationId) return json({ error: "Missing operation id." }, 400);
+      const result = await run((data) => {
+        const previous = data.completed_ops[operationId];
+        if (previous) return { persist: false, value: { completed: true, consumed: true, duplicate: true, credit_consumed: !!previous.credit_consumed, world_project_id: previous.project_id || "", world_credits: +data.world_credits || 0 } };
+        const reservations = Object.entries(data.reservations).filter(([key, reservation]) => key === operationId || reservation.operation_id === operationId);
+        if (!reservations.length) return { persist: false, status: 409, value: { error: "Operation authorization expired.", code: "RESERVATION_REQUIRED" } };
+        const now = Date.now();
+        let creditConsumed = false;
+        let projectId = "";
+        for (const [reservationId, reservation] of reservations) {
+          if (+reservation.expires_at <= now) return { persist: false, status: 409, value: { error: "Operation authorization expired.", code: "RESERVATION_EXPIRED" } };
+          if (reservation.kind === "quota") data.quotas[reservation.quota_key] = (+data.quotas[reservation.quota_key] || 0) + 1;
+          else if (reservation.kind === "world") {
+            const project = data.world_projects[reservation.project_id];
+            if (reservation.new_project && !project) {
+              if ((+data.world_credits || 0) < 1) return { persist: false, status: 409, value: { error: "World credit unavailable.", code: "WORLD_CREDIT_EXHAUSTED" } };
+              data.world_credits -= 1;
+              data.world_projects[reservation.project_id] = { created_at: now, expires_at: now + WORLD_PROJECT_WINDOW_MS, operations: {}, fingerprints: {} };
+              creditConsumed = true;
+            } else if (!project || +project.expires_at <= now) return { persist: false, status: 409, value: { error: "World session expired.", code: "WORLD_PROJECT_EXPIRED" } };
+            else project.expires_at = now + WORLD_PROJECT_WINDOW_MS;
+            const activeProject = data.world_projects[reservation.project_id];
+            activeProject.fingerprints = activeProject.fingerprints && typeof activeProject.fingerprints === "object" ? activeProject.fingerprints : {};
+            if (reservation.fingerprint) { activeProject.fingerprints[reservation.fingerprint] = true; data.world_fingerprints[reservation.fingerprint] = reservation.project_id; }
+            if (outputFingerprint) { activeProject.fingerprints[outputFingerprint] = true; data.world_fingerprints[outputFingerprint] = reservation.project_id; }
+            activeProject.operations[operationId] = now;
+            data.consumed[operationId] = { worlds: 1, at: now, project_id: reservation.project_id };
+            projectId = reservation.project_id;
+          }
+          delete data.reservations[reservationId];
+        }
+        data.completed_ops[operationId] = { at: now, kind: reservations.map(([, reservation]) => reservation.kind).join("+"), project_id: projectId, credit_consumed: creditConsumed };
+        for (const [oldOp, record] of Object.entries(data.completed_ops)) if (now - (+record.at || 0) > 400 * 86400000) delete data.completed_ops[oldOp];
+        if (creditConsumed) data.revision = (+data.revision || 0) + 1;
+        return { value: { completed: true, consumed: true, credit_consumed: creditConsumed, world_project_id: projectId, world_credits: +data.world_credits || 0 } };
+      });
+      return json(result.value, result.status || (result.value.error ? 409 : 200));
+    }
+
+    if (url.pathname === "/release") {
+      const operationId = String(body.operation_id || "").slice(0, 120);
+      const result = await run((data) => {
+        const reservations = Object.entries(data.reservations).filter(([key, reservation]) => key === operationId || reservation.operation_id === operationId);
+        if (!reservations.length) return { persist: false, value: { released: true, duplicate: true, world_credits: +data.world_credits || 0 } };
+        reservations.forEach(([reservationId]) => { delete data.reservations[reservationId]; });
+        return { value: { released: true, world_credits: +data.world_credits || 0 } };
+      });
+      return json(result.value);
+    }
+
+    return json({ error: "Unknown entitlement route." }, 404);
   }
 }

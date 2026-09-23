@@ -10,7 +10,7 @@ class_name = "EntitlementDO"
 tag = "v1"
 new_sqlite_classes = ["EntitlementDO"]
 
-# KV com pendentes + premium por e-mail (crie 1x: wrangler kv namespace create PREMIUM_KV).
+# KV com recibos, pagamentos pendentes, auditoria e migração legada por e-mail.
 # Depois cole o id retornado abaixo (preview_id p/ dev, id p/ produção).
 [[kv_namespaces]]
 binding = "PREMIUM_KV"
@@ -22,7 +22,9 @@ preview_id = "acfc4981776e4dd0b8513722597f8f01"
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 # ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
-# ID do produto de entrada "Resolver 1 mundo" (R$ 5,99) no dashboard AbacatePay.
+# Configure um produto dedicado "Resolver 1 mundo" antes de ativar este fallback.
+ABACATEPAY_PRODUCT_ID_WORLD1 = ""
+# Produto legado de 24h; nunca conceder como crédito World1.
 ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
 # IDs dos produtos na KIWIFY (só quando ligar a Kiwify): produto -> Webhooks.
 # Vazios = opcional; o Worker também reconhece os nomes dos quatro produtos.

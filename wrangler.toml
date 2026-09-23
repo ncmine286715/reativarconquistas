@@ -25,9 +25,17 @@ preview_id = "acfc4981776e4dd0b8513722597f8f01"
 # Firebase Web API key é pública e serve para validar o ID token Google no Worker.
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
+# Configure um produto dedicado antes de ativar o fallback AbacatePay para World1.
+ABACATEPAY_PRODUCT_ID_WORLD1 = ""
+# Produto legado de 24h; nunca conceder como crédito World1.
 ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
+ABACATEPAY_PRODUCT_ID_7D = ""
+ABACATEPAY_PRODUCT_ID_CREATOR = ""
+KIWIFY_PID_WORLD1 = ""
+KIWIFY_PID_7D = ""
 KIWIFY_PID_24H = ""
 KIWIFY_PID_30D = ""
+KIWIFY_PID_CREATOR = ""
 PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
 ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 DEPIX_TEST_MODE = "0"
