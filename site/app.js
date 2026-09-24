@@ -56,6 +56,7 @@
     if (x) x.addEventListener("click", function () { dead = true; bar.hidden = true; });
     function tick() {
       if (dead) return;
+      if (selected) { bar.hidden = true; return; }
       var conv = $("converter"), plans = $("planos");
       var c = conv ? conv.getBoundingClientRect() : null;
       var p = plans ? plans.getBoundingClientRect() : null;
@@ -87,7 +88,164 @@
 
   var selected = null, selectedIconBytes = null, selectedList = [], iconPreset = null, presetBytes = null;
   var lastWorldPassport = null, lastWorldReport = null;
+  var toolIntentApi = window.RC_toolIntents || null;
+  var resumeKey = "rc_checkout_resume", intentKey = "rc_tool_intent";
+  var resumeRecord = readResumeRecord();
+  var resumeMode = false, activeToolIntent = null;
+  try { resumeMode = new URLSearchParams(location.search).get("resume") === "1"; } catch (e) {}
+  try { activeToolIntent = toolIntentApi && toolIntentApi.fromSearch(location.search); } catch (e2) {}
+  if (!activeToolIntent && resumeMode && resumeRecord && toolIntentApi) activeToolIntent = toolIntentApi.resolve(resumeRecord.tool);
+  var toolIntentBox = $("toolIntent"), toolIntentRouted = false;
+  var fileAccessReady = false, worldDiagnosisReady = false, activeWorldDiagnosis = null;
+  var awaitingContextCheckout = false, entitlementRefreshInFlight = false, lastContextRefreshAt = 0, checkoutEntitlementBaseline = null;
+  if (activeToolIntent) rememberToolIntent(activeToolIntent);
+  if (resumeMode && resumeRecord) restoreResumeSettings(resumeRecord);
+  renderToolIntent(resumeMode && !!resumeRecord);
   var compareInput = $("compareFile"), compareRunButton = $("compareRun"), compareDownloadButton = $("compareDownload"), compareStatus = $("compareStatus"), compareResults = $("compareResults");
+
+  function readResumeRecord() {
+    try {
+      var value = JSON.parse(sessionStorage.getItem("rc_checkout_resume") || "null");
+      if (!value || value.version !== 1 || !value.created_at || Date.now() - +value.created_at > 2 * 60 * 60 * 1000) return null;
+      return value;
+    } catch (e) { return null; }
+  }
+  function rememberToolIntent(intent) {
+    if (!intent || !intent.slug) return;
+    activeToolIntent = intent;
+    try { sessionStorage.setItem(intentKey, intent.slug); } catch (e) {}
+  }
+  function renderToolIntent(resumed) {
+    if (!toolIntentBox || !activeToolIntent) return;
+    toolIntentBox.textContent = "";
+    toolIntentBox.hidden = false;
+    if (activeToolIntent.href) {
+      toolIntentBox.appendChild(document.createTextNode("Você veio pelo " + activeToolIntent.label + ". O Builder tem seleção de mundo própria."));
+      var builderLink = document.createElement("a");
+      builderLink.href = activeToolIntent.href;
+      builderLink.textContent = " Abrir Builder 3D";
+      toolIntentBox.appendChild(builderLink);
+      return;
+    }
+    toolIntentBox.textContent = resumed
+      ? (selected
+        ? "Retomando " + activeToolIntent.label + ". Seu mundo e suas preferências continuam nesta aba."
+        : "Retomando " + activeToolIntent.label + ". As preferências foram recuperadas; selecione o mundo novamente. O arquivo não é guardado pelo site.")
+      : "Você veio para " + activeToolIntent.label + ". Selecione seu mundo; depois da análise, abriremos essa ferramenta.";
+  }
+  function restoreResumeSettings(record) {
+    var settings = record && record.settings || {};
+    Object.keys(settings).forEach(function (id) {
+      var control = $(id), saved = settings[id];
+      if (!control || !saved) return;
+      if (control.type === "checkbox") control.checked = saved.checked === true;
+      else if (typeof saved.value === "string") control.value = saved.value;
+    });
+  }
+  function snapshotSettings() {
+    var ids = ["gamemode", "difficulty", "showcoords", "keepinv", "immediaterespawn", "mobgriefing", "naturalregeneration", "daycycle", "weather", "renameInput", "wantRename", "recoverHardcore", "stripPacks"];
+    var result = {};
+    ids.forEach(function (id) {
+      var control = $(id);
+      if (!control) return;
+      result[id] = control.type === "checkbox" ? { checked: !!control.checked } : { value: String(control.value || "").slice(0, 80) };
+    });
+    return result;
+  }
+  function clearCheckoutResume() {
+    try { sessionStorage.removeItem(resumeKey); sessionStorage.removeItem("rc_pending_checkout_context"); } catch (e) {}
+  }
+  function currentToolSlug() {
+    if (recoverHardcore && recoverHardcore.checked) return "hardcore";
+    var modeControl = $("gamemode");
+    if (modeControl && modeControl.value === "creative") return "criativo";
+    if (keepSel && keepSel.value !== "-1") return "keep-inventory";
+    var strip = $("stripPacks");
+    if ((strip && strip.checked) || (typeof selectedPacks !== "undefined" && selectedPacks.length)) return "addons";
+    try { if (window.RC_reset && window.RC_reset.selCount() > 0) return "chunks"; } catch (e) {}
+    try { if (window.RC_player && window.RC_player.hasEdits()) return "jogador"; } catch (e2) {}
+    return activeToolIntent ? activeToolIntent.slug : "";
+  }
+  function sourceForTool(slug) {
+    var intent = toolIntentApi && toolIntentApi.resolve(slug);
+    return intent ? "tool_" + intent.slug.replace(/-/g, "_") : "";
+  }
+  function checkoutContext(extra) {
+    var context = Object.assign({}, extra || {});
+    var slug = context.tool || currentToolSlug() || (context.source === "feature_paywall" ? "conquistas" : "");
+    var intent = toolIntentApi && toolIntentApi.resolve(slug);
+    if (intent) {
+      context.tool = intent.slug;
+      context.source = "tool_" + intent.slug.replace(/-/g, "_");
+    }
+    context.preserve_context = true;
+    try {
+      sessionStorage.setItem(resumeKey, JSON.stringify({
+        version: 1, created_at: Date.now(), tool: intent ? intent.slug : "upload",
+        settings: snapshotSettings()
+      }));
+    } catch (e) {}
+    if (intent) rememberToolIntent(intent);
+    return context;
+  }
+  function maybeRouteToToolIntent() {
+    if (!activeToolIntent || activeToolIntent.slug === "upload" || activeToolIntent.href || !activeToolIntent.targetId || !fileAccessReady || !worldDiagnosisReady || toolIntentRouted || !selected) return;
+    var targetId = activeToolIntent.targetId;
+    var blockedByPacks = activeToolIntent.slug === "conquistas" && activeWorldDiagnosis && packCount(activeWorldDiagnosis) > 0;
+    if (blockedByPacks) targetId = "accPacks";
+    var target = $(targetId);
+    if (!target) return;
+    var detail = target.closest ? target.closest("details.acc") : null;
+    if (detail) detail.open = true;
+    toolIntentRouted = true;
+    if (blockedByPacks) {
+      setStatus("ok", "Encontramos " + packCount(activeWorldDiagnosis) + " addon(s) que podem bloquear conquistas. A seção Addons foi aberta para revisão.");
+    } else {
+      setStatus("ok", "Análise concluída. Abrimos " + escapeHtml(activeToolIntent.label) + ". Revise as opções e confirme antes de gerar a cópia.");
+    }
+    window.setTimeout(function () {
+      try { target.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      catch (e) { target.scrollIntoView(); }
+    }, 80);
+  }
+  function beginContextCheckout() {
+    awaitingContextCheckout = true;
+    var current = window.RC_entitlements && window.RC_entitlements.state
+      ? window.RC_entitlements.state()
+      : (window.RC_entitlementState || {});
+    checkoutEntitlementBaseline = {
+      plan: String(current.plan || ""), active: current.active === true,
+      premium_until_ms: +current.premium_until_ms || 0,
+      world_credits: +current.world_credits || 0,
+      active_world_projects: +current.active_world_projects || 0
+    };
+  }
+  function contextBenefitsIncreased(entitlement) {
+    var baseline = checkoutEntitlementBaseline;
+    if (!baseline || !entitlement || entitlement.active !== true) return false;
+    return (!baseline.active && entitlement.active === true) ||
+      (String(entitlement.plan || "") !== baseline.plan) ||
+      (+entitlement.premium_until_ms || 0) > baseline.premium_until_ms + 1000 ||
+      (+entitlement.world_credits || 0) > baseline.world_credits ||
+      (+entitlement.active_world_projects || 0) > baseline.active_world_projects;
+  }
+
+  var toolNavTargets = { worldInfo: "mundo", operationActions: "conquistas", accFree: "mundo", accPacks: "addons", accPlayer: "jogador", accChunks: "chunks", advancedTools: "mundo" };
+  Array.prototype.forEach.call(document.querySelectorAll(".editor-categories a"), function (link) {
+    link.addEventListener("click", function () {
+      var slug = link.href.indexOf("builder-lab.html") >= 0 ? "builder" : toolNavTargets[String(link.hash || "").slice(1)];
+      var intent = toolIntentApi && toolIntentApi.resolve(slug);
+      if (intent) {
+        rememberToolIntent(intent);
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("converter_view", { source: "tool_" + intent.slug.replace(/-/g, "_") }); } catch (e) {}
+      }
+    });
+  });
+  document.addEventListener("rc-pay-ready", function () {
+    if (activeToolIntent && window.RC_pay && window.RC_pay.track) {
+      window.RC_pay.track("converter_view", { source: "tool_" + activeToolIntent.slug.replace(/-/g, "_") });
+    }
+  });
   var comparisonFile = null, lastComparison = null;
   function canonicalCompareValue(value) {
     if (value === null || value === undefined || value === "") return "—";
@@ -441,6 +599,65 @@
     status.className = "status " + kind;
     status.innerHTML = html;
   }
+  function refreshAfterContextCheckout() {
+    if (!awaitingContextCheckout || document.visibilityState === "hidden" || entitlementRefreshInFlight || Date.now() - lastContextRefreshAt < 2500) return;
+    if (!window.RC_entitlements || typeof window.RC_entitlements.refresh !== "function") return;
+    lastContextRefreshAt = Date.now();
+    entitlementRefreshInFlight = true;
+    window.RC_entitlements.refresh().then(function (ent) {
+      entitlementRefreshInFlight = false;
+      if (!ent || ent.status !== "ready") {
+        setStatus("err", "Não consegui atualizar os benefícios. Mantenha esta aba aberta e verifique novamente em Minha conta.");
+        return;
+      }
+      serverEntitlement = Object.assign({}, ent, { ready: true, until: +ent.premium_until_ms || 0, email: ent.account_email || googleEmail() });
+      window.RC_entitlementState = serverEntitlement;
+      paintQuota();
+      refreshFreeQuota();
+      if (ent.pending_payment) {
+        var pendingText = window.RC_entitlements.messageForPending ? window.RC_entitlements.messageForPending(ent.pending_payment) : "O pagamento ainda está em confirmação. Não inicie outra compra.";
+        setStatus("ok", escapeHtml(pendingText) + " <a href='minha-conta.html'>Minha conta</a>");
+        return;
+      }
+      if (ent.active) {
+        resumeRecord = readResumeRecord();
+        if (resumeRecord) {
+          var resumedIntent = toolIntentApi && toolIntentApi.resolve(resumeRecord.tool);
+          if (resumedIntent) { rememberToolIntent(resumedIntent); renderToolIntent(true); }
+          restoreResumeSettings(resumeRecord);
+        }
+        if (selected && selectedList.length && window.RC_entitlements.canUseFile) {
+          var fileDecision = window.RC_entitlements.canUseFile(selectedList);
+          fileAccessReady = fileDecision.allowed === true;
+        }
+        if (!contextBenefitsIncreased(ent)) {
+          setStatus("ok", "Aguardamos a confirmacao dos novos beneficios pelo servidor. Seu mundo e suas escolhas continuam nesta aba; se ja pagou, aguarde e verifique novamente. Nao inicie outra compra.");
+          return;
+        }
+        if (selected && selectedList.length && !fileAccessReady) {
+          awaitingContextCheckout = false;
+          checkoutEntitlementBaseline = null;
+          setStatus("err", "A compra foi confirmada pelo servidor, mas o limite atualizado ainda nao cobre o arquivo selecionado. Confira os limites em Minha conta antes de tentar novamente.");
+          return;
+        }
+        maybeRouteToToolIntent();
+        awaitingContextCheckout = false;
+        checkoutEntitlementBaseline = null;
+        setStatus("ok", "Benefícios confirmados pelo servidor. Seu mundo e suas configurações continuam nesta aba; revise e toque em Gerar para executar.");
+        return;
+      }
+      setStatus("ok", "Ainda não há confirmação dos benefícios. Seu mundo e suas escolhas continuam nesta aba; aguarde a confirmação e verifique novamente. Não inicie outra compra.");
+    }).catch(function () {
+      entitlementRefreshInFlight = false;
+      setStatus("err", "Não foi possível atualizar os benefícios agora. O mundo continua nesta aba; tente verificar novamente em instantes.");
+    });
+  }
+  window.addEventListener("rc-context-checkout-started", function () {
+    beginContextCheckout();
+    setStatus("ok", "Checkout aberto em outra aba. Depois da confirmação, volte para esta aba; o mundo e as configurações ficam abertos aqui.");
+  });
+  window.addEventListener("focus", refreshAfterContextCheckout);
+  document.addEventListener("visibilitychange", refreshAfterContextCheckout);
   function loggedIn() {
     try { return !!((window.RC_auth && window.RC_auth.user()) || null); } catch (e) { return false; }
   }
@@ -465,20 +682,28 @@
       setStatus("err", escapeHtml(pendingMessage) + " <a href='minha-conta.html'>Minha conta</a>");
       return;
     }
-    if (entitlement.status === "ready" && entitlement.active) {
+    if (entitlement.status === "ready" && entitlement.active && context.allow_active_purchase !== true) {
       serverEntitlement = Object.assign({}, entitlement, { ready: true, until: +entitlement.premium_until_ms || 0, email: entitlement.account_email || googleEmail() });
       window.RC_entitlementState = serverEntitlement;
       paintQuota();
       setStatus("ok", "Seu plano foi atualizado. Tente a operação novamente.");
       return;
     }
+    context = Object.assign({ source: "feature_paywall" }, context || {});
+    context = checkoutContext(context);
     try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("paywall_shown", Object.assign({ plan: plan || "", source: context.source || "feature_paywall" }, context)); } catch (e0) {}
     // Com Kiwify ligada: aviso + link direto de liberação (sem sair sozinho).
     // Sem Kiwify: abre o modal AbacatePay como antes.
     var kw = "";
     try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl(plan) || ""; } catch (e) {}
     if (kw) {
-      setStatus("", escapeHtml(msg) + ' <a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>');
+      setStatus("", escapeHtml(msg) + ' <a id="contextKiwifyCheckout" href="' + escapeHtml(kw) + '" target="_blank" rel="noopener"><b>Abrir checkout em nova aba</b></a>. Use o mesmo e-mail Google e volte a esta aba para continuar. · <a href="#planos">Ver planos</a>');
+      var contextKiwifyLink = $("contextKiwifyCheckout");
+      if (contextKiwifyLink) contextKiwifyLink.addEventListener("click", function () {
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("kiwify_checkout_redirect", { plan: plan || "", tool: context.tool || "", source: context.source || "feature_paywall" }); } catch (e) {}
+        beginContextCheckout();
+        window.setTimeout(function () { setStatus("ok", "Checkout aberto em outra aba. Depois da confirmação, volte para esta aba; o mundo e as configurações ficam abertos aqui."); }, 0);
+      });
       return;
     }
     setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
@@ -496,7 +721,15 @@
       if (!oneWorld) throw new Error("Plan catalog unavailable.");
       var exceedsWorldCredit = oneWorld.max_file_bytes !== null && sizeBytes > +oneWorld.max_file_bytes;
       var exceedsWorldBatch = +worlds > +oneWorld.max_batch;
-      lockedHint(message, exceedsWorldCredit || exceedsWorldBatch ? "vip7" : "world1", { worlds: worlds, world_size_mb: +(sizeBytes / 1048576).toFixed(1), source: "world_size_paywall" });
+      var requirement = { worlds: worlds, world_size_mb: +(sizeBytes / 1048576).toFixed(1), world_size_bytes: sizeBytes };
+      var eligible = toolIntentApi ? toolIntentApi.eligiblePlanIds(["world1", "vip7", "vip30", "creator"], catalog, requirement) : ["world1", "vip7", "vip30", "creator"];
+      if (!eligible.length) {
+        setStatus("err", escapeHtml(message) + " Nenhum produto atual cobre este tamanho e quantidade de mundos. Divida o lote ou exporte um arquivo menor.");
+        return;
+      }
+      var preferred = exceedsWorldCredit || exceedsWorldBatch ? "vip7" : "world1";
+      var suggested = toolIntentApi ? toolIntentApi.choosePlan(eligible, preferred, catalog) : preferred;
+      lockedHint(message, suggested, Object.assign({ source: "world_size_paywall", allow_active_purchase: true }, requirement));
     }).catch(function () {
       setStatus("err", escapeHtml(message) + " Não foi possível consultar os planos agora. Tente novamente; não é necessário pagar outra vez por um plano já ativo. <a href='minha-conta.html'>Minha conta</a>");
     });
@@ -524,6 +757,9 @@
 
   function presentOperationFailure(err) {
     var code = String(err && err.payload && err.payload.code || "");
+    if (code !== "PAYMENT_PENDING" && code !== "NO_ENTITLEMENT") {
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_failed", { source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e0) {}
+    }
     if (code === "PAYMENT_PENDING") {
       setStatus("err", friendlyFileErr(err) + " <a href='minha-conta.html'>Minha conta</a>");
       return;
@@ -583,6 +819,16 @@
     box.hidden = false;
     var sourceFile = selectedList.length ? selectedList[0] : selected;
     var packTotal = packCount(rep);
+    activeWorldDiagnosis = rep;
+    var diagnostic = $("wiDiagnostic"), diagnosticText = $("wiDiagnosticText");
+    if (diagnostic && diagnosticText) {
+      diagnostic.hidden = packTotal <= 0;
+      diagnosticText.textContent = packTotal > 0
+        ? packTotal + " addon(s) de comportamento detectados; eles podem bloquear conquistas."
+        : "";
+    }
+    var sizeLabel = $("wiSize");
+    if (sizeLabel) sizeLabel.textContent = sourceFile ? fmtSize(sourceFile.size) : "—";
     lastWorldPassport = {
       format: "reativaconquistas-world-passport-v1",
       generated_at: new Date().toISOString(),
@@ -664,6 +910,8 @@
     if (!box) return;
     if (!selected || typeof window.RC_local === "undefined") { box.hidden = true; paintWorldInfo(null); return; }
     var my = ++raioXSeq;
+    worldDiagnosisReady = false;
+    activeWorldDiagnosis = null;
     var f = selectedList.length > 1 ? selectedList[0] : selected;
     box.hidden = false;
     box.textContent = "Lendo mundo…";
@@ -676,8 +924,11 @@
     f.arrayBuffer().then(function (ab) { analysisBuffer = ab; return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
       if (my !== raioXSeq) return;
       if (!rep.ok) { box.hidden = true; paintWorldInfo(null); return; }
-      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("world_analyzed", { worlds: selectedList.length || 1, world_size_mb: +(f.size / 1048576).toFixed(1), addons: packCount(rep) }); } catch (e0) {}
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("world_analyzed", { worlds: selectedList.length || 1, world_size_mb: +(f.size / 1048576).toFixed(1), addons: packCount(rep), source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
       paintWorldInfo(rep, selectedList.length > 1 ? selectedList.length : 0);
+      activeWorldDiagnosis = rep;
+      worldDiagnosisReady = true;
+      maybeRouteToToolIntent();
       if (window.RC_local.inspectWorld) {
         window.RC_local.inspectWorld(analysisBuffer, f.name, rep).then(function (integrity) {
           if (my !== raioXSeq || !lastWorldReport) return;
@@ -735,11 +986,15 @@
     }
     selectedList = files;
     selected = files[0];
+    fileAccessReady = false;
+    worldDiagnosisReady = false;
+    activeWorldDiagnosis = null;
+    toolIntentRouted = false;
     if (backupSaveButton) backupSaveButton.disabled = false;
     if (compareRunButton) compareRunButton.disabled = !comparisonFile;
     if (backupStatus) backupStatus.textContent = "Cópia selecionada: pronta para guardar somente neste navegador.";
     var big = [];
-    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1) }); } catch (e0) {}
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
     if (files.length > 1) {
       fileName.textContent = files.length + " arquivos selecionados (lote)";
       fileName.hidden = false;
@@ -764,17 +1019,18 @@
       var maxBytes = fileDecision.max_file_bytes;
       var maxBatch = fileDecision.max_batch;
       big = fileDecision.too_large || [];
-      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track(big.length ? "file_too_large" : "file_valid", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), plan: ent.plan }); } catch (e0) {}
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track(big.length ? "file_too_large" : "file_valid", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), plan: ent.plan, source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
       if (files.length > maxBatch) {
         var batchPlan = ent.status === "ready" ? (ent.plan_label || ent.plan) : "Plano gratuito";
         setStatus("err", "Este plano permite até " + maxBatch + " mundo(s) por lote; você selecionou " + files.length + ". Plano detectado: <b>" + escapeHtml(batchPlan) + "</b>.");
         if (ent.pending_payment) setStatus("err", "Seu pagamento do plano <b>" + escapeHtml(ent.pending_payment.plan_label || ent.pending_payment.plan) + "</b> ainda está em confirmação. Atualize os benefícios em <a href='minha-conta.html'>Minha conta</a>; não faça outra compra.");
-        else if (ent.status === "ready" && !ent.active) lockedHint("Seu plano gratuito permite até " + maxBatch + " mundo(s) por lote.", "vip7");
+        else showFilePaywall(files.length, selected.size, "Seu plano " + batchPlan + " permite até " + maxBatch + " mundo(s) por lote; você selecionou " + files.length + ".");
         return;
       }
       if (big.length) {
         var mb = (big[0].size / 1048576).toFixed(1);
         var limit = maxBytes === null ? "sem limite comercial" : (+(maxBytes / 1048576).toFixed(1) + " MB");
+        if (ent.status === "ready" && ent.active) showFilePaywall(files.length, big[0].size, "Seu mundo excede o limite atual de " + limit + ".");
         if (ent.status === "ready" && ent.active) setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. Seu plano <b>" + escapeHtml(ent.plan_label || ent.plan) + "</b> permite até <b>" + limit + "</b>.");
         else {
           setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. O plano gratuito permite até <b>" + limit + "</b>.");
@@ -784,6 +1040,8 @@
         return;
       }
       setStatus("ok", "Mundo detectado: <b>" + (selected.size / 1048576).toFixed(1) + " MB</b><br>Seu plano: <b>" + escapeHtml(ent.plan_label || (ent.status === "ready" ? ent.plan : "Plano gratuito")) + "</b><br>Limite do seu plano: <b>" + (maxBytes === null ? "sem limite comercial" : limit) + "</b><br>✓ Arquivo permitido");
+      fileAccessReady = true;
+      maybeRouteToToolIntent();
     }).catch(function () {
       if (selected !== selection) return;
       setStatus("err", "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar uma assinatura existente.");
@@ -814,7 +1072,7 @@
     // Any explicit mode change is a paid operation. `keep` is the no-op/free
     // choice and remains available so the rest of the free tools work.
     if (gameSel.value !== "keep" && !remotePremOk()) {
-      lockedHint("Alterar o modo de jogo é uma função paga.", "world1");
+      lockedHint("Alterar o modo de jogo é uma função paga.", "world1", { tool: gameSel.value === "creative" ? "criativo" : "mundo" });
       gameSel.value = "keep";
     }
   });
@@ -1051,7 +1309,7 @@
       return;
     }
     submitEntitlementBypass = false;
-    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_started", { worlds: selectedList.length || 1 }); } catch (e0) {}
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_started", { worlds: selectedList.length || 1, source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e0) {}
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
 
@@ -1064,7 +1322,7 @@
       if (gs && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
     } catch (e2) { mode = "survival"; }
     if (mode !== "keep" && !prem) {
-      lockedHint("Alterar o modo de jogo é uma função paga. O plano grátis pode manter o modo atual.", "world1");
+      lockedHint("Alterar o modo de jogo é uma função paga. O plano grátis pode manter o modo atual.", "world1", { tool: mode === "creative" ? "criativo" : "mundo" });
       return;
     }
     var rules = {
@@ -1225,6 +1483,7 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
+      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("download_started", { source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e) {}
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
@@ -1280,7 +1539,8 @@
         if (!premUnlimited && window.RC_pay && window.RC_pay.freeQuota) {
           window.RC_pay.freeQuota(false).then(function (q) { serverFreeQuota = { ready: true, remaining: Math.max(0, +q.remaining || 0) }; paintQuota(); }).catch(function () {});
         }
-        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1 }); } catch (e0) {}
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1, source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e0) {}
+        clearCheckoutResume();
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
       var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
       var warn = "";
@@ -1328,7 +1588,8 @@
         var bpacks = results.filter(function (r) { return (r.warnings || []).length; }).length;
         if (bpacks > 0 && !stripPacks) bwarn = "<br><span style='font-size:13px'>Atenção: <b>" + bpacks + " arquivo(s) têm addons (pacotes de comportamento)</b> que bloqueiam conquistas no jogo. Marque <b>“Remover addons”</b> no passo 2 e converta de novo.</span>";
         if (stripPacks) bwarn = "<br><span style='font-size:13px'>Addons (pacotes de comportamento) removidos dos arquivos.</span>";
-        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: results.length }); } catch (e0) {}
+        try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: results.length, source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e0) {}
+        clearCheckoutResume();
         setStatus("ok", "Pronto. <b>" + results.length + " arquivos</b> corrigidos e baixados. Abra em <b>Sobrevivência</b>, com cheats <b>desligados</b>. <b>Guarde os originais</b>." + bwarn);
         submit.disabled = false;
       }).catch(function (err) {

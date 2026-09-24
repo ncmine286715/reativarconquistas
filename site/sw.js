@@ -1,27 +1,25 @@
 /* ReativaConquistas — Service Worker mínimo do Construtor 3D (beta).
    Deixa o app instalável e acelera a segunda visita com cache local.
    Versões com ?v= são chaves distintas: atualizar o ?v= atualiza o app. */
-var CACHE = 'rc-builder-v12';
+var CACHE = 'rc-builder-v13';
 var CORE = [
   'index.html',
-  'builder-lab.html',
   'importar.html',
   'objetivos.html',
-  'builder-lab.css?v=6',
-  'builder-lab.js?v=20',
   'config.js?v=26',
   'firebase-config.js?v=13',
   'auth.js?v=15',
-  'pagamento.js?v=27',
+  'pagamento.js?v=28',
   'entitlements.js?v=3',
+  'tool-intents.js?v=1',
   'guia-site.css?v=1',
   'guia-site.js?v=3',
   'assets/null-apresenta.png',
   'assets/null-guia.png',
-  'style.css?v=16',
+  'style.css?v=17',
   'mapa-2d.js?v=9',
   'backups-local.js?v=2',
-  'app.js?v=27',
+  'app.js?v=28',
   'ferramentas-local.js?v=15',
   'logo.png',
   'mc/item/ender_eye.png',
@@ -36,18 +34,9 @@ var CORE = [
   'mc/block/bedrock.png',
   'vendor/jszip.min.js',
   'vendor/leveldb-reader.js',
-  'vendor/three.min.js',
-  'vendor/OrbitControls.js',
-  'vendor/TransformControls.js',
   'nbt-bedrock.js',
   'leveldb-write.js',
   'db-common.js?v=8',
-  'builder-config.js',
-  'builder-transform.js',
-  'builder-placement.js',
-  'builder-core.js?v=2',
-  'bedrock-block-renderer-registry.js?v=3',
-  'chunk-preview-manager.js?v=8',
   'bedrockChunkWorker.js'
 ];
 self.addEventListener('install', function (event) {

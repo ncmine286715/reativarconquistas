@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -123,25 +123,27 @@
 
   <main class="card" id="converter">
     <h2>Editar seu mundo</h2>
-    <p class="sub">Conquistas + mapa + player. Sai um arquivo novo. Original intacto.</p>
+    <p class="sub">Carregue e analise seu mundo, escolha uma categoria e gere uma nova cópia quando estiver pronto.</p>
 
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
-        <summary><span class="acc-n">1</span><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Arquivo do mundo <span class="acc-badge" id="badgeFile">aguardando</span></summary>
+        <summary><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Arquivo, visão geral e ferramentas locais <span class="acc-badge" id="badgeFile">aguardando</span></summary>
         <div class="acc-body">
       <label id="drop" class="drop" for="file" tabindex="0">
         <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
-        <span class="drop-title">Toque p/ escolher ou solte o .mcworld</span>
-        <span class="drop-sub">Limite conforme seu plano · selecione o mundo para verificar</span>
+        <span class="drop-title">Selecione ou solte seu mundo</span>
+        <span class="drop-sub">Formatos aceitos: .mcworld, .zip ou .dat · o limite depende do seu plano</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
       </label>
 
+      <p id="toolIntent" class="tool-intent" hidden></p>
+
       <div id="worldInfo" class="worldinfo" hidden>
-        <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — nada foi alterado</span></div>
+        <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — <span id="wiSize">tamanho indisponível</span> — nada foi alterado</span></div>
         <div class="wi-grid">
           <div class="wi-row"><span>Nome</span><b id="wiName">—</b></div>
           <div class="wi-row"><span>Seed</span><span class="wi-seed"><code id="wiSeed">—</code><button type="button" class="btn-ghost btn-mini" id="seedCopy" hidden>Copiar</button></span></div>
@@ -150,6 +152,30 @@
           <div class="wi-row"><span>Spawn</span><b id="wiSpawn">—</b></div>
           <div class="wi-row"><span>Conquistas</span><b id="wiStatus">—</b></div>
         </div>
+        <div id="wiDiagnostic" class="wi-diagnostic" role="status" aria-live="polite" hidden>
+          <span id="wiDiagnosticText"></span>
+          <a id="wiDiagnosticLink" href="#accPacks">Revisar addons</a>
+        </div>
+        <nav class="editor-categories" aria-label="Categorias do editor">
+          <a href="#worldInfo">Visão geral</a>
+          <a href="#operationActions">Conquistas</a>
+          <a href="#accFree">Mundo</a>
+          <a href="#accPlayer">Jogador</a>
+          <a href="#accPacks">Addons</a>
+          <a href="builder-lab.html">Construção · Builder</a>
+          <a href="#advancedTools">Avançado</a>
+        </nav>
+        <nav class="editor-advanced-links" id="advancedTools" aria-label="Ferramentas avançadas e locais">
+          <b>Atalhos avançados</b>
+          <a href="#passportDownload">Passaporte</a>
+          <a href="#reportDownload">Diagnóstico</a>
+          <a href="#compareTitle">Comparar mundos</a>
+          <a href="#backupPanel">Backups locais</a>
+          <a href="#mapPreview">Mapa 2D</a>
+          <a href="chunks.html">Restaurar chunks</a>
+          <a href="objetivos.html">Livro de objetivos</a>
+          <a href="importar.html">Guia de importação</a>
+        </nav>
         <p class="wi-integrity" id="wiIntegrity" aria-live="polite">Verificação estrutural ainda não iniciada.</p>
         <div class="map-actions" style="margin-top:10px">
           <button type="button" class="btn-ghost btn-mini" id="passportDownload">Baixar passaporte JSON</button>
@@ -219,8 +245,8 @@
         </div>
       </details>
 
-      <details class="acc" id="accFree" open>
-        <summary><span class="acc-n">2</span><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Ajustes grátis <span class="acc-badge">incluídos</span></summary>
+      <details class="acc" id="accFree">
+        <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · ajustes básicos</summary>
         <div class="acc-body">
 
       <label class="opt" id="diffOpt">
@@ -270,8 +296,8 @@
         </div>
       </details>
 
-      <details class="acc" id="accPacks" open>
-        <summary><span class="acc-n">3</span><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Pacotes (addons)</summary>
+      <details class="acc" id="accPacks">
+        <summary><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Addons</summary>
         <div class="acc-body">
           <p class="sub" style="margin:6px 0 10px">Remova até <b>2 addons grátis</b> por mundo. Para remover todos, resolva o mundo por R$ 5,99.</p>
           <label class="opt" id="packOpt">
@@ -295,8 +321,8 @@
         </div>
       </details>
 
-      <details class="acc" id="accPrem" open>
-        <summary><span class="acc-n">4</span><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mais ajustes do mundo <span class="acc-badge">incluídos</span></summary>
+      <details class="acc" id="accPrem">
+        <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · regras e ajustes avançados</summary>
         <div class="acc-body">
 
       <label class="opt locked" id="keepOpt">
@@ -436,8 +462,8 @@
         </div>
       </details>
 
-      <details class="acc" id="accPlayer" open>
-        <summary><span class="acc-n">6</span><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Entrar gemado <span class="lock">VIP</span></summary>
+      <details class="acc" id="accPlayer">
+        <summary><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Jogador · inventário e equipamento</summary>
         <div class="acc-body">
           <p class="sub" style="margin:6px 0 10px">Toque no item, depois no slot. Grátis: hotbar 2/dia.</p>
           <div class="map-actions" style="margin-top:0">
@@ -500,6 +526,10 @@
 
 
     
+      <div class="operation-heading" id="operationActions">
+        <h3>Conquistas e arquivo final</h3>
+        <p>A recuperação das flags de conquistas acontece ao gerar a cópia. O diagnóstico pode ser executado separadamente, sem exportar.</p>
+      </div>
       <label class="accept">
         <input type="checkbox" id="accept">
         <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. O mundo é meu. Sem garantia da Mojang. <b>Obrigatório.</b></span>
@@ -640,10 +670,11 @@
 <script src="chunks.js?v=8"></script>
 <script src="player.js?v=8"></script>
 <script src="backups-local.js?v=2"></script>
-<script src="app.js?v=27"></script>
+<script src="tool-intents.js?v=1"></script>
+<script src="app.js?v=28"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
-<script src="pagamento.js?v=27"></script>
+<script src="pagamento.js?v=28"></script>
 <script src="entitlements.js?v=3"></script>
 <script src="guia-site.js?v=3"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>

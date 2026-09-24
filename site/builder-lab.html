@@ -9,8 +9,8 @@
   <link rel="icon" type="image/png" href="logo.png">
   <title>Construtor 3D (beta grátis) — ReativaConquistas</title>
   <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
-  <link rel="stylesheet" href="style.css?v=13">
-  <link rel="stylesheet" href="builder-lab.css?v=5">
+  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="builder-lab.css?v=6">
 </head>
 <body>
   <div class="topbar">
@@ -59,6 +59,7 @@
         <label for="worldFile">Seu mundo <code>.mcworld</code></label>
         <input id="worldFile" type="file" accept=".mcworld,application/zip">
         <small>Escolha o arquivo do mundo Bedrock.</small>
+        <small id="planDecision" aria-live="polite"></small>
       </div>
       <div class="upload-step">
         <span class="step-number">02</span>
@@ -75,6 +76,11 @@
         <article><span>Block entities</span><strong id="blockEntities">—</strong></article>
         <article><span>Entidades</span><strong id="entities">—</strong></article>
       </div>
+      <section class="materials-panel" id="materialsPanel" hidden>
+        <div><h2>Lista de materiais</h2><p id="materialsSummary" class="canvas-help">Contagem de blocos sólidos da estrutura carregada.</p></div>
+        <div class="materials-table-wrap"><table class="materials-table"><thead><tr><th>Bloco</th><th>Unidades</th><th>Pilhas de 64</th><th>Shulkers</th></tr></thead><tbody id="materialsRows"></tbody></table></div>
+        <button id="downloadMaterials" type="button" class="btn-ghost">Baixar lista CSV</button>
+      </section>
       <section class="world-map-card">
         <div><h2>Mapa das áreas visitadas</h2><p>Clique em uma chunk para definir o local do preview 3D. O quadrado claro é a chunk selecionada.</p></div>
         <canvas id="worldMap" width="820" height="220" aria-label="Mapa clicável das chunks visitadas"></canvas>
@@ -178,7 +184,13 @@
   <script src="vendor/leveldb-reader.js"></script>
   <script src="nbt-bedrock.js"></script>
   <script src="leveldb-write.js"></script>
-  <script src="db-common.js"></script>
+  <script src="db-common.js?v=8"></script>
+  <script src="config.js?v=26"></script>
+  <script src="firebase-config.js?v=13"></script>
+  <script src="auth.js?v=15"></script>
+  <script src="tool-intents.js?v=1"></script>
+  <script src="pagamento.js?v=28"></script>
+  <script src="entitlements.js?v=3"></script>
   <script src="builder-config.js"></script>
   <script src="builder-transform.js"></script>
   <script src="builder-placement.js?v=4"></script>
@@ -191,7 +203,8 @@
   <script>if (!window.THREE || !window.THREE.OrbitControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/OrbitControls.js"><\/script>');</script>
   <script src="vendor/TransformControls.js"></script>
   <script>if (!window.THREE || !window.THREE.TransformControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/TransformControls.js"><\/script>');</script>
-  <script src="builder-lab.js?v=18"></script>
+  <script src="builder-lab.js?v=20"></script>
   <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
+  <script src="guia-site.js?v=3"></script>
 </body>
 </html>

@@ -224,8 +224,16 @@ await worker.default.fetch(apiRequest("/api/client-log", { method: "POST", token
 const clientLogText = JSON.stringify(await kv.get("clog", "json"));
 assert.ok(!clientLogText.includes(testCpf) && !clientLogText.includes(testEmail) && !clientLogText.includes("private-payment-id"), "client diagnostic logs remove CPF, email, and query identifiers");
 await worker.default.fetch(apiRequest("/api/telemetry", { method: "POST", token: "", body: { event: "entitlement_load_error", plan: "creator", source: testEmail, reason: testCpf, error_type: testEmail } }), env);
+await worker.default.fetch(apiRequest("/api/telemetry", { method: "POST", token: "", body: { event: "file_selected", source: "tool_hardcore" } }), env);
+await worker.default.fetch(apiRequest("/api/telemetry", { method: "POST", token: "", body: { event: "kiwify_checkout_redirect", plan: "world1", source: "tool_hardcore" } }), env);
+await worker.default.fetch(apiRequest("/api/telemetry", { method: "POST", token: "", body: { event: "download_started", source: "tool_hardcore" } }), env);
+await worker.default.fetch(apiRequest("/api/telemetry", { method: "POST", token: "", body: { event: "operation_failed", source: "tool_hardcore" } }), env);
 const analyticsText = JSON.stringify(await kv.get("analytics:" + new Date().toISOString().slice(0, 10), "json"));
 assert.ok(!analyticsText.includes(testCpf) && !analyticsText.includes(testEmail), "telemetry accepts only safe dimensions, never personal values");
+assert.ok(analyticsText.includes("tool_hardcore"), "the allowlisted tool source is recorded for funnel attribution");
+assert.ok(analyticsText.includes("kiwify_checkout_redirect"), "Kiwify contextual checkout redirects are recorded for funnel attribution");
+assert.ok(analyticsText.includes("download_started"), "the download handoff is recorded in the funnel");
+assert.ok(analyticsText.includes("operation_failed"), "operation failures are recorded in the funnel");
 env.ABACATEPAY_API_KEY = "abacate-test";
 env.ABACATEPAY_PRODUCT_ID_24H = "legacy-24h-product";
 const world1WrongProduct = await worker.default.fetch(apiRequest("/api/abacate/create", { method: "POST", body: { plan: "world1", request_id: "abacate-world1-request-0001" } }), env);
@@ -307,7 +315,7 @@ function apiRequest(pathname, { method = "GET", token = "tokenA", body, ip = "19
     body: body === undefined ? undefined : JSON.stringify(body)
   });
 }
-const paidCreateBody = { plan: "vip7", payer_tax_number: "52998224725", payer_email: "buyer-a@example.com", terms_accepted: true, terms_version: "test", request_id: "client-request-unique-123" };
+const paidCreateBody = { plan: "vip7", payer_tax_number: "52998224725", payer_email: "buyer-a@example.com", source: "tool_hardcore", terms_accepted: true, terms_version: "test", request_id: "client-request-unique-123" };
 const missingPlan = await worker.default.fetch(apiRequest("/api/depix/create", { method: "POST", body: { ...paidCreateBody, plan: undefined } }), env);
 assert.equal(missingPlan.status, 400, "a missing plan never defaults to the more expensive VIP30 checkout");
 const legacyPlanCheckout = await worker.default.fetch(apiRequest("/api/depix/create", { method: "POST", body: { ...paidCreateBody, plan: "vip24h" } }), env);
@@ -368,6 +376,8 @@ assert.equal(paidEntitlement.max_file_mb, 500);
 assert.equal(paidEntitlement.world_credits, 0, "time passes do not consume world credits");
 assert.ok(paidEntitlement.expires_at);
 assert.ok(Date.parse(paidEntitlement.expires_at) <= checkoutRecords.get(created.id).checkout.paid_at + 7 * 86400000 + 100, "VIP7 expiry follows payment confirmation time during status/webhook reconciliation");
+const confirmedFunnel = await kv.get("analytics:" + new Date().toISOString().slice(0, 10), "json");
+assert.equal(confirmedFunnel.sources.tool_hardcore.payment_paid, 1, "server-confirmed payment keeps the tool source and is counted once");
 
 // A provider response can be lost after it created a Pix checkout. The durable
 // request lock exposes an uncertain state and the provider idempotency key
@@ -430,7 +440,7 @@ env.ABACATEPAY_API_KEY = "abacate-test-key";
 env.ABACATEPAY_PRODUCT_ID_WORLD1 = "world1-dedicated-product";
 env.WEBHOOK_SECRET = "abacate-webhook-secret";
 const abacateCreated = await worker.default.fetch(apiRequest("/api/abacate/create", {
-  token: "tokenF", method: "POST", body: { plan: "world1", request_id: "abacate-world1-request-0001", terms_accepted: true }
+  token: "tokenF", method: "POST", body: { plan: "world1", request_id: "abacate-world1-request-0001", source: "tool_keep_inventory", terms_accepted: true }
 }), env);
 assert.equal(abacateCreated.status, 200);
 const abacateCheckout = await abacateCreated.json();
@@ -461,6 +471,8 @@ const abacateEntitlement = await worker.getUserEntitlements(env, "firebase-uid-f
 assert.equal(abacateEntitlement.plan, "world1", "the provider metadata grants the exact World1 plan when the KV mirror is missing");
 assert.equal(abacateEntitlement.world_credits, 1);
 assert.equal(abacateEntitlement.premium_until_ms, 0, "World1 never turns into a time pass");
+const abacateFunnel = await kv.get("analytics:" + new Date().toISOString().slice(0, 10), "json");
+assert.equal(abacateFunnel.sources.tool_keep_inventory.payment_paid, 1, "Abacate keeps the contextual tool source through the paid confirmation");
 const orphanAbacate = "aba-orphan-paid-without-plan";
 abacateRecords.set(orphanAbacate, { data: { id: orphanAbacate, status: "PAID", metadata: { firebase_uid: "firebase-uid-f", email: "buyer-f@example.com" } } });
 const missingAbacatePlan = await worker.default.fetch(apiRequest("/api/abacate/status?id=" + encodeURIComponent(orphanAbacate), { token: "tokenF" }), env);

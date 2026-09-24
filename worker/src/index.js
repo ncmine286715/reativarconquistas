@@ -142,8 +142,8 @@ const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
 const PURCHASABLE_PLAN_IDS = new Set(["world1", "vip7", "vip30", "creator"]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
-const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
-const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall"]);
+const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
+const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall", "tool_conquistas", "tool_hardcore", "tool_criativo", "tool_keep_inventory", "tool_jogador", "tool_addons", "tool_chunks", "tool_mundo", "tool_upload", "tool_builder"]);
 const TELEMETRY_REASONS = new Set(["terms", "email", "document", "session_expired", "unavailable"]);
 const TELEMETRY_ERRORS = new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
 const ADMIN_HISTORY_LIMIT = 300;
@@ -205,6 +205,13 @@ async function adminList(env, key) {
   return Array.isArray(value) ? value : [];
 }
 
+async function checkoutTelemetrySource(env, id) {
+  const checkouts = await adminList(env, "admin:checkouts");
+  const checkout = checkouts.find((item) => item.id === String(id || ""));
+  const source = String(checkout && checkout.source || "");
+  return TELEMETRY_SOURCES.has(source) ? source : "";
+}
+
 async function saveAdminList(env, key, items) {
   await env.PREMIUM_KV.put(key, JSON.stringify(items.slice(0, ADMIN_HISTORY_LIMIT)), { expirationTtl: ADMIN_HISTORY_TTL }).catch(() => {});
 }
@@ -261,6 +268,11 @@ async function recordPaidCheckout(env, entry) {
   const paidAt = +entry.paid_at || Date.now();
   const checkouts = await adminList(env, "admin:checkouts");
   const checkout = checkouts.find((item) => item.id === id);
+  const checkoutSource = String(checkout && checkout.source || "");
+  const entrySource = String(entry.source || "");
+  const attribution = TELEMETRY_SOURCES.has(checkoutSource)
+    ? checkoutSource
+    : (TELEMETRY_SOURCES.has(entrySource) ? entrySource : cleanDimension(entrySource || checkoutSource || entry.provider, 40));
   if (checkout) {
     checkout.status = "paid";
     checkout.paid_at = paidAt;
@@ -280,7 +292,7 @@ async function recordPaidCheckout(env, entry) {
     if (plan) existingPurchase.plan = plan;
     if (plan) existingPurchase.amount_cents = PLAN_PRICES[plan] || 0;
     if (entry.provider) existingPurchase.provider = String(entry.provider).slice(0, 20);
-    if (entry.source) existingPurchase.source = cleanDimension(entry.source, 40);
+    if (attribution) existingPurchase.source = attribution;
     await saveAdminList(env, "admin:purchases", purchases);
     return;
   }
@@ -293,7 +305,7 @@ async function recordPaidCheckout(env, entry) {
     plan,
     amount_cents: PLAN_PRICES[plan] || 0,
     provider: String(entry.provider || (checkout && checkout.provider) || "depix").slice(0, 20),
-    source: cleanDimension(entry.source || (checkout && checkout.source), 40)
+    source: attribution
   });
   await saveAdminList(env, "admin:purchases", purchases);
 }
@@ -323,8 +335,8 @@ async function reconcileDepixCheckout(env, id) {
   if (!plan) throw new Error("Pagamento confirmado sem um plano reconhecido.");
   if (!info.paid) return { id, paid: false, status: info.status, email, plan };
   if (!validEmail(email)) throw new Error("Pagamento confirmado, mas sem e-mail válido para liberar o plano.");
-  const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: info.paid_at });
-  const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at);
+  const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pend && pend.source, paid_at: info.paid_at });
+  const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at, pend && pend.source);
   await env.PREMIUM_KV.delete(receipt.key);
   await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
   await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
@@ -360,8 +372,9 @@ export async function reconcileRecentDepixCheckouts(env) {
     if (!validEmail(email) || !normalizeDepixPlan(rawPlan)) continue;
     const plan = normalizeDepixPlan(rawPlan);
     const paidAt = timestampMs(checkout.paid_at || checkout.approved_at || checkout.completed_at || checkout.updated_at);
-    const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: paidAt });
-    const grant = await grantPurchase(env, email, id, plan, uid, "depix", paidAt);
+    const pending = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+    const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pending && pending.source, paid_at: paidAt });
+    const grant = await grantPurchase(env, email, id, plan, uid, "depix", paidAt, pending && pending.source);
     await env.PREMIUM_KV.delete(receipt.key);
     await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: "automatic_reconcile" });
     await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
@@ -649,16 +662,17 @@ async function persistConfirmedPayment(env, payment) {
   const provider = cleanDimension(payment.provider || "depix", 20);
   const uid = String(payment.uid || "").trim().slice(0, 160);
   const email = String(payment.email || "").trim().toLowerCase();
+  const source = TELEMETRY_SOURCES.has(String(payment.source || "")) ? String(payment.source) : "";
   if (!id || !plan || (!uid && !validEmail(email))) throw new Error("Pagamento confirmado sem identidade ou plano válido.");
   const identityKind = uid ? "uid" : "email";
   const identity = uid || email;
   const key = paymentReceiptKey(identityKind, identity, provider, id);
   const paidAt = timestampMs(payment.paid_at) || Date.now();
-  await env.PREMIUM_KV.put(key, JSON.stringify({ id, provider, uid, email, plan, paid_at: paidAt }), { expirationTtl: 400 * 86400 });
-  return { key, id, provider, uid, email, plan, paid_at: paidAt };
+  await env.PREMIUM_KV.put(key, JSON.stringify({ id, provider, uid, email, plan, source, paid_at: paidAt }), { expirationTtl: 400 * 86400 });
+  return { key, id, provider, uid, email, plan, source, paid_at: paidAt };
 }
 
-async function grantPurchase(env, email, billingId, plan, uid = "", provider = "depix", paidAt = 0) {
+async function grantPurchase(env, email, billingId, plan, uid = "", provider = "depix", paidAt = 0, source = "") {
   plan = normalizeDepixPlan(plan);
   if (!plan) throw new Error("Plano de pagamento não reconhecido; benefício não concedido.");
   if (!env.ENTITLEMENTS) throw new Error("Armazenamento de benefícios indisponível.");
@@ -672,7 +686,9 @@ async function grantPurchase(env, email, billingId, plan, uid = "", provider = "
   const out = await r.json();
   const grant = { premium_until_ms: +out.premium_until_ms || 0, world_credits: +out.world_credits || 0, plan: out.plan || plan, duplicate: out.duplicate === true };
   if (!grant.duplicate && provider !== "manual") {
-    await metric(env, "payment_paid", { plan, source: provider });
+    const requestedSource = TELEMETRY_SOURCES.has(String(source || "")) ? String(source) : await checkoutTelemetrySource(env, billingId);
+    const attribution = requestedSource || provider;
+    await metric(env, "payment_paid", { plan, source: attribution });
     await metric(env, "plan_granted", { plan, source: provider });
   }
   return grant;
@@ -688,7 +704,7 @@ async function reconcileKnownPayments(env, uid, email) {
       for (const item of page.keys || []) {
         const receipt = await env.PREMIUM_KV.get(item.name, "json");
         if (!receipt) continue;
-        await grantPurchase(env, email, receipt.id, receipt.plan, uid, receipt.provider, receipt.paid_at);
+        await grantPurchase(env, email, receipt.id, receipt.plan, uid, receipt.provider, receipt.paid_at, receipt.source);
         await recordPaidCheckout(env, { id: receipt.provider === "kiwify" ? "kiwify:" + receipt.id : receipt.id,
           email: receipt.email || email, uid, plan: receipt.plan, provider: receipt.provider, paid_at: receipt.paid_at, source: "entitlement_reconcile" });
         await env.PREMIUM_KV.delete(item.name);
@@ -735,8 +751,9 @@ async function reconcilePendingCheckouts(env, uid, email, checkouts) {
     }
     try {
       const paidAt = timestampMs(info.paid_at);
-      const receipt = await persistConfirmedPayment(env, { id, email: info.email || email, uid, plan, provider, paid_at: paidAt });
-      await grantPurchase(env, info.email || email, id, plan, uid, provider, paidAt);
+      const pending = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
+      const receipt = await persistConfirmedPayment(env, { id, email: info.email || email, uid, plan, provider, source: pending && pending.source, paid_at: paidAt });
+      await grantPurchase(env, info.email || email, id, plan, uid, provider, paidAt, pending && pending.source);
       await env.PREMIUM_KV.delete(receipt.key);
       await recordPaidCheckout(env, { id, email: info.email || email, uid, plan, provider, source: "entitlement_reconcile" });
       recovered = true;
@@ -1111,8 +1128,8 @@ export default {
           out.plan = plan;
           if (email) out.email = email;
           if (info.paid && email) {
-            const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", paid_at: info.paid_at });
-            const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at);
+            const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pend && pend.source, paid_at: info.paid_at });
+            const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at, pend && pend.source);
             await env.PREMIUM_KV.delete(receipt.key);
             await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
             out.premium_until_ms = grant.premium_until_ms;
@@ -1239,6 +1256,7 @@ export default {
         const requestedPlan = normalizeDepixPlan(body.plan);
         if (!requestedPlan) return json({ error: "Plano inválido." }, 400, cors);
         if (!["world1", "vip30"].includes(requestedPlan)) return json({ error: "Este provedor reserva só suporta Resolver 1 mundo e Passe 30 dias; use o Pix principal para este plano." }, 400, cors);
+        const source = TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "";
         const providerPlan = requestedPlan;
         if (providerPlan === "world1" && !env.ABACATEPAY_PRODUCT_ID_WORLD1) return json({ error: "Produto Resolver 1 mundo não configurado no servidor." }, 502, cors);
         if (providerPlan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
@@ -1272,10 +1290,10 @@ export default {
           });
           if (!saved.ok) throw new Error("Checkout iniciado, mas não consegui guardar o link. Não gere outra cobrança; consulte o suporte.");
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
-            uid, email, at: Date.now(), plan: requestedPlan, via: "abacate",
+            uid, email, at: Date.now(), plan: requestedPlan, source, via: "abacate",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
           }), { expirationTtl: 30 * 86400 }).catch(() => {});
-          await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate", expires_at: r.expires_at });
+          await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate", source, expires_at: r.expires_at });
           return json(safe, 200, cors);
         } catch (e) {
           await checkoutStub.fetch("https://entitlements/checkout-failed", {
@@ -1312,8 +1330,8 @@ export default {
           if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado não corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           const uid = String(info.uid || (pend && pend.uid) || fb.uid);
           const paidAt = timestampMs(info.paid_at);
-          const receipt = await persistConfirmedPayment(env, { id, email, uid, plan: out.plan, provider: "abacate", paid_at: paidAt });
-          const grant = await grantPurchase(env, email, id, out.plan, uid, "abacate", paidAt);
+          const receipt = await persistConfirmedPayment(env, { id, email, uid, plan: out.plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
+          const grant = await grantPurchase(env, email, id, out.plan, uid, "abacate", paidAt, pend && pend.source);
           await env.PREMIUM_KV.delete(receipt.key);
           await recordPaidCheckout(env, { id, email, uid, plan: out.plan, provider: "abacate" });
           out.premium_until_ms = grant.premium_until_ms;
@@ -1350,9 +1368,9 @@ export default {
               if (info.plan && info.plan !== plan) throw new Error("plano de pagamento incompatível");
               const uid = String(info.uid || (pend && pend.uid) || "");
               const paidAt = timestampMs(info.paid_at);
-              const receipt = await persistConfirmedPayment(env, { id: bid, email, uid, plan, provider: "abacate", paid_at: paidAt });
+              const receipt = await persistConfirmedPayment(env, { id: bid, email, uid, plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
               if (uid) {
-                const grant = await grantPurchase(env, email, bid, plan, uid, "abacate", paidAt);
+                const grant = await grantPurchase(env, email, bid, plan, uid, "abacate", paidAt, pend && pend.source);
                 await env.PREMIUM_KV.delete(receipt.key);
                 await recordPaidCheckout(env, { id: bid, email, uid, plan, provider: "abacate" });
               } else {

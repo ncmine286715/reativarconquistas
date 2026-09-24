@@ -59,7 +59,13 @@
   } catch (e) { telemetryId = "anonymous"; }
   function track(event, data) {
     try {
-      var body = Object.assign({ event: String(event || "").slice(0, 40), session_id: telemetryId, page: location.pathname }, data || {});
+      var tool = "";
+      try {
+        var saved = sessionStorage.getItem("rc_tool_intent") || "";
+        var intent = window.RC_toolIntents && window.RC_toolIntents.resolve(saved);
+        if (intent) tool = intent.slug;
+      } catch (e0) {}
+      var body = Object.assign({ event: String(event || "").slice(0, 40), session_id: telemetryId, page: location.pathname }, tool ? { tool: tool, source: "tool_" + tool.replace(/-/g, "_") } : {}, data || {});
       fetch(base() + "/api/telemetry", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: true }).catch(function () {});
     } catch (e) {}
   }
@@ -181,12 +187,21 @@
     planCatalogPending = req("/api/config").then(function (config) { applyPlanCatalog(config); if (!planCatalogReady) throw new Error("Plan catalog response is incomplete."); return PUBLIC_PLANS; }).finally(function () { planCatalogPending = null; });
     return planCatalogPending;
   }
-  function renderPlanOptions(selectedPlan) {
-    return PLAN_IDS.map(function (id) {
+  function relevantPlanIds(context) {
+    return window.RC_toolIntents
+      ? window.RC_toolIntents.eligiblePlanIds(PLAN_IDS, PUBLIC_PLANS, context || {})
+      : PLAN_IDS.filter(function (id) { return !!PUBLIC_PLANS[id]; });
+  }
+  function renderPlanOptions(selectedPlan, context) {
+    var eligible = relevantPlanIds(context);
+    var selected = window.RC_toolIntents
+      ? window.RC_toolIntents.choosePlan(eligible, selectedPlan, PUBLIC_PLANS)
+      : (eligible.indexOf(selectedPlan) >= 0 ? selectedPlan : eligible[0]);
+    return eligible.map(function (id) {
       var p = PUBLIC_PLANS[id];
       var size = p.max_file_mb === null ? "sem limite comercial" : (p.max_file_mb + " MB");
       var batch = id === "world1" ? (p.project_window_days || 30) + " dias para reeditar" : (p.max_batch || 1) + " por lote";
-      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selectedPlan === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
+      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
     }).join("");
   }
   function normalizePlan(plan) { return PLANS[plan] ? plan : ""; }  /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
@@ -288,6 +303,39 @@
     return currentUser() ? authReq("/api/entitlements/release", opts) : req("/api/entitlements/release", opts);
   }
 
+  var PENDING_CHECKOUT_CONTEXT = "rc_pending_checkout_context";
+  function storeCheckoutContext(plan, context) {
+    var safe = { version: 1, created_at: Date.now(), plan: String(plan || ""), context: {} };
+    context = context || {};
+    ["tool", "source"].forEach(function (key) { if (typeof context[key] === "string") safe.context[key] = context[key].slice(0, 40); });
+    ["worlds", "world_size_mb", "world_size_bytes"].forEach(function (key) { if (Number.isFinite(+context[key])) safe.context[key] = +context[key]; });
+    safe.context.preserve_context = context.preserve_context === true;
+    try { sessionStorage.setItem(PENDING_CHECKOUT_CONTEXT, JSON.stringify(safe)); } catch (e) {}
+  }
+  function readCheckoutContext() {
+    try {
+      var saved = JSON.parse(sessionStorage.getItem(PENDING_CHECKOUT_CONTEXT) || "null");
+      if (!saved || saved.version !== 1 || Date.now() - +saved.created_at > 2 * 60 * 60 * 1000) return null;
+      var plan = String(saved.plan || "");
+      return PLAN_IDS.indexOf(plan) >= 0 ? { plan: plan, context: saved.context || {} } : null;
+    } catch (e) { return null; }
+  }
+  function openContextCheckoutWindow(context) {
+    if (!context || context.preserve_context !== true) return null;
+    try {
+      var popup = window.open("about:blank", "_blank");
+      if (popup) { try { popup.opener = null; } catch (e) {} }
+      return popup;
+    } catch (e2) { return null; }
+  }
+  function closeContextCheckoutWindow(popup) {
+    try { if (popup && !popup.closed) popup.close(); } catch (e) {}
+  }
+  function signalContextCheckout(context) {
+    if (!context || context.preserve_context !== true) return;
+    try { window.dispatchEvent(new CustomEvent("rc-context-checkout-started", { detail: { tool: String(context.tool || "").slice(0, 40) } })); } catch (e) {}
+  }
+
   function openPayModal(notice, plan, context) {
     if (!enabled()) return;
     if (!planCatalogReady) {
@@ -302,8 +350,15 @@
     }
     plan = normalizePlan(plan || "world1");
     if (!plan) return;
-    checkoutRequestId = newRequestId();
     context = context || {};
+    var eligiblePlans = relevantPlanIds(context);
+    if (!eligiblePlans.length) {
+      alert("Nenhum produto atual atende ao tamanho ou à quantidade de mundos selecionada.");
+      return;
+    }
+    if (window.RC_toolIntents) plan = window.RC_toolIntents.choosePlan(eligiblePlans, plan, PUBLIC_PLANS) || plan;
+    checkoutRequestId = newRequestId();
+    storeCheckoutContext(plan, context);
     track("checkout_opened", Object.assign({ plan: plan }, context));
     closePay();
     var user = currentUser();
@@ -331,6 +386,7 @@
         "</div>" +
       "</div>" +
       (notice ? "<div class='warn pay-notice'>" + escH(notice) + "</div>" : "") +
+      (context.preserve_context ? "<div class='warn pay-notice'>Mantenha esta aba com o mundo aberto durante o pagamento. Se o checkout abrir em outra aba, volte aqui para continuar sem selecionar o mundo novamente.</div>" : "") +
       "<div class='pay-intro'><span class='pay-method-pill' id='payMethodBadge'>PIX · DEPIX</span><p id='payIntroText'><b>Escolha o plano, confirme seus dados e pague.</b> O acesso cai na conta Google exibida acima.</p></div>" +
       "<div class='pay-section-label'>Escolha seu plano</div>" +
       "<div class='planpick pay-planpick' role='radiogroup' aria-label='Escolha o plano'></div>" +
@@ -383,7 +439,7 @@
       if (payConn) payConn.textContent = "Checkout Kiwify configurado";
     }
     var planPick = bg.querySelector(".planpick");
-    if (planPick) planPick.innerHTML = renderPlanOptions(plan);
+    if (planPick) planPick.innerHTML = renderPlanOptions(plan, context);
     var requested = bg.querySelector("input[value='" + plan + "']");
     if (requested) requested.checked = true;
     function selPlan() {
@@ -468,7 +524,15 @@
         track("kiwify_checkout_redirect", Object.assign({ plan: selectedPlan }, context));
         go.disabled = true;
         go.textContent = "Abrindo Kiwify…";
-        location.href = kwUrl;
+        var kwWindow = openContextCheckoutWindow(context);
+        if (kwWindow) {
+          try { kwWindow.location.href = kwUrl; } catch (e) { closeContextCheckoutWindow(kwWindow); location.href = kwUrl; }
+          signalContextCheckout(context);
+          closePay();
+        } else {
+          signalContextCheckout(context);
+          location.href = kwUrl;
+        }
         return;
       }
       var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
@@ -484,6 +548,16 @@
       }
       // já é VIP? redireciona em vez de cobrar de novo (trava final)
       if (vipLockUntil > Date.now() && !vipOverride) { vipOverride = true; vipLockUntil = 0; payStatus("Você já tem VIP ativo. Se confirmar uma nova compra, o novo período será somado após a confirmação do pagamento.", "ok"); go.textContent = "Confirmar compra de mais dias"; return; }
+      var contextCheckoutWindow = null;
+      if (depixEnabled()) {
+        var currentDoc = String((document.getElementById("payDoc") || {}).value || "");
+        if (!validDoc(currentDoc)) {
+          track("checkout_validation_failed", { plan: selPlan(), reason: "document" });
+          payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err");
+          return;
+        }
+      }
+      if (selectedPlan !== "vip7" || depixEnabled()) contextCheckoutWindow = openContextCheckoutWindow(context);
       checkoutInFlight = true;
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
@@ -492,9 +566,10 @@
         if (u0 && u0.name) buyerName = u0.name;
       } catch (e0) {}
       entitlements().then(function (ent) {
-        if (ent.active && document.getElementById("payModal") && !vipOverride) { checkoutInFlight = false; showActiveBenefits(ent); return; }
+        if (ent.active && document.getElementById("payModal") && !vipOverride) { checkoutInFlight = false; closeContextCheckoutWindow(contextCheckoutWindow); showActiveBenefits(ent); return; }
         attempt(1);
       }).catch(function () {
+        closeContextCheckoutWindow(contextCheckoutWindow);
         checkoutInFlight = false;
         go.disabled = false;
         go.textContent = checkoutCta(selPlan());
@@ -510,7 +585,6 @@
         if (depixEnabled()) {
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
-          if (!validDoc(doc)) { checkoutInFlight = false; track("checkout_validation_failed", { plan: plan, reason: "document" }); go.disabled = false; go.textContent = checkoutCta(plan); payStatus("Informe um CPF/CNPJ válido p/ gerar o Pix.", "err"); return; }
           track("pix_create_clicked", Object.assign({ plan: plan }, context));
           depixCreate(plan, doc, pixEmail, context.source).then(function (r) {
             var url = r.url || r.payment_url;
@@ -519,8 +593,17 @@
             try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e2) {}
             track("pix_checkout_redirect", Object.assign({ plan: plan }, context));
             payStatus("Abrindo o checkout Pix da Depix…");
-            location.href = url;
+            if (contextCheckoutWindow) {
+              try { contextCheckoutWindow.location.href = url; }
+              catch (e) { closeContextCheckoutWindow(contextCheckoutWindow); signalContextCheckout(context); location.href = url; return; }
+              signalContextCheckout(context);
+              closePay();
+            } else {
+              signalContextCheckout(context);
+              location.href = url;
+            }
           }).catch(function (err) {
+            closeContextCheckoutWindow(contextCheckoutWindow);
             checkoutInFlight = false;
             track("pix_create_error", { plan: plan, error_type: classifyError(err) });
             logClient("depix-create", (err && err.message) || err);
@@ -534,6 +617,7 @@
         // O plano de 7 dias usa preço dinâmico no Depix; não convertemos
         // silenciosamente para 30 dias em outro provedor.
         if (plan === "vip7") {
+          closeContextCheckoutWindow(contextCheckoutWindow);
           go.disabled = false;
           go.textContent = checkoutCta(plan);
           payStatus("O plano de 7 dias está disponível somente no Pix no momento. Escolha 24h ou 30 dias para usar outra forma de pagamento.", "err");
@@ -545,6 +629,7 @@
           body: JSON.stringify({
             plan: plan,
             request_id: checkoutRequestId,
+            source: String(context.source || "").slice(0, 40),
             terms_accepted: true,
             terms_version: "2026-09-20-v1.6"
           })
@@ -552,8 +637,17 @@
           if (!r.url) throw new Error("Resposta sem link de pagamento.");
           try { localStorage.setItem("rc_pending_billing", r.id || ""); } catch (e) {}
           payStatus("Abrindo o checkout…");
-          location.href = r.url;
+          if (contextCheckoutWindow) {
+            try { contextCheckoutWindow.location.href = r.url; }
+            catch (e) { closeContextCheckoutWindow(contextCheckoutWindow); signalContextCheckout(context); location.href = r.url; return; }
+            signalContextCheckout(context);
+            closePay();
+          } else {
+            signalContextCheckout(context);
+            location.href = r.url;
+          }
         }).catch(function (err) {
+          closeContextCheckoutWindow(contextCheckoutWindow);
           checkoutInFlight = false;
           logClient("create-alt", (err && err.message) || err);
           go.disabled = false;
@@ -592,6 +686,7 @@
               localStorage.removeItem("rc_pending_depix");
               localStorage.removeItem("rc_pending_billing");
             } catch (e) {}
+            try { sessionStorage.removeItem(PENDING_CHECKOUT_CONTEXT); } catch (e3) {}
             var untilTxt = +r.world_credits > 0
               ? "1 crédito de mundo liberado"
               : (+r.premium_until_ms > Date.now()
@@ -620,6 +715,7 @@
           try {
             localStorage.removeItem("rc_pending_billing");
           } catch (e) {}
+          try { sessionStorage.removeItem(PENDING_CHECKOUT_CONTEXT); } catch (e3) {}
           var untilTxt = +r.world_credits > 0
             ? "1 crédito de mundo liberado"
             : (+r.premium_until_ms > Date.now()
@@ -654,11 +750,11 @@
 
   // Entrada única de compra: autentica a conta e confirma o plano antes do checkout.
   // Backup Kiwify em site/backup-kiwify-2026-09-20/.
-  function checkout(plan, notice) {
+  function checkout(plan, notice, context) {
     if (!planCatalogReady) {
       if (!planModalWaiting) {
         planModalWaiting = true;
-        ensurePlanCatalog().then(function () { planModalWaiting = false; checkout(plan, notice); }).catch(function () {
+        ensurePlanCatalog().then(function () { planModalWaiting = false; checkout(plan, notice, context); }).catch(function () {
           planModalWaiting = false;
           alert("Não foi possível carregar os planos agora. Nenhuma cobrança foi criada.");
         });
@@ -669,13 +765,14 @@
     if (!plan) return false;
     if (!currentEmail()) {
       try { localStorage.setItem("rc_pending_plan", plan); } catch (e) {}
+      storeCheckoutContext(plan, context || {});
       if (window.RC_auth) window.RC_auth.openModal();
       return true;
     }
     // Sempre passa pelo nosso modal antes de qualquer cobrança:
     // conta Google, resumo do plano e aceite explícito dos termos.
     if (!enabled()) return false;
-    openPayModal(notice || null, plan);
+    openPayModal(notice || null, plan, context || {});
     return true;
   }
 
@@ -691,7 +788,7 @@
         e.preventDefault();
         var source = b.getAttribute("data-source") || "pricing_card";
         track("buy_clicked", { plan: plan, price_cents: PUBLIC_PLANS[plan] ? +PUBLIC_PLANS[plan].price_cents : 0, source: source });
-        checkout(plan, null);
+        checkout(plan, null, { source: source });
       });
     });
     document.addEventListener("keydown", function (e) {
@@ -700,13 +797,15 @@
     document.addEventListener("rc-auth", function () {
       var em = currentEmail(), plan = "";
       try { plan = localStorage.getItem("rc_pending_plan") || ""; } catch (e) {}
+      var pendingContext = plan ? readCheckoutContext() : null;
+      if (pendingContext) plan = pendingContext.plan;
       var selectedPlan = normalizePlan(plan);
       if (!em || !selectedPlan) {
         if (plan) { try { localStorage.removeItem("rc_pending_plan"); } catch (e0) {} }
         return;
       }
       try { localStorage.removeItem("rc_pending_plan"); } catch (e2) {}
-      openPayModal(null, selectedPlan);
+      openPayModal(null, selectedPlan, pendingContext ? pendingContext.context : {});
     });
   }
 

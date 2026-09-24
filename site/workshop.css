@@ -27,3 +27,16 @@ body::before,body::after{display:none!important}.page-wide{max-width:1200px!impo
 @media(max-width:700px){.section>h2{font-size:26px}.card .section-heading h2{font-size:23px}}
 
 @media(max-width:420px){.mc-inv,.mc-ender{zoom:.78}.section#planos .plan:first-child{padding-bottom:24px!important}}
+
+/* Navegação agrupada, sem criar vários cartões dentro do resumo do mundo. */
+.editor-categories{display:flex;flex-wrap:wrap;align-items:center;gap:2px 18px;margin:16px 0;padding:8px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.editor-categories a,.editor-advanced-links a{display:inline-flex;align-items:center;max-width:100%;min-height:40px;padding:6px 0;border:0;border-radius:0;background:transparent;color:var(--muted);font-size:13px;line-height:1.25;text-decoration:none}
+.editor-categories a:hover,.editor-advanced-links a:hover{color:var(--orange);text-decoration:underline;text-underline-offset:4px}
+.editor-categories a:focus-visible,.editor-advanced-links a:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+.editor-advanced-links{display:flex;flex-wrap:wrap;align-items:center;gap:2px 16px;margin:6px 0 12px;padding:0;border:0;background:transparent}
+.editor-advanced-links a{min-height:36px}
+.editor-advanced-links b{width:100%;font-size:11px;color:var(--muted)}
+.operation-heading{margin:24px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+.operation-heading h3{margin:0 0 4px;font-size:16px}
+.operation-heading p{margin:0;color:var(--muted);font-size:13px}
+@media(max-width:700px){.editor-categories,.editor-advanced-links{gap:2px 14px}.editor-categories a,.editor-advanced-links a{min-height:44px;padding:8px 0}.operation-heading{margin-top:18px}}

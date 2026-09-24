@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fff7ef">
+  <meta name="description" content="Crie um livro local de objetivos e desafios para seu mundo Minecraft Bedrock.">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css?v=15">
+  <title>Livro de objetivos Bedrock — ReativaConquistas</title>
+  <style>
+    .goal-page{max-width:920px}.goal-card{padding:20px;margin:18px 0;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow-sm)}
+    .goal-toolbar,.goal-form{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.goal-toolbar{margin:14px 0}.goal-form input,.goal-form select,.goal-toolbar select{flex:1;min-width:210px;border:1.5px solid var(--line-strong);border-radius:10px;padding:11px 12px;background:var(--card);color:var(--ink)}
+    .goal-list{display:grid;gap:8px;margin:16px 0;padding:0;list-style:none}.goal-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:11px}.goal-item input{margin-top:4px;accent-color:var(--orange)}.goal-item span{flex:1;line-height:1.45}.goal-item.done span{text-decoration:line-through;color:var(--muted)}.goal-item button{border:0;background:none;color:var(--muted);cursor:pointer}.goal-note{font-size:13px;color:var(--muted);line-height:1.55}.goal-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line-strong);border-radius:12px}
+    @media(max-width:620px){.goal-card{padding:14px}.goal-toolbar>*{flex:1}.goal-toolbar select{min-width:100%}}@media print{.topbar,.goal-toolbar,.goal-form,.foot,#rcSiteGuideLauncher,#rcSiteGuide,.goal-item button{display:none!important}.page{max-width:none;padding:0}.goal-card{box-shadow:none;break-inside:avoid}.goal-item{break-inside:avoid}}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-in">
+    <a class="brand" href="index.html"><img src="logo.png" width="34" height="34" alt="" style="border-radius:9px"><span>ReativaConquistas<small>Livro de objetivos local</small></span></a>
+    <nav class="nav" aria-label="Navegação"><a href="index.html">Início</a><a href="builder-lab.html">Construtor 3D</a></nav>
+  </div></header>
+  <main class="page goal-page">
+    <p class="kicker">DESAFIOS DE MUNDO</p>
+    <h1>Seu livro de objetivos</h1>
+    <p class="sub">Monte uma lista para sua próxima sessão, acompanhe o que você marcou e leve o livro em JSON para outro aparelho.</p>
+    <section class="goal-card" aria-labelledby="goalTitle">
+      <h2 id="goalTitle">Desafio solo</h2>
+      <p class="goal-note">Os objetivos ficam salvos neste navegador. A página não monitora o Minecraft: marque cada etapa por conta própria.</p>
+      <div class="goal-toolbar">
+        <select id="goalTheme" aria-label="Tema do desafio">
+          <option value="survival">Sobrevivência</option><option value="builder">Construção</option><option value="explorer">Exploração</option><option value="hardcore">Desafio difícil</option><option value="recovery">Recuperar meu mundo</option>
+        </select>
+        <button type="button" class="btn-ghost" id="makeChallenge">Gerar desafio da semana</button>
+        <button type="button" class="btn-ghost" id="printGoals">Imprimir / salvar PDF</button>
+        <button type="button" class="btn-ghost" id="exportGoals">Exportar livro JSON</button>
+        <label class="btn-ghost" for="importGoals" style="cursor:pointer">Importar livro JSON</label><input id="importGoals" type="file" accept="application/json,.json" hidden>
+      </div>
+      <form class="goal-form" id="goalForm">
+        <input id="goalText" type="text" maxlength="140" required placeholder="Adicionar objetivo (ex.: marcar meu portal do Nether)">
+        <button class="btn-primary" type="submit">Adicionar objetivo</button>
+      </form>
+      <ul class="goal-list" id="goalList" aria-live="polite"></ul>
+      <p id="goalStatus" class="goal-note" role="status" aria-live="polite"></p>
+    </section>
+    <p class="goal-note">Este recurso é um planejador. Ele não altera o mundo, não dá recompensas dentro do jogo e não confirma automaticamente que uma tarefa foi concluída.</p>
+  </main>
+  <footer class="foot"><nav><a href="index.html">Início</a><a href="importar.html">Como importar</a><a href="chunks.html">Restaurar chunks</a><a href="termos.html">Termos</a><a href="privacidade.html">Privacidade</a></nav><p>Livro salvo localmente no navegador.</p></footer>
+  <script>
+  (function(){
+    "use strict";
+    var KEY="rc_goal_book_v1", $=function(id){return document.getElementById(id);};
+    var templates={
+      survival:["Prepare comida para três dias de jogo","Construa um abrigo seguro antes do anoitecer","Guarde ferro, carvão e madeira em baús separados","Marque as coordenadas da sua base","Faça uma cama e coloque um ponto de retorno seguro"],
+      builder:["Escolha uma paleta de no máximo cinco blocos","Planeje a entrada antes de começar a fachada","Construa iluminação sem esconder os detalhes","Faça um caminho ligando a build à base","Tire uma captura de antes e depois"],
+      explorer:["Marque um local interessante no mapa","Encontre uma vila e registre suas coordenadas","Prepare um baú para a próxima expedição","Visite uma estrutura e volte em segurança","Crie um caminho entre dois lugares descobertos"],
+      hardcore:["Passe uma noite sem sair do abrigo","Explore 500 blocos a partir do ponto inicial","Derrote um inimigo sem perder equipamento","Construa uma rota de fuga para sua base","Termine a sessão com todos os itens guardados"],
+      recovery:["Faça uma cópia de segurança do mundo","Registre spawn, seed e nome do mundo","Visite sua base principal e marque um pin","Organize uma caixa com ferramentas essenciais","Importe e confira uma cópia antes de continuar"]
+    };
+    var model={title:"Meu livro de objetivos",theme:"survival",createdAt:new Date().toISOString(),items:[]};
+    try{var saved=JSON.parse(localStorage.getItem(KEY)||"null");if(saved&&Array.isArray(saved.items))model=saved;}catch(e){}
+    function persist(){try{localStorage.setItem(KEY,JSON.stringify(model));$("goalStatus").textContent="Salvo neste navegador · "+model.items.filter(function(x){return x.done;}).length+" de "+model.items.length+" concluídos.";}catch(e){$("goalStatus").textContent="Não foi possível salvar neste navegador; use Exportar livro JSON para guardar uma cópia.";}}
+    function draw(){var list=$("goalList");list.textContent="";$("goalTitle").textContent=model.title||"Seu livro de objetivos";if(!model.items.length){var empty=document.createElement("li");empty.className="goal-empty";empty.textContent="Seu livro está vazio. Escolha um desafio ou escreva seu primeiro objetivo.";list.appendChild(empty);}model.items.forEach(function(item,index){var li=document.createElement("li");li.className="goal-item"+(item.done?" done":"");var check=document.createElement("input");check.type="checkbox";check.checked=!!item.done;check.setAttribute("aria-label","Concluir: "+item.text);check.addEventListener("change",function(){item.done=check.checked;persist();draw();});var text=document.createElement("span");text.textContent=(item.weekly?"Desafio da semana · ":"")+item.text;var remove=document.createElement("button");remove.type="button";remove.textContent="Remover";remove.addEventListener("click",function(){model.items.splice(index,1);persist();draw();});li.appendChild(check);li.appendChild(text);li.appendChild(remove);list.appendChild(li);});persist();}
+    $("goalTheme").value=model.theme||"survival";
+    $("goalForm").addEventListener("submit",function(e){e.preventDefault();var text=$("goalText").value.trim();if(!text)return;if(model.items.length>=250){$("goalStatus").textContent="Este livro chegou ao limite de 250 objetivos. Remova algum antes de adicionar outro.";return;}model.items.push({text:text,done:false,weekly:false});$("goalText").value="";persist();draw();});
+    $("makeChallenge").addEventListener("click",function(){var theme=$("goalTheme").value,items=(templates[theme]||templates.survival).slice();for(var i=items.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),tmp=items[i];items[i]=items[j];items[j]=tmp;}model.theme=theme;model.items=model.items.filter(function(item){return !item.weekly;}).concat(items.slice(0,4).map(function(text){return {text:text,done:false,weekly:true};}));if(model.items.length>250)model.items=model.items.slice(0,250);persist();draw();});
+    $("goalTheme").addEventListener("change",function(){model.theme=this.value;persist();});
+    $("printGoals").addEventListener("click",function(){window.print();});
+    $("exportGoals").addEventListener("click",function(){var blob=new Blob([JSON.stringify({format:"reativaconquistas-goal-book-v1",exportedAt:new Date().toISOString(),book:model},null,2)],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="meu-livro-de-objetivos.json";a.click();setTimeout(function(){URL.revokeObjectURL(url);},4000);});
+    $("importGoals").addEventListener("change",function(){var file=this.files&&this.files[0];if(!file)return;if(file.size>300000){$("goalStatus").textContent="Este arquivo é muito grande para importar como livro de objetivos.";this.value="";return;}var reader=new FileReader();reader.onload=function(){try{var data=JSON.parse(reader.result),book=data.book||data;if(!book||!Array.isArray(book.items))throw new Error();model={title:String(book.title||"Livro importado").slice(0,100),theme:templates[book.theme]?book.theme:"survival",createdAt:String(book.createdAt||new Date().toISOString()),items:book.items.slice(0,250).map(function(item){return {text:String(item.text||"").slice(0,140),done:!!item.done,weekly:!!item.weekly};}).filter(function(item){return item.text;})};$("goalTheme").value=model.theme;persist();draw();}catch(e){$("goalStatus").textContent="Arquivo JSON inválido para este livro.";}};reader.readAsText(file);this.value="";});
+    draw();
+  })();
+  </script>
+  <script src="guia-site.js?v=3"></script>
+</body>
+</html>
