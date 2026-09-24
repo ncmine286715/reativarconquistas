@@ -2,7 +2,7 @@
    A apiKey do Firebase NÃO é segredo (vai no JS mesmo): a segurança vem das
    regras + domínios autorizados no console do Firebase.
    No console, falta só: Authentication -> Sign-in method -> Google (ativar) e
-   Authentication -> Settings -> Authorized domains -> reativarconquistas.pages.dev
+   Authentication -> Settings -> Authorized domains -> worldify.com.br
 */
 window.RC_FIREBASE = {
   apiKey: "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ",

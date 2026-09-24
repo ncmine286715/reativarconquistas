@@ -2,7 +2,7 @@
 
 Este documento mapeia o que o ReativaConquistas já oferece e o que pode virar produto. A ideia é servir como cardápio de implementação: começar com funções pequenas que resolvem problemas reais, criar recursos pagos com valor claro e deixar as ideias experimentais para depois.
 
-**Site principal:** https://reativarconquistas.pages.dev · **Construtor 3D:** https://reativarconquistas.pages.dev/builder-lab.html. O site estático também é servido em https://reativarconquistas.rosidomingos032.workers.dev. O Worker de pagamento/API permanece separado em `reativa-pay.rosidomingos032.workers.dev`. Esta versão do Pages também está disponível em https://d511f1f5.reativarconquistas.pages.dev.
+**Site principal:** https://worldify.com.br · **Construtor 3D:** https://worldify.com.br/builder-lab. O site também tem endereços técnicos de fallback em Pages e Workers.dev. O Worker de pagamento/API permanece separado em `reativa-pay.rosidomingos032.workers.dev`.
 
 ## Como pensar no produto
 

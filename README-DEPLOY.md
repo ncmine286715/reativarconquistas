@@ -2,7 +2,7 @@
 
 > **Modelo atual: site no Cloudflare Pages + API no Cloudflare Worker (contas + AbacatePay). Tudo no plano grátis.**
 
-- Site: `site/` → Pages (`https://reativarconquistas.pages.dev`)
+- Site: `site/` → Worker de assets via `wrangler-site.toml` (`https://worldify.com.br`); Pages permanece em `https://reativarconquistas.pages.dev` como fallback técnico.
 - API: `worker/` → Worker (`https://reativa-pay.<conta>.workers.dev`)
 - Pagamento: AbacatePay (Pix/cartão), Premium liberado na conta do usuário
 - Segredos (`ABACATEPAY_API_KEY`, `WEBHOOK_SECRET`): **só como secrets do Worker**, nunca no git
@@ -25,7 +25,7 @@ npx wrangler secret put ABACATEPAY_API_KEY
 npx wrangler deploy
 ```
 
-`PUBLIC_BASE_URL` e `ALLOWED_ORIGINS` continuam o domínio do site.
+`PUBLIC_BASE_URL` e `ALLOWED_ORIGINS` devem apontar para o domínio oficial (`https://worldify.com.br`). O antigo `pages.dev` fica liberado durante a transição. Publique o site com `npx wrangler deploy --config wrangler-site.toml`; publique API e pagamentos com `npx wrangler deploy --config worker/wrangler.toml`.
 `WEBHOOK_SECRET` já está gravado; cadastre no AbacatePay (produção):
 `https://<worker>/api/abacate/webhook?secret=VALOR`.
 

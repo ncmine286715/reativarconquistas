@@ -34,12 +34,12 @@ KIWIFY_PID_24H = ""
 KIWIFY_PID_30D = ""
 KIWIFY_PID_CREATOR = ""
 # Site público (volta do checkout). Troque pelo seu domínio em produção.
-PUBLIC_BASE_URL = "https://reativarconquistas.pages.dev"
+PUBLIC_BASE_URL = "https://worldify.com.br"
 # Segredo do webhook (NÃO vai neste arquivo! gravado via API como secret):
 #   https://<seu-worker>/api/abacate/webhook?secret=VALOR — cadastre no AbacatePay.
 # Origens liberadas p/ o site chamar o Worker (CSV; "*.dominio" cobre previews).
 # Inclui o workers.dev da sua conta (caso acesse o site por lá) — o oficial é o pages.dev.
-ALLOWED_ORIGINS = "https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
+ALLOWED_ORIGINS = "https://worldify.com.br, https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
 
 # SEGREDOS (nunca neste arquivo! cada um via `wrangler secret put NOME`):
 #   wrangler secret put SECURITY_REWARD_EMAIL -> e-mail único do pesquisador reconhecido (9.999 dias)

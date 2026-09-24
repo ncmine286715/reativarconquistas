@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 Disallow: /api/
-Sitemap: https://reativarconquistas.pages.dev/sitemap.xml
+Sitemap: https://worldify.com.br/sitemap.xml

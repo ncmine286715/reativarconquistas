@@ -7,7 +7,7 @@ const routes = {
   'importar.html': '/importar', 'objetivos.html': '/objetivos', 'ferramentas.html': '/ferramentas',
   'privacidade.html': '/privacidade', 'termos.html': '/termos', 'reembolso.html': '/reembolso'
 };
-const base = 'https://reativarconquistas.pages.dev';
+const base = 'https://worldify.com.br';
 const sitemap = fs.readFileSync(path.join(site, 'sitemap.xml'), 'utf8');
 for (const [file, route] of Object.entries(routes)) {
   const html = fs.readFileSync(path.join(site, file), 'utf8');

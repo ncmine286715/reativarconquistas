@@ -2,7 +2,7 @@
 
 ## Estado implementado
 
-- O endereço canônico atual é `https://reativarconquistas.pages.dev`, conforme `PUBLIC_BASE_URL` do Worker e documentação de deploy. Se um domínio próprio passar a ser oficial, altere `SITE_URL` em `site/config.js`, execute `node site/scripts/sync-seo.mjs` e publique o site. Atualize também `PUBLIC_BASE_URL`, `ALLOWED_ORIGINS`, Firebase Authorized Domains, links de retorno dos provedores e faça redirects 301 por caminho equivalente. Não redirecione todas as rotas à home.
+- O domínio oficial é `https://worldify.com.br`. `SITE_URL`, canonical, Open Graph, dados estruturados, sitemap e robots foram sincronizados para esse domínio. `PUBLIC_BASE_URL` e `ALLOWED_ORIGINS` do Worker também usam o domínio raiz; o antigo `pages.dev` permanece aceito durante a transição. `www.worldify.com.br` não resolve no DNS e não deve ser usado até configurar DNS e redirecionamento para o domínio raiz.
 - A verificação por arquivo está em `site/googlee400a800a1425492.html`. Cloudflare Pages redireciona arquivos `.html` para URLs sem extensão; `functions/googlee400a800a1425492.html.js` responde o conteúdo original com status 200 no endereço exato. `GOOGLE_SITE_VERIFICATION` é opcional e fica vazio; se receber um **token meta** diferente, coloque-o em `site/config.js` e rode `node site/scripts/sync-seo.mjs`.
 - `robots.txt`, `sitemap.xml`, canonical e Open Graph são estáticos para robôs. O script de sincronização gera URLs a partir de `SITE_URL`. Nenhum `lastmod` foi inventado.
 - Páginas públicas indexáveis: home, ferramentas, chunks, Construtor 3D, importação, objetivos, privacidade, termos e reembolso. Admin, conta, retorno de pagamento e 404 têm `noindex`; APIs continuam protegidas pelo backend, não por robots.txt.
@@ -14,8 +14,8 @@
 
 ### A. Domínio e Search Console
 
-1. Confirme o domínio oficial. Hoje o código usa `reativarconquistas.pages.dev`; se houver domínio próprio, faça a troca coordenada descrita acima.
-2. Para `pages.dev`, crie propriedade de **prefixo de URL** no Search Console e use o arquivo HTML fornecido para verificar. Propriedade de **Domínio** via DNS exige controle do DNS de um domínio próprio; não é possível verificar `pages.dev` inteiro como domínio próprio.
+1. O domínio oficial configurado é `worldify.com.br`, ligado ao Worker `reativarconquistas`, que serve os arquivos de `site/`. O projeto Pages continua como endereço técnico de fallback.
+2. Crie propriedade de **Domínio** `worldify.com.br` no Search Console e valide pelo registro DNS TXT. O arquivo de verificação existente serve para propriedade de prefixo de URL.
 3. Depois de publicar, abra `/googlee400a800a1425492.html`, `/robots.txt` e `/sitemap.xml` no domínio oficial. Envie `/sitemap.xml` no Search Console.
 4. Solicite indexação da home, `/ferramentas`, `/chunks` e `/builder-lab`. Acompanhe **Pages/Indexing**, HTTPS, Core Web Vitals e resultados aprimorados aplicáveis. Indexação e sitelinks são decisões do Google.
 
@@ -41,6 +41,7 @@
 - Execute `npm test` em `site/`, `node site/tests/google-measurement.cjs` e os testes do Worker antes de deploy.
 - Confira desktop e mobile, com e sem login, e um acesso pago de teste. O fluxo crítico deve continuar funcional quando a tag Google é bloqueada pela rede.
 - Verifique no navegador se a CSP permite o Google tag após consentimento e continua bloqueando origens desconhecidas. Revise CSP antes de ativar GTM com outras tags.
+- No Firebase Console, adicione `worldify.com.br` em **Authentication → Settings → Authorized domains**. Sem esse passo, login Google e operações de compra autenticadas podem falhar. `www.worldify.com.br` só deve ser adicionado quando passar a resolver e redirecionar corretamente.
 - Confira a resposta HTTP 404 para rota inexistente no Pages e no Worker estático, além do `noindex` para admin/conta/retorno.
 - Monitore LCP, INP e CLS com dados reais no Search Console e PageSpeed Insights. Não há métricas reais no repositório; nenhuma nota foi presumida.
 
