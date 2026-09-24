@@ -5,11 +5,27 @@
   var state = { world: null, worldFile: null, structure: null, structureFile: null, records: {}, decoded: {}, regions: [], mapRegions: [], mapView: null, scene: null, camera: null, renderer: null, controls: null, terrain: null, placed: null, textures: {}, materials: {}, geometries: {}, drag: null, decodeStats: null, terrainInfo: null, chunkPreview: null, missingTextures: {}, erased: {}, dig: {}, paint: {}, playerPos: null, playerPin: null, gizmo: null, gizmoMode: 'translate', mobs: [], mobGroup: null, mapZoom: 1 };
   var materialRows = [];
   var AIR = /^minecraft:(air|cave_air|void_air)$/;
-  state.tool = 'orbit'; state.dirty = true; state.history = new window.RC_Placement.History();
+  state.tool = 'orbit'; state.placementMode = 'map'; state.dirty = true; state.history = new window.RC_Placement.History();
   state.worldGeneration = 0; state.structureGeneration = 0; state.terrainKey = null;
   function invalidate() { state.dirty = true; }
   function hint(message) { $('placementHint').textContent = message; }
   function placement() { var p = offset(); p.rotation = Number($('rotation').value); return p; }
+  function updatePlacementSummary() {
+    var slot = $('placementSummary'); if (!slot) return;
+    if (!state.structure) { slot.textContent = 'Escolha uma construção e toque na área visitada do mapa.'; return; }
+    var p = placement(), s = window.RC_builderTransform.size(state.structure.size, p.rotation);
+    slot.textContent = state.structure.blocks.length.toLocaleString('pt-BR') + ' blocos · ' + s.join(' × ') + ' · X ' + p.x + ' · Y ' + p.y + ' · Z ' + p.z + ' · ' + p.rotation + '°';
+  }
+  function setPlacementMode(mode) {
+    if (mode !== 'map' && mode !== '3d' && mode !== 'coords') return;
+    state.placementMode = mode; $('result').dataset.placementMode = mode;
+    document.querySelectorAll('[data-placement-mode]').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.placementMode === mode)); });
+    if (mode === '3d') {
+      init3d();
+      if (!state.renderer) { state.placementMode = 'map'; $('result').dataset.placementMode = 'map'; document.querySelectorAll('[data-placement-mode]').forEach(function (button) { button.setAttribute('aria-pressed', String(button.dataset.placementMode === 'map')); }); $('webglFallback').hidden = false; hint('3D indisponível. Use o mapa ou as coordenadas.'); return; }
+      $('webglFallback').hidden = true; updatePlayerPin(); rebuildMobs(); rebuildTerrain(); rebuildStructure(); focus();
+    } else { $('webglFallback').hidden = true; updatePlacementSummary(); }
+  }
   function updateHistory() {
     $('undoPosition').disabled = state.history.index <= 0;
     $('redoPosition').disabled = state.history.index >= state.history.items.length - 1;
@@ -60,7 +76,7 @@
     if (m) return m;
     /* Material sem iluminação: preserva as cores pixeladas da textura e evita
        o branco estourado visto com MeshLambert em assets de 16x16. */
-    m = state.materials[key] = new THREE.MeshBasicMaterial({ color: tint, transparent: transparent, opacity: opacity, depthWrite: !transparent, alphaTest: def.alphaTest || 0, side: THREE.FrontSide, polygonOffset: !!ghost, polygonOffsetFactor: ghost ? -1 : 0, polygonOffsetUnits: ghost ? -1 : 0 });
+    m = state.materials[key] = new THREE.MeshBasicMaterial({ color: tint, transparent: transparent || ghost, opacity: ghost ? Math.min(opacity, 0.58) : opacity, depthWrite: !transparent && !ghost, alphaTest: ghost ? 0 : def.alphaTest || 0, side: THREE.FrontSide, polygonOffset: !!ghost, polygonOffsetFactor: ghost ? -1 : 0, polygonOffsetUnits: ghost ? -1 : 0 });
     m.userData.textureTint = tint;
     if (state.textures[texture] === undefined) {
       state.textures[texture] = "loading";
@@ -141,6 +157,7 @@
   function init3d() {
     if (state.renderer) return;
     if (!window.THREE) {
+      $('webglFallback').hidden = false;
       $('terrainStats').textContent = 'Preview 3D indisponível';
       hint('O Three.js não carregou (sem internet e vendor/three.min.js ausente?). O mapa 2D continua funcionando; recarregue com internet.');
       return;
@@ -155,8 +172,11 @@
     state.camera.position.set(27, 24, 27);
     /* Celular fraco (J2): pixelRatio 1 evita derreter a GPU; no PC mantém até 2. */
     var coarseScreen = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || Math.min(box.clientWidth, box.clientHeight) < 420;
-    state.renderer = new THREE.WebGLRenderer({ antialias: !coarseScreen, powerPreference: "high-performance" }); state.renderer.setPixelRatio(coarseScreen ? 1 : Math.min(window.devicePixelRatio || 1, 2)); state.renderer.setSize(box.clientWidth, box.clientHeight); state.renderer.outputEncoding = THREE.sRGBEncoding || 3001; box.appendChild(state.renderer.domElement);
-    state.controls = new THREE.OrbitControls(state.camera, state.renderer.domElement); state.controls.enableDamping = true; state.controls.target.set(0, 0, 0); state.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+    try { state.renderer = new THREE.WebGLRenderer({ antialias: !coarseScreen, powerPreference: "high-performance" }); }
+    catch (error) { state.scene = null; state.camera = null; $('webglFallback').hidden = false; $('terrainStats').textContent = '3D indisponível'; hint('Este dispositivo não conseguiu abrir o 3D. O mapa e as coordenadas continuam disponíveis.'); return; }
+    state.renderer.setPixelRatio(coarseScreen ? 1 : Math.min(window.devicePixelRatio || 1, 2)); state.renderer.setSize(box.clientWidth, box.clientHeight); state.renderer.outputEncoding = THREE.sRGBEncoding || 3001; box.appendChild(state.renderer.domElement);
+    state.controls = new THREE.OrbitControls(state.camera, state.renderer.domElement); state.controls.enableDamping = true; state.controls.target.set(0, 0, 0); state.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE; state.controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    state.controls.touches.ONE = THREE.TOUCH.ROTATE; state.controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
     state.controls.addEventListener('change', invalidate);
     state.hemi = new THREE.HemisphereLight(0xe8f6ff, 0x5d7a52, 2.5); state.scene.add(state.hemi);
     state.sun = new THREE.DirectionalLight(0xfff6e0, 2); state.sun.position.set(20, 35, 12); state.scene.add(state.sun);
@@ -273,7 +293,7 @@
     if (!state.structure) return;
     if (!window.THREE || !state.scene) {
       var pp = placement();
-      $('positionReadout').textContent = 'X ' + pp.x + ' · Y ' + pp.y + ' · Z ' + pp.z + ' · ' + pp.rotation + '°';
+      $('positionReadout').textContent = 'X ' + pp.x + ' · Y ' + pp.y + ' · Z ' + pp.z + ' · ' + pp.rotation + '°'; updatePlacementSummary();
       return;
     }
     if (state.meshStructure !== state.structure || state.meshErased !== Object.keys(state.erased).length) {
@@ -288,7 +308,7 @@
     state.selectionBox.min.set(p.x,p.y,p.z); state.selectionBox.max.set(p.x+size[0],p.y+size[1],p.z+size[2]);
     state.outline.visible = $('showOutline').checked;
     if (state.tool === 'gizmo') gizmoAttach();
-    $('positionReadout').textContent = 'X ' + p.x + ' · Y ' + p.y + ' · Z ' + p.z + ' · ' + p.rotation + '°';
+    $('positionReadout').textContent = 'X ' + p.x + ' · Y ' + p.y + ' · Z ' + p.z + ' · ' + p.rotation + '°'; updatePlacementSummary();
     scheduleValidation(); invalidate();
   }
   function scheduleValidation() {
@@ -312,13 +332,21 @@
     try { p = window.RC_Placement.normalize(value); } catch (error) { hint(error.message); return false; }
     ['x','y','z','rotation'].forEach(function (axis) { $(axis).value = p[axis]; });
     if (record !== false) state.history.push(p);
-    updateHistory(); rebuildStructure(); drawWorldMap(); rebuildTerrain(); return true;
+    updateHistory(); rebuildStructure(); drawWorldMap(); if (state.placementMode === '3d') rebuildTerrain(); updatePlacementSummary(); return true;
   }
   async function snapGround() {
     if (!state.chunkPreview) return;
     var requested = placement(), manager = state.chunkPreview;
-    if (!await rebuildTerrain() || manager !== state.chunkPreview || JSON.stringify(requested) !== JSON.stringify(placement())) return;
     var size = state.structure ? window.RC_builderTransform.size(state.structure.size, requested.rotation) : [1,1,1];
+    var ids = window.RC_builderPosition.footprintChunks(requested.x, requested.z, size[0], size[2]);
+    for (var id of ids) {
+      if (!manager.records.has(id)) { hint('A base alcança uma região não visitada. Escolha um ponto com terreno salvo.'); return; }
+      if (!manager.loadedChunks.has(id)) {
+        try { var chunk = await manager.decodeAsync(id); if (chunk) manager.loadedChunks.set(id, chunk); }
+        catch (error) { hint('Não foi possível ler o terreno neste ponto. Confira a região e tente novamente.'); return; }
+      }
+    }
+    if (manager !== state.chunkPreview || JSON.stringify(requested) !== JSON.stringify(placement())) return;
     /* Usa as colunas COM dado e ignora as sem dado: uma coluna vazia não pode
        vetar a base inteira. Só desiste se NENHUMA coluna tiver chão. */
     var highest = -Infinity, known = 0, total = 0;
@@ -395,7 +423,7 @@
     $("validation").innerHTML = html;
     var types = entityTypes(), ids = Object.keys(types).sort(); $("entityTypes").innerHTML = ids.length ? ids.map(function (id) { return '<li>' + esc(id) + ': <b>' + types[id] + '</b></li>'; }).join("") : '<li>Nenhuma block entity</li>';
   }
-  function renderAll(terrain) { init3d(); if (terrain) rebuildTerrain(); rebuildStructure(); }
+  function renderAll(terrain) { if (state.placementMode === '3d') { init3d(); if (terrain && state.renderer) rebuildTerrain(); } rebuildStructure(); }
   function loadWorldUnchecked(file) {
     var generation = ++state.worldGeneration;
     if (state.chunkPreview) state.chunkPreview.dispose();
@@ -416,7 +444,7 @@
       return readWorldSpawn(world).then(function (spawn) {
         if (generation !== state.worldGeneration) return;
         state.spawn = spawn;
-        $('result').hidden = false; init3d(); updatePlayerPin(); rebuildMobs();
+        $('result').hidden = false; if (state.placementMode === '3d') { init3d(); updatePlayerPin(); rebuildMobs(); }
         var first = state.regions[0];
         /* Começa onde o jogador estava (é área visitada por definição);
            senão spawn, senão primeira região. */
@@ -588,10 +616,10 @@
   function pickWorldMap(event) {
     if (!state.mapView || !state.mapRegions.length) return;
     var canvas = $("worldMap"), rect = canvas.getBoundingClientRect(), x = (event.clientX - rect.left) * canvas.width / rect.width, z = (event.clientY - rect.top) * canvas.height / rect.height, v = state.mapView;
-    var cx = Math.floor((x - v.pad) / v.scale + v.minX), cz = Math.floor((z - v.pad) / v.scale + v.minZ), chosen = null, i;
+    var point = window.RC_builderPosition.mapBlock(event.clientX, event.clientY, rect, canvas, v), cx = point.chunkX, cz = point.chunkZ, chosen = null, i;
     for (i = 0; i < state.mapRegions.length; i++) if (state.mapRegions[i].cx === cx && state.mapRegions[i].cz === cz) { chosen = state.mapRegions[i]; break; }
     if (!chosen) return;
-    applyPosition({x:chosen.cx*16+8,y:offset().y,z:chosen.cz*16+8,rotation:placement().rotation});
+    applyPosition({x:point.x,y:offset().y,z:point.z,rotation:placement().rotation});
     snapGround().then(focus);
   }
   function useRegion(index) {
@@ -838,18 +866,15 @@
         event.preventDefault(); if (tourIndex < TOUR_STEPS.length - 1 && !$('tourNext').disabled) tourShow(tourIndex + 1);
       }
     }, true);
-    try {
-      if (!localStorage.getItem(TOUR_KEY)) setTimeout(function () { if (tourIndex < 0 && !tourWasSkipped) tourShow(0); }, 600);
-    } catch (e) { setTimeout(function () { if (tourIndex < 0 && !tourWasSkipped) tourShow(0); }, 600); }
+    /* O guia continua disponível pelo botão, mas não cobre o mapa inicial. */
   }
   function focus(view) {
     if (!state.controls) return;
     var o = offset(), s = state.structure ? window.RC_builderTransform.size(state.structure.size,Number($('rotation').value)) : [16,1,16];
-    var x = o.x+s[0]/2,y=o.y+s[1]/2,z=o.z+s[2]/2;
+    var x = view === 'spawn' && state.spawn ? state.spawn.x : o.x+s[0]/2,y=view === 'spawn' && state.spawn ? state.spawn.y : o.y+s[1]/2,z=view === 'spawn' && state.spawn ? state.spawn.z : o.z+s[2]/2;
     /* Enquadra o terreno 5×5 (ou 3×3 no celular) para completar a tela,
        não só a estrutura: a distância usa o maior dos dois. */
-    var terrainSpan = state.chunkPreview ? (state.chunkPreview.renderDistance*2+1)*16 : 80;
-    var distance = Math.max(40, Math.max.apply(Math, s.concat([terrainSpan]))*1.12);
+    var distance = Math.max(20, Math.max.apply(Math, s) * 1.8);
     state.controls.target.set(x,y,z);
     if (view === 'top') state.camera.position.set(x,y+distance*1.5,z+0.01);
     else state.camera.position.set(x+distance,y+distance*.85,z+distance);
@@ -931,6 +956,12 @@
   }
   function wireDrag() {
     var ray = new window.THREE.Raycaster(), pointer = new window.THREE.Vector2(), plane = new window.THREE.Plane(new window.THREE.Vector3(0, 1, 0), 0), hit = new window.THREE.Vector3(), canvas = state.renderer.domElement;
+    function terrainHit(event) {
+      if (!state.terrain) return null;
+      var rect = canvas.getBoundingClientRect(); pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1); ray.setFromCamera(pointer, state.camera);
+      var targets = []; state.terrain.children.forEach(function (g) { targets.push.apply(targets, g.children); });
+      var matches = ray.intersectObjects(targets, false); return matches.length ? matches[0].point : null;
+    }
     canvas.addEventListener("pointerdown", function (event) {
       if (!state.placed || (!event.shiftKey && state.tool !== 'move')) return;
       var rect = canvas.getBoundingClientRect(); pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1); ray.setFromCamera(pointer, state.camera);
@@ -938,9 +969,20 @@
       plane.constant = -offset().y; state.drag = { dx: offset().x, dz: offset().z }; state.controls.enabled = false; canvas.setPointerCapture(event.pointerId); event.preventDefault();
     });
     canvas.addEventListener("pointermove", function (event) {
+      if (!state.drag && state.tool === 'place' && state.placed && !event.buttons && event.pointerType !== 'touch') {
+        var point = terrainHit(event);
+        if (point) {
+          var p = placement(), s = window.RC_builderTransform.size(state.structure.size, p.rotation), anchor = $('clickAnchor') && $('clickAnchor').value;
+          p.x = Math.floor(point.x - (anchor === 'center' ? s[0] / 2 : 0)); p.z = Math.floor(point.z - (anchor === 'center' ? s[2] / 2 : 0));
+          var transform = window.RC_Placement.groupTransform(state.structure.size, p);
+          state.placed.position.set(transform.x, transform.y, transform.z);
+          state.selectionBox.min.set(p.x, p.y, p.z); state.selectionBox.max.set(p.x+s[0], p.y+s[1], p.z+s[2]); invalidate();
+        }
+      }
       if (!state.drag) return; var rect = canvas.getBoundingClientRect(); pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1); ray.setFromCamera(pointer, state.camera);
       if (ray.ray.intersectPlane(plane, hit)) { $("x").value = Math.floor(hit.x); $("z").value = Math.floor(hit.z); rebuildStructure(); }
     });
+    canvas.addEventListener('pointerleave', function () { if (state.tool === 'place' && !state.drag) rebuildStructure(); });
     canvas.addEventListener("pointerup", function () {
       if (!state.drag) return;
       state.drag = null; state.controls.enabled = true;
@@ -1033,6 +1075,13 @@
     });
   }
   function wireControls() {
+    setPlacementMode('map');
+    document.querySelectorAll('[data-placement-mode]').forEach(function (button) { button.addEventListener('click', function () { setPlacementMode(button.dataset.placementMode); }); });
+    [['rotateLeft', -90], ['rotateRight', 90]].forEach(function (item) { $(item[0]).addEventListener('click', function () { var p = placement(); p.rotation = (p.rotation + item[1] + 360) % 360; applyPosition(p); }); });
+    document.querySelectorAll('[data-height]').forEach(function (button) { button.addEventListener('click', function () { var p = placement(); p.y += Number(button.dataset.height); applyPosition(p); }); });
+    $('downloadOriginal').addEventListener('click', function () { if (!state.worldFile) return; var url = URL.createObjectURL(state.worldFile), a = document.createElement('a'); a.href = url; a.download = state.worldFile.name; a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000); });
+    $('focusSpawn').addEventListener('click', function () { if (!state.spawn) return hint('Spawn indisponível neste mundo.'); focus('spawn'); });
+    $('focusTop').addEventListener('click', function () { focus('top'); });
     setTool(state.tool || 'orbit');
     TOOL_BUTTONS.forEach(function (pair) {
       var el = $(pair[0]);
@@ -1160,6 +1209,16 @@
     document.addEventListener('keydown', function (event) {
       var tag = (event.target && event.target.tagName) || '';
       if (/^(INPUT|SELECT|TEXTAREA)$/.test(tag) || $('result').hidden) return;
+      if (state.placementMode === '3d' && state.controls && /^[wasdqe]$/i.test(event.key)) {
+        var forward = new window.THREE.Vector3().subVectors(state.controls.target, state.camera.position); forward.y = 0; forward.normalize();
+        var right = new window.THREE.Vector3(-forward.z, 0, forward.x), vector = new window.THREE.Vector3();
+        if (event.key.toLowerCase() === 'w') vector.copy(forward);
+        else if (event.key.toLowerCase() === 's') vector.copy(forward).negate();
+        else if (event.key.toLowerCase() === 'd') vector.copy(right);
+        else if (event.key.toLowerCase() === 'a') vector.copy(right).negate();
+        else vector.y = event.key.toLowerCase() === 'e' ? 1 : -1;
+        vector.multiplyScalar(Math.max(2, state.camera.position.distanceTo(state.controls.target) * 0.08)); state.camera.position.add(vector); state.controls.target.add(vector); state.controls.update(); invalidate(); event.preventDefault(); return;
+      }
       if ((event.key === 'g' || event.key === 'G') && state.tool === 'gizmo') { event.preventDefault(); toggleGizmoMode(); return; }
       var p = placement(), handled = true;
       if (event.key === 'ArrowLeft') p.x -= step();
@@ -1220,7 +1279,7 @@
     $('status').textContent = 'Planejando a construção…';
     exportMsg('Planejando a construção…');
     exportBtn.disabled = true; exportBtn.textContent = 'Exportando… aguarde';
-    function exportDone(message) { exportMsg(message); exportBtn.disabled = false; exportBtn.textContent = 'Exportar mundo (.mcworld)'; }
+    function exportDone(message) { exportMsg(message); exportBtn.disabled = false; exportBtn.textContent = 'Construir e baixar mundo'; }
     var build;
     try { build = window.RC_builderCore.plan(state.world, filtered, { x: p.x, y: p.y, z: p.z, dimension: 0, rotation: p.rotation, mode: mode, clearTrees: clearTrees, dig: state.dig, paint: state.paint }); }
     catch (planError) {
