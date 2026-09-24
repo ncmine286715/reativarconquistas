@@ -166,6 +166,22 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 [data-theme="dark"] .export-controls{background:#2d241b;border-color:#7e592c}
 [data-theme="dark"] .export-controls button:last-of-type{background:var(--orange);border-color:var(--orange);color:#fff}
 [data-theme="dark"] .canvas-panel{background:#171615}
+
+/* A operação usa mapa por padrão; o editor tridimensional continua opcional. */
+.placement-modes{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 12px}
+.placement-modes button,.placement-quick-actions button{min-height:43px;padding:9px 13px;border:1px solid var(--line-strong);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.placement-modes button[aria-pressed=true]{border-color:var(--orange);background:var(--orange-soft);color:var(--orange-dark)}
+.placement-summary{padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font-size:14px;line-height:1.45}
+.placement-quick-actions{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 15px}
+.placement-quick-actions button:hover{border-color:var(--orange)}
+#result[data-placement-mode=map] .canvas-panel,#result[data-placement-mode=coords] .canvas-panel{display:none}
+#result[data-placement-mode=map] .editor,#result[data-placement-mode=coords] .editor{grid-template-columns:minmax(0,1fr)}
+#result[data-placement-mode=map] .controls,#result[data-placement-mode=coords] .controls{border-left:0}
+#result[data-placement-mode=coords] .world-map-card{display:none}
+#result[data-placement-mode=map] #mobControls,#result[data-placement-mode=map] #paintControls,#result[data-placement-mode=map] #terrainControls,
+#result[data-placement-mode=coords] #mobControls,#result[data-placement-mode=coords] #paintControls,#result[data-placement-mode=coords] #terrainControls{display:none}
+#webglFallback[hidden]{display:none}
+@media(max-width:600px){.placement-modes{display:grid;grid-template-columns:1fr 1fr}.placement-modes button:first-child{grid-column:1/-1}.placement-quick-actions button{flex:1 1 calc(33% - 7px)}.placement-summary{font-size:13px}}
 [data-theme="dark"] .viewport-toolbar button{background:#201d1b;color:#f2ece4;border-color:#574a3b}
 [data-theme="dark"] .viewport-toolbar button[aria-pressed=true]{background:#4a2d17;border-color:#f97316;color:#ffd6ae}
 [data-theme="dark"] #status{background:#35271b;color:#ffd6ae}
