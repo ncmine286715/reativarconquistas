@@ -1,0 +1,8 @@
+﻿# Worker dedicado a servir os arquivos estaticos do site principal.
+# A API e pagamentos continuam no Worker reativa-pay.
+name = "reativarconquistas"
+compatibility_date = "2026-09-24"
+workers_dev = true
+
+[assets]
+directory = "./site"
