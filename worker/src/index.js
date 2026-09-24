@@ -1,6 +1,6 @@
 /* ReativaConquistas — Worker Cloudflare (API: Depix + AbacatePay + contas).
    NENHUM segredo neste arquivo: tudo via `wrangler secret put` (nunca no git/site).
-   Planos: world1 (1 crédito de mundo = 599 centavos), vip7 (7 dias = 799 centavos), vip30 (30 dias = 2490 centavos) e creator (30 dias = 3990 centavos).
+   Planos: world1 (1 crédito = 599 centavos), ouro (3 = 1499), diamante (5 = 2290), vip7, vip30 e creator.
    Fluxo Depix (ativo): site/pagamento.js -> POST /api/depix/create -> api.depixapp.com
    -> payment_url -> volta em sucesso.html?checkout_id=chk_... -> GET /api/depix/status
    -> webhook POST /api/depix/webhook (HMAC X-DePix-Signature com DEPIX_WEBHOOK_SECRET).
@@ -100,7 +100,21 @@ export const PLAN_LIMITS = Object.freeze({
     }
   }),
   world1: Object.freeze({
-    label: "Crédito de 1 mundo", duration_days: 0, price_cents: 599,
+    label: "Créditos de mundo", catalog_label: "Ferro · 1 crédito", duration_days: 0, price_cents: 599, credit_count: 1,
+    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
+    kind: "world_credit", project_window_days: 30,
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true, repeated_operations_same_world: true }
+  }),
+  ouro: Object.freeze({
+    label: "Créditos de mundo", catalog_label: "Ouro · 3 créditos", duration_days: 0, price_cents: 1499, credit_count: 3,
+    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
+    kind: "world_credit", project_window_days: 30,
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true, repeated_operations_same_world: true }
+  }),
+  diamante: Object.freeze({
+    label: "Créditos de mundo", catalog_label: "Diamante · 5 créditos", duration_days: 0, price_cents: 2290, credit_count: 5,
     max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
     kind: "world_credit", project_window_days: 30,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
@@ -133,13 +147,14 @@ export const PLAN_LIMITS = Object.freeze({
 });
 const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
 const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
-  id, label: plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
+  id, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
+  kind: plan.kind || "time", credit_count: plan.credit_count || 0,
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
 }]).filter(([id]) => id !== "vip24h")));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const PURCHASABLE_PLAN_IDS = new Set(["world1", "vip7", "vip30", "creator"]);
+const PURCHASABLE_PLAN_IDS = new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -505,7 +520,7 @@ function depixAmount(plan) {
 }
 function depixPlanLabel(plan) {
   plan = normalizeDepixPlan(plan);
-  return plan ? PLAN_LIMITS[plan].label : "";
+  return plan ? (PLAN_LIMITS[plan].catalog_label || PLAN_LIMITS[plan].label) : "";
 }
 
 // Kiwify envia o produto no webhook. IDs configurados no Worker têm
@@ -1596,7 +1611,7 @@ export class EntitlementDO {
         if (data.purchases[bid]) return { persist: false, value: { ...publicState(data), duplicate: true } };
         const now = Date.now();
         const definition = PLAN_LIMITS[plan];
-        if (definition.kind === "world_credit") data.world_credits = (+data.world_credits || 0) + 1;
+        if (definition.kind === "world_credit") data.world_credits = (+data.world_credits || 0) + (definition.credit_count || 1);
         else {
           data.time_passes = Array.isArray(data.time_passes) ? data.time_passes : [];
           const priorUntil = Math.max(+data.premium_until_ms || 0, ...data.time_passes.map((pass) => +pass.expires_at || 0));

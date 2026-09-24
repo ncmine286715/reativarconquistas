@@ -63,6 +63,8 @@ const MB = 1024 * 1024;
 
 // Free, time plans, and the one-world credit all derive from the Worker catalog.
 assert.equal(worker.PLAN_LIMITS.free.max_file_bytes, 10 * MB);
+assert.deepEqual([worker.PLAN_LIMITS.world1.credit_count, worker.PLAN_LIMITS.ouro.credit_count, worker.PLAN_LIMITS.diamante.credit_count], [1, 3, 5], "Worker catalog defines each credit balance");
+assert.deepEqual([worker.PLAN_LIMITS.world1.price_cents, worker.PLAN_LIMITS.ouro.price_cents, worker.PLAN_LIMITS.diamante.price_cents], [599, 1499, 2290], "credit prices are server-owned");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now).allowed, true, "free users may use a 5 MB world");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 11 * MB, now).code, "NO_ENTITLEMENT", "free users cannot use an 11 MB world");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now, { tool: "chunks_restore", chunks_count: 9 }).code, "NO_ENTITLEMENT", "free chunk restore obeys the central free capability limit");
@@ -70,6 +72,14 @@ const freeBuilder = worker.checkEntitlement({ plan: "free", premium_until_ms: 0 
 assert.equal(freeBuilder.allowed, true, "the advertised beta builder is available inside free plan limits");
 assert.equal(freeBuilder.free_quota_tools[0].limit, 3, "builder exports reserve the configured free daily quota");
 const vip7 = { plan: "vip7", world_credits: 0, premium_until_ms: now + 7 * 86400000 };
+const creditDO = new worker.EntitlementDO({ storage: new Storage() });
+const grantGold = await json(await creditDO.fetch(doReq("/grant", { plan: "ouro", billing_id: "gold-bundle-payment" })));
+assert.equal(grantGold.world_credits, 3, "Ouro grants three credits");
+const duplicateGold = await json(await creditDO.fetch(doReq("/grant", { plan: "ouro", billing_id: "gold-bundle-payment" })));
+assert.equal(duplicateGold.world_credits, 3, "duplicate webhook cannot grant a bundle twice");
+const grantDiamond = await json(await creditDO.fetch(doReq("/grant", { plan: "diamante", billing_id: "diamond-bundle-payment" })));
+assert.equal(grantDiamond.world_credits, 8, "Diamante adds five credits to the existing balance");
+
 for (const size of [11, 100, 499]) assert.equal(worker.checkEntitlement(vip7, 1, size * MB, now).allowed, true, `VIP 7 must allow ${size} MB`);
 assert.equal(worker.checkEntitlement(vip7, 1, 11 * MB, now, { tool: "player_basic" }).allowed, true, "paid player editing is explicitly included in the plan catalog");
 assert.equal(worker.checkEntitlement(vip7, 1, 100 * MB, now, { tool: "builder" }).allowed, true, "the 3D builder uses the purchased file limit");
@@ -218,6 +228,9 @@ const env = {
 const catalogResponse = await worker.default.fetch(apiRequest("/api/config", { token: "" }), env);
 const publicCatalog = await catalogResponse.json();
 assert.equal(publicCatalog.plans.vip24h, undefined, "legacy 24h is not offered as a new plan");
+assert.deepEqual([publicCatalog.plans.world1.credit_count, publicCatalog.plans.ouro.credit_count, publicCatalog.plans.diamante.credit_count], [1, 3, 5], "public checkout catalog advertises exact credit counts");
+assert.deepEqual([publicCatalog.plans.world1.price_cents, publicCatalog.plans.ouro.price_cents, publicCatalog.plans.diamante.price_cents], [599, 1499, 2290], "public checkout catalog advertises the server-authoritative prices");
+assert.deepEqual([publicCatalog.plans.world1.label, publicCatalog.plans.ouro.label, publicCatalog.plans.diamante.label], ["Ferro · 1 crédito", "Ouro · 3 créditos", "Diamante · 5 créditos"], "checkout labels distinguish the tier from the account credit balance");
 const testCpf = "52998224725";
 const testEmail = "private-test@example.com";
 await worker.default.fetch(apiRequest("/api/client-log", { method: "POST", token: "", body: { step: "depix-create", message: "CPF " + testCpf + " failed for " + testEmail, href: "https://app.example/sucesso.html?checkout_id=private-payment-id" } }), env);
@@ -246,7 +259,8 @@ const identities = {
   tokenD: { localId: "firebase-uid-d", email: "buyer-d@example.com", displayName: "Buyer D" },
   tokenE: { localId: "firebase-uid-e", email: "buyer-e@example.com", displayName: "Buyer E" },
   tokenF: { localId: "firebase-uid-f", email: "buyer-f@example.com", displayName: "Buyer F" },
-  tokenG: { localId: "firebase-uid-g", email: "buyer-g@example.com", displayName: "Buyer G" }
+  tokenG: { localId: "firebase-uid-g", email: "buyer-g@example.com", displayName: "Buyer G" },
+  tokenH: { localId: "firebase-uid-h", email: "buyer-h@example.com", displayName: "Buyer H" }
 };
 const checkoutRecords = new Map();
 const abacateRecords = new Map();
@@ -291,7 +305,7 @@ globalThis.fetch = async (url, options = {}) => {
     if (!id) {
       id = "chk-test-" + (++checkoutCount);
       depixIdempotency.set(body.idempotency_key, id);
-      checkoutRecords.set(id, { checkout: { status: "pending", metadata: body.metadata, idempotency_key: body.idempotency_key } });
+      checkoutRecords.set(id, { checkout: { status: "pending", amount: body.amount, metadata: body.metadata, idempotency_key: body.idempotency_key } });
     }
     if (loseNextDepixResponse) {
       loseNextDepixResponse = false;
@@ -565,5 +579,15 @@ assert.equal(worker.normalizeKiwifyPlan({ order_status: "paid", Product: { produ
 const nullOrigin = worker.corsHeaders(new Request("https://api.example", { headers: { Origin: "null" } }), { ALLOWED_ORIGINS: "https://app.example" });
 assert.equal(nullOrigin["Access-Control-Allow-Origin"], undefined);
 assert.equal(worker.corsHeaders(new Request("https://api.example", { headers: { Origin: "https://app.example" } }), { ALLOWED_ORIGINS: "https://app.example" })["Access-Control-Allow-Origin"], "https://app.example");
+// The package checkout accepts the new SKU and charges its server catalog amount.
+const ouroCheckout = await worker.default.fetch(apiRequest("/api/depix/create", {
+  token: "tokenH", method: "POST", ip: "192.0.2.18",
+  body: { plan: "ouro", payer_tax_number: "52998224725", payer_email: "buyer-h@example.com", source: "pricing_card", terms_accepted: true, terms_version: "test", request_id: "bundle-order-ouro-001" }
+}), env);
+assert.equal(ouroCheckout.status, 200, "Ouro package can create a Depix checkout");
+const ouroCheckoutBody = await ouroCheckout.json();
+assert.equal(ouroCheckoutBody.plan, "ouro");
+assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.amount, 1499, "Depix amount comes from the server catalog and cannot be replaced by a client price");
+assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.metadata.plan, "ouro");
 assert.ok(depixStatusCalls > 0, "status lookup reached the payment provider");
 console.log("Entitlement/payment tests passed.");

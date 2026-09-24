@@ -466,8 +466,6 @@
     var drop = $("drop");
     if (drop) drop.classList.toggle("drop-loaded", !!file);
     var fileGroup = $("accFile");
-    var secondaryTools = $("mapSecondaryTools");
-    if (secondaryTools) secondaryTools.hidden = !file || /\.dat$/i.test(file.name || "");
     if (fileGroup && file) fileGroup.open = true;
     if (!file || /\.dat$/i.test(file.name || "")) {
       box.hidden = false;
@@ -798,7 +796,7 @@
     if (input) input.addEventListener("change", function () {
       var f = (input.files && input.files[0]) || null;
       if (f) renderMap(f);
-      else { var b = $("mapPreview"); if (b) b.hidden = true; var tools = $("mapSecondaryTools"); if (tools) tools.hidden = true; if (drop) drop.classList.remove("drop-loaded"); seq++; }
+      else { var b = $("mapPreview"); if (b) b.hidden = true; if (drop) drop.classList.remove("drop-loaded"); seq++; }
     });
     if (drop) drop.addEventListener("drop", function (e) {
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];

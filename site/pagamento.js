@@ -129,7 +129,7 @@
     });
   }
 
-  var PLAN_IDS = ["world1", "vip7", "vip30", "creator"];
+  var PLAN_IDS = ["world1", "ouro", "diamante", "vip7", "vip30", "creator"];
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var planCatalogReady = false;
@@ -141,7 +141,7 @@
     var p = PUBLIC_PLANS[id] || {};
     var limit = p.max_file_mb === null ? "sem limite comercial de tamanho" : "até " + p.max_file_mb + " MB por mundo";
     var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
-    if (id === "world1") return "Crédito para trabalhar em 1 mundo de " + limit + ". Após a primeira operação concluída, você pode editar novamente o mesmo projeto por " + (p.project_window_days || 30) + " dias.";
+    if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + " cada. Não expiram até o uso; reedite cada mundo por " + (p.project_window_days || 30) + " dias após começar.";
     return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
   }
   function applyPlanCatalog(config) {
@@ -161,19 +161,25 @@
       var size = p.max_file_mb === null ? "sem limite comercial de tamanho" : (p.max_file_mb + " MB por mundo");
       var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
       var card = button.closest ? button.closest(".plan") : null;
+      if (card && p.kind === "world_credit" && paymentProvider() === "kiwify") card.hidden = true;
       var priceBox = card && card.querySelector(".price");
       var list = card && card.querySelector("ul");
-      if (priceBox) priceBox.innerHTML = escH(planPrice(id)) + "<small> · " + escH(id === "world1" ? (p.project_window_days || 30) + " dias para reeditar" : (p.duration_days || 0) + " dias") + "</small>";
+      var creditPlan = p.kind === "world_credit";
+      if (priceBox) priceBox.innerHTML = escH(planPrice(id)) + "<small> · " + escH(creditPlan ? (p.credit_count || 1) + " crédito(s)" : (p.duration_days || 0) + " dias") + "</small>";
       if (list) {
-        var bullets = id === "world1"
-          ? ["Crédito para trabalhar em 1 mundo de " + size, "Reedite o mesmo projeto por " + (p.project_window_days || 30) + " dias", "Consumo somente após a primeira operação concluída", "Falhas técnicas não consomem o crédito"]
+        var count = p.credit_count || 1;
+        var bullets = creditPlan
+          ? [count + " crédito(s) · " + size + " cada", priceText(Math.round((+p.price_cents || 0) / count)) + " por mundo" + ((+PUBLIC_PLANS.world1.price_cents * count > +p.price_cents) ? " · economize " + priceText((+PUBLIC_PLANS.world1.price_cents * count) - (+p.price_cents || 0)) : ""), "Cada crédito cobre um mundo", "Sem validade até o uso; reedite por " + (p.project_window_days || 30) + " dias após começar"]
           : ["Acesso por " + (p.duration_days || 0) + " dias", size, batch, "Recursos avançados incluídos no plano"];
         list.innerHTML = bullets.map(function (item) { return "<li class='yes'>" + escH(item) + "</li>"; }).join("");
       }
       button.textContent = String(p.label || id) + " · " + planPrice(id);
     });
+    var creditGrid = document.querySelector(".credit-plans");
+    var creditGroup = creditGrid && creditGrid.closest ? creditGrid.closest(".plan-group") : null;
+    if (creditGroup) creditGroup.hidden = !creditGrid.querySelector(".plan:not([hidden])");
     var free = PUBLIC_PLANS.free;
-    var freeCard = document.querySelector(".plans .plan");
+    var freeCard = document.querySelector(".plan-free");
     if (free && freeCard) {
       var freeItems = freeCard.querySelectorAll("ul li");
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
@@ -188,9 +194,10 @@
     return planCatalogPending;
   }
   function relevantPlanIds(context) {
+    var ids = paymentProvider() === "kiwify" ? PLAN_IDS.filter(function (id) { return !(PUBLIC_PLANS[id] && PUBLIC_PLANS[id].kind === "world_credit"); }) : PLAN_IDS;
     return window.RC_toolIntents
-      ? window.RC_toolIntents.eligiblePlanIds(PLAN_IDS, PUBLIC_PLANS, context || {})
-      : PLAN_IDS.filter(function (id) { return !!PUBLIC_PLANS[id]; });
+      ? window.RC_toolIntents.eligiblePlanIds(ids, PUBLIC_PLANS, context || {})
+      : ids.filter(function (id) { return !!PUBLIC_PLANS[id]; });
   }
   function renderPlanOptions(selectedPlan, context) {
     var eligible = relevantPlanIds(context);
@@ -200,7 +207,7 @@
     return eligible.map(function (id) {
       var p = PUBLIC_PLANS[id];
       var size = p.max_file_mb === null ? "sem limite comercial" : (p.max_file_mb + " MB");
-      var batch = id === "world1" ? (p.project_window_days || 30) + " dias para reeditar" : (p.max_batch || 1) + " por lote";
+      var batch = p.kind === "world_credit" ? (p.credit_count || 1) + " crédito(s), sem validade" : (p.max_batch || 1) + " por lote";
       return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
     }).join("");
   }
