@@ -266,6 +266,9 @@
     if (state.terrainKey === center) return state.terrainPromise || Promise.resolve(true);
     state.terrainKey = center;
     if (!state.terrain) { state.terrain = new window.THREE.Group(); state.terrain.name = 'terrain'; state.scene.add(state.terrain); }
+    /* Chunks decodificadas previamente pelo mapa também precisam da mesh 3D. */
+    var visibleKeys = new Set(manager.requiredKeys(Math.floor(o.x / 16), Math.floor(o.z / 16)));
+    manager.loadedChunks.forEach(function (chunk, id) { if (visibleKeys.has(id) && !manager.chunkMeshes.has(id)) meshChunk(manager, id, chunk); });
     $('terrainStats').textContent = 'Carregando terreno próximo…';
     state.terrainPromise = manager.updateNeighborhood(o, {
       remove: function (id) { clear(manager.chunkMeshes.get(id)); manager.chunkMeshes.delete(id); },
@@ -291,14 +294,15 @@
   }
   function rebuildStructure() {
     if (!state.structure) return;
+    state.solidBlocks = state.structure.blocks.filter(function (b) { return !isAir(b.block.name) && !state.erased[b.x + ',' + b.y + ',' + b.z]; });
     if (!window.THREE || !state.scene) {
       var pp = placement();
       $('positionReadout').textContent = 'X ' + pp.x + ' · Y ' + pp.y + ' · Z ' + pp.z + ' · ' + pp.rotation + '°'; updatePlacementSummary();
+      scheduleValidation();
       return;
     }
     if (state.meshStructure !== state.structure || state.meshErased !== Object.keys(state.erased).length) {
       clear(state.placed); state.placed = new window.THREE.Group(); state.placed.name = 'structure';
-      state.solidBlocks = state.structure.blocks.filter(function (b) { return !isAir(b.block.name) && !state.erased[b.x + ',' + b.y + ',' + b.z]; });
       addInstances(state.placed, state.solidBlocks, true); state.scene.add(state.placed); state.meshStructure = state.structure; state.meshErased = Object.keys(state.erased).length;
     }
     var p = placement(), transform = window.RC_Placement.groupTransform(state.structure.size, p);
@@ -405,7 +409,7 @@
     var issues = state.structure.issues || [], html = '<p class="issue-ok"><b>' + blocks.toLocaleString("pt-BR") + '</b> blocos sólidos no preview.</p>';
     var terrain = state.terrain && state.terrain.userData;
     if (terrain && terrain.decoded) html += '<p class="issue-ok"><b>' + terrain.visible.toLocaleString("pt-BR") + '</b> blocos visíveis do mundo (' + terrain.decoded.toLocaleString("pt-BR") + ' lidos entre Y ' + terrain.bottom + ' e ' + terrain.top + ').</p>';
-    else if (state.world) html += '<p class="issue-warn"><b>Terreno vazio nessa região:</b> escolha outra “Região visitada” ou informe coordenadas de uma área que você já abriu no Minecraft.</p>';
+    else if (state.world && (!state.chunkPreview || !state.chunkPreview.loadedChunks.size)) html += '<p class="issue-warn"><b>Terreno ainda não carregado:</b> escolha uma área visitada do mapa ou apoie a construção no terreno.</p>';
     html += '<p class="issue-warn"><b>' + collisions.toLocaleString("pt-BR") + '</b> blocos existentes serão atravessados/substituídos no ponto atual.</p>';
     if (state.unknownBlocks) html += '<p class="issue-warn">' + state.unknownBlocks.toLocaleString('pt-BR') + ' posições fora do terreno disponível: verificação incompleta.</p>';
     if ($('clearTrees') && $('clearTrees').checked) {
