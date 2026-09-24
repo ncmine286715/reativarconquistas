@@ -636,7 +636,7 @@
       }
     }
     var ack = $("playerAck");
-    if (ack && !ack.checked) { status("Marque <b>“Fiz backup e entendo que é irreversível”</b> para continuar."); return; }
+    if (ack && !ack.checked) { status("Confirme que entendeu a alteração no arquivo exportado para continuar."); return; }
     status('<span class="spin"></span> Gravando player <b>no seu navegador</b>… (original intacto)');
     var btn = $("playerSaveBtn");
     if (btn) btn.disabled = true;

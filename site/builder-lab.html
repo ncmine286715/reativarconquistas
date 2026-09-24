@@ -9,8 +9,8 @@
   <link rel="icon" type="image/png" href="logo.png">
   <title>Construtor 3D (beta grátis) — ReativaConquistas</title>
   <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
-  <link rel="stylesheet" href="style.css?v=18">
-  <link rel="stylesheet" href="builder-lab.css?v=6">
+  <link rel="stylesheet" href="style.css?v=26">
+  <link rel="stylesheet" href="builder-lab.css?v=7">
 </head>
 <body>
   <div class="topbar">
@@ -34,9 +34,9 @@
     <header class="lab-hero">
       <p class="kicker">NOVO · BETA GRÁTIS · 3D NO NAVEGADOR</p>
       <h1>Construtor 3D <span>BETA GRÁTIS</span></h1>
-      <p class="tagline">Carregue seu mundo e uma casa <b>.mcstructure</b>. Veja o terreno de verdade, posicione, gire e exporte — direto no navegador.</p>
+      <p class="tagline">Abra seu mundo, escolha uma construção e coloque no terreno em 3D. Aceita <b>.mcstructure</b> e uma região simples <b>.litematic</b>.</p>
     </header>
-    <section class="warning"><b>Antes de começar:</b> guarde uma cópia do <code>.mcworld</code> original. Confira o preview, a posição e a rotação antes de exportar.</section>
+    <section class="warning">Confira a posição no 3D antes de exportar. O resultado sai como um novo <code>.mcworld</code>.</section>
     <section id="tourOverlay" hidden aria-hidden="true">
       <div class="tour-shade" data-side="top"></div>
       <div class="tour-shade" data-side="right"></div>
@@ -63,11 +63,19 @@
       </div>
       <div class="upload-step">
         <span class="step-number">02</span>
-        <label for="structureFile">Sua construção <code>.mcstructure</code></label>
-        <input id="structureFile" type="file" accept=".mcstructure,application/octet-stream" disabled>
-        <small>Libera depois de abrir o mundo.</small>
+        <label for="structureFile">Sua construção</label>
+        <input id="structureFile" type="file" accept=".mcstructure,.litematic,application/octet-stream" disabled>
+        <small>.mcstructure ou .litematic simples, com uma região e blocos sólidos.</small>
       </div>
       <p id="status" role="status">Carregue primeiro um mundo Bedrock.</p>
+    </section>
+    <section class="structure-shop" aria-labelledby="shopTitle">
+      <div><span class="shop-kicker">GALERIA DE ESTRUTURAS</span><h2 id="shopTitle">Escolha e coloque</h2><p>Modelos gratuitos para começar. Abra um mundo e clique no modelo para ver no 3D.</p></div>
+      <div class="shop-items">
+        <button type="button" data-template="gazebo"><img src="mc/block/stone_bricks.png" alt=""><span><b>Coreto</b><small>7 × 5 × 7 · praça</small></span></button>
+        <button type="button" data-template="bridge"><img src="mc/item/oak_planks.png" alt=""><span><b>Ponte</b><small>5 × 3 × 11 · travessia</small></span></button>
+        <button type="button" data-template="tower"><img src="mc/block/stone_bricks.png" alt=""><span><b>Torre</b><small>7 × 10 × 7 · vigia</small></span></button>
+      </div>
     </section>
     <section id="result" hidden>
       <div class="summary-grid" id="summaryOverview">
@@ -84,6 +92,11 @@
       <section class="world-map-card">
         <div><h2>Mapa das áreas visitadas</h2><p>Clique em uma chunk para definir o local do preview 3D. O quadrado claro é a chunk selecionada.</p></div>
         <canvas id="worldMap" width="820" height="220" aria-label="Mapa clicável das chunks visitadas"></canvas>
+        <div class="map-tool-tray" role="toolbar" aria-label="Ferramentas do mapa">
+          <button type="button" data-map-tool="toolPlace" title="Escolher onde colocar a estrutura"><img src="mc/item/oak_door.png" alt=""> Colocar</button>
+          <button type="button" data-map-tool="toolMob" title="Adicionar mob visual ao mapa"><img src="mc/item/cow_spawn_egg.png" alt=""> Mob visual</button>
+          <span>Escolha a ferramenta e clique numa área visitada.</span>
+        </div>
         <div id="mapTip" class="map-tip" hidden></div>
         <p class="canvas-help"><span id="mapHover">Passe o mouse para ver coordenadas · </span><b style="color:#5EBB2B">■</b> visitada <b style="color:#fff">□</b> selecionada <b style="color:#51ff9e">■</b> spawn <b style="color:#4aa8ff">■</b> player <b style="color:#65d7ff">▭</b> estrutura <button id="mapZoomIn" type="button">+ zoom</button> <button id="mapZoomOut" type="button">− zoom</button></p>
       </section>
@@ -195,6 +208,7 @@
   <script src="builder-transform.js"></script>
   <script src="builder-placement.js?v=4"></script>
   <script src="builder-core.js?v=2"></script>
+  <script src="java-structure.js?v=1"></script>
   <script src="bedrock-block-renderer-registry.js?v=3"></script>
   <script src="chunk-preview-manager.js?v=8"></script>
   <script src="vendor/three.min.js"></script>
@@ -203,7 +217,7 @@
   <script>if (!window.THREE || !window.THREE.OrbitControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/OrbitControls.js"><\/script>');</script>
   <script src="vendor/TransformControls.js"></script>
   <script>if (!window.THREE || !window.THREE.TransformControls) document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/controls/TransformControls.js"><\/script>');</script>
-  <script src="builder-lab.js?v=20"></script>
+  <script src="builder-lab.js?v=21"></script>
   <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
   <script src="guia-site.js?v=5"></script>
 </body>

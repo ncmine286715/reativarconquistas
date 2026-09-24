@@ -60,8 +60,9 @@
     if (m) return m;
     /* Material sem iluminação: preserva as cores pixeladas da textura e evita
        o branco estourado visto com MeshLambert em assets de 16x16. */
-    m = state.materials[key] = new THREE.MeshBasicMaterial({ color: tint, transparent: transparent, opacity: opacity, depthWrite: !transparent, alphaTest: def.alphaTest || 0, side: THREE.FrontSide, polygonOffset: !!ghost, polygonOffsetFactor: ghost ? -1 : 0, polygonOffsetUnits: ghost ? -1 : 0 });
-    m.userData.textureTint = tint;
+    var faceColor = new THREE.Color(tint).multiplyScalar(face === 'bottom' ? .74 : face === 'side' ? .9 : 1);
+    m = state.materials[key] = new THREE.MeshBasicMaterial({ color: faceColor, transparent: transparent, opacity: opacity, depthWrite: !transparent, alphaTest: def.alphaTest || 0, side: THREE.FrontSide, polygonOffset: !!ghost, polygonOffsetFactor: ghost ? -1 : 0, polygonOffsetUnits: ghost ? -1 : 0 });
+    m.userData.textureTint = faceColor;
     if (state.textures[texture] === undefined) {
       state.textures[texture] = "loading";
       new THREE.TextureLoader().load("mc/block/" + texture + ".png", function (t) {
@@ -72,12 +73,19 @@
         Object.keys(state.materials).forEach(function (k) { if (k.split(":")[0] === texture) { state.materials[k].map = t; state.materials[k].color.set(state.materials[k].userData.textureTint); state.materials[k].needsUpdate = true; } });
         invalidate();
       }, undefined, function () {
-        /* Placeholder magenta = bloco sem textura mapeada. Nunca invisível:
-           assim descobrimos quais blocos ainda precisam de suporte no registry. */
-        state.textures[texture] = null; state.missingTextures[texture] = (state.missingTextures[texture] || 0) + 1; Object.keys(state.materials).forEach(function (k) { if (k.indexOf(texture + ":") === 0) { state.materials[k].map = null; state.materials[k].color.set(0xff00ff); state.materials[k].needsUpdate = true; } }); });
+        /* Alguns blocos têm ícone de item, mas não textura de bloco isolada. */
+        new THREE.TextureLoader().load('mc/item/' + texture + '.png', function (t) {
+          t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter;
+          state.textures[texture] = t;
+          Object.keys(state.materials).forEach(function (k) { if (k.split(':')[0] === texture) { state.materials[k].map = t; state.materials[k].needsUpdate = true; } }); invalidate();
+        }, undefined, function () {
+          state.textures[texture] = null; state.missingTextures[texture] = (state.missingTextures[texture] || 0) + 1;
+          var fallback = new THREE.Color(color(texture)).lerp(new THREE.Color(0x888888), .45);
+          Object.keys(state.materials).forEach(function (k) { if (k.split(':')[0] === texture) { state.materials[k].map = null; state.materials[k].color.copy(fallback); state.materials[k].needsUpdate = true; } }); invalidate();
+        }); });
     }
     if (state.textures[texture] && state.textures[texture] !== "loading") { m.map = state.textures[texture]; }
-    if (state.textures[texture] === null) m.color.set(0xff00ff);
+    if (state.textures[texture] === null) m.color.set(color(texture)).lerp(new THREE.Color(0x888888), .45);
     return m;
   }
   function materialsFor(block, ghost) {
@@ -401,6 +409,7 @@
     if (state.chunkPreview) state.chunkPreview.dispose();
     clear(state.terrain); state.terrain = null; state.world = null; state.chunkPreview = null; state.terrainKey = null;
     state.terrainPromise = null; state.history = new window.RC_Placement.History(); updateHistory();
+    document.querySelector('.upload-card').classList.remove('world-ready');
     $('structureFile').disabled = true;
     $("status").textContent = "Abrindo mundo Bedrock…"; state.worldFile = file;
     window.RC_dbx.openWorld(file).then(function (world) {
@@ -425,6 +434,7 @@
         try { applyPosition(start); focus(); }
         catch (previewError) { hint('Mundo aberto, mas o preview falhou: ' + (previewError.message || previewError)); drawWorldMap(); }
         $("structureFile").disabled = false;
+        document.querySelector('.upload-card').classList.add('world-ready');
         $("status").textContent = state.playerPos ? "Mundo carregado. Começando onde o player estava; agora envie a estrutura." : spawn ? "Mundo carregado. O preview começa no spawn do mundo; agora envie a estrutura." : "Mundo carregado. Escolhi uma área visitada automaticamente; agora envie a estrutura.";
         if (tourIndex >= 0 && tourIndex <= 1 && !tourWasSkipped) tourShow(2);
       });
@@ -583,7 +593,23 @@
       ctx.strokeRect(mapX(fp.x), mapZ(fp.z), (mapX(fp.x + fs[0]) - mapX(fp.x)) || 2, (mapZ(fp.z + fs[2]) - mapZ(fp.z)) || 2);
       ctx.setLineDash([]);
     }
+    state.mobs.forEach(function (mob) {
+      var mx = pad + (mob.x / 16 - minX) * scale, mz = pad + (mob.z / 16 - minZ) * scale;
+      if (mx < 0 || mz < 0 || mx > width || mz > height) return;
+      var icon = mobIcon(mob.type);
+      ctx.fillStyle = '#102719'; ctx.fillRect(mx - 9, mz - 9, 19, 19);
+      if (icon.complete && icon.naturalWidth) ctx.drawImage(icon, mx - 8, mz - 8, 17, 17);
+    });
     ctx.fillStyle = "#dbeaff"; ctx.font = "12px system-ui"; ctx.fillText("Chunks visitadas: " + all.length + " · selecione com clique", 12, height - 8);
+  }
+  var mobIcons = {};
+  function mobIcon(type) {
+    if (!mobIcons[type]) {
+      var icon = mobIcons[type] = new Image();
+      icon.onload = drawWorldMap;
+      icon.src = 'mc/item/' + type + '_spawn_egg.png';
+    }
+    return mobIcons[type];
   }
   function pickWorldMap(event) {
     if (!state.mapView || !state.mapRegions.length) return;
@@ -591,6 +617,21 @@
     var cx = Math.floor((x - v.pad) / v.scale + v.minX), cz = Math.floor((z - v.pad) / v.scale + v.minZ), chosen = null, i;
     for (i = 0; i < state.mapRegions.length; i++) if (state.mapRegions[i].cx === cx && state.mapRegions[i].cz === cz) { chosen = state.mapRegions[i]; break; }
     if (!chosen) return;
+    if (state.tool === 'mob') {
+      if (state.mobs.length >= 30) { hint('Limite de 30 mobs visuais.'); return; }
+      var mx = chosen.cx * 16 + 8, mz = chosen.cz * 16 + 8, my = state.chunkPreview && state.chunkPreview.surfaceY(mx, mz);
+      function addAtSurface() {
+        var surface = state.chunkPreview && state.chunkPreview.surfaceY(mx, mz);
+        if (surface === null || surface === undefined) { hint('Não achei terreno nesta área visitada.'); return; }
+        state.mobs.push({ x: mx, y: surface, z: mz, type: $('mobType').value || 'cow' });
+        rebuildMobs(); drawWorldMap(); hint('Mob adicionado ao mapa e ao 3D, só para visualização.');
+      }
+      if (my === null || my === undefined) {
+        applyPosition({ x: mx, y: offset().y, z: mz, rotation: placement().rotation });
+        rebuildTerrain().then(addAtSurface); return;
+      }
+      addAtSurface(); return;
+    }
     applyPosition({x:chosen.cx*16+8,y:offset().y,z:chosen.cz*16+8,rotation:placement().rotation});
     snapGround().then(focus);
   }
@@ -601,23 +642,47 @@
     snapGround().then(focus);
   }
   function autoLocateWorld() { useRegion(0); }
-  function loadStructure(file) {
-    var generation = ++state.structureGeneration;
-    $("status").textContent = "Lendo a estrutura…"; state.structureFile = file;
-    file.arrayBuffer().then(function (buffer) {
+  function showStructure(structure, file, generation) {
       if (generation !== state.structureGeneration) return;
-      state.structure = window.RC_builderCore.parseStructure(new Uint8Array(buffer), { allowComplex: true });
+      state.structure = structure;
+      state.structureFile = file;
       state.erased = {}; state.meshErased = -1; state.meshStructure = null;
       updateMaterialList(state.structure);
       $("dimensions").textContent = state.structure.size.join(" × "); $("blocks").textContent = state.structure.blocks.length.toLocaleString("pt-BR");
       $("blockEntities").textContent = Object.keys(state.structure.blockEntityData || {}).length.toLocaleString("pt-BR"); $("entities").textContent = (state.structure.sourceEntities || []).length.toLocaleString("pt-BR");
       state.history = new window.RC_Placement.History(); state.history.push(placement()); updateHistory();
-      $("result").hidden = false; $("status").textContent = "Estrutura carregada. Use Colocar no terreno ou ajuste as coordenadas."; renderAll(true); drawWorldMap(); focus();
-      /* Se a altura atual é impossível (ex.: spawn inválido herdado do level.dat),
-         cola a estrutura no chão sozinha em vez de deixá-la perdida no céu. */
+      $("result").hidden = false; $("status").textContent = "Estrutura carregada. Escolha Colar e clique no terreno."; renderAll(true); drawWorldMap(); focus();
       if (Number($("y").value) < -64 || Number($("y").value) > 319) snapGround().then(focus);
       if (tourIndex === 2 && !tourWasSkipped) tourShow(3);
+  }
+  function loadStructure(file) {
+    var generation = ++state.structureGeneration;
+    $("status").textContent = "Lendo a estrutura…";
+    var isJava = /\.litematic$/i.test(file.name);
+    (isJava ? window.RC_javaStructure.parse(file) : file.arrayBuffer().then(function (buffer) {
+      return window.RC_builderCore.parseStructure(new Uint8Array(buffer), { allowComplex: true });
+    })).then(function (structure) {
+      if (generation !== state.structureGeneration) return;
+      showStructure(structure, file, generation);
     }).catch(function (e) { if (generation !== state.structureGeneration) return; state.structure = null; materialRows = []; updateMaterialList(null); clear(state.placed); state.placed = null; if (state.outline) state.outline.visible = false; $("status").textContent = "Não consegui validar: " + (e.message || "arquivo inválido"); });
+  }
+  function shopStructure(kind) {
+    var templates = { gazebo: { name: 'Coreto', size: [7, 5, 7] }, bridge: { name: 'Ponte', size: [5, 3, 11] }, tower: { name: 'Torre', size: [7, 10, 7] } };
+    var item = templates[kind]; if (!item) return;
+    if (!state.world) { $('status').textContent = 'Abra seu mundo primeiro para usar esta estrutura.'; $('worldFile').focus(); return; }
+    var cache = {}, blocks = [], size = item.size;
+    function put(x, y, z, name) {
+      var key = 'minecraft:' + name;
+      if (!cache[key]) cache[key] = window.RC_javaStructure.paletteEntry(key);
+      blocks.push({ x: x, y: y, z: z, block: cache[key] });
+    }
+    for (var x = 0; x < size[0]; x++) for (var z = 0; z < size[2]; z++) {
+      if (kind === 'bridge') { if (x > 0 && x < 4) put(x, 0, z, 'oak_planks'); if ((x === 0 || x === 4) && z % 3 === 0) put(x, 1, z, 'oak_planks'); }
+      else if (kind === 'gazebo') { if (x > 0 && x < 6 && z > 0 && z < 6) put(x, 0, z, 'stonebrick'); if (x > 0 && x < 6 && z > 0 && z < 6) put(x, 4, z, 'oak_planks'); if ((x === 1 || x === 5) && (z === 1 || z === 5)) for (var y = 1; y < 4; y++) put(x, y, z, 'oak_planks'); }
+      else { if (x > 0 && x < 6 && z > 0 && z < 6) { put(x, 0, z, 'stonebrick'); put(x, 8, z, 'stonebrick'); } if ((x === 1 || x === 5 || z === 1 || z === 5) && x > 0 && x < 6 && z > 0 && z < 6 && !(z === 1 && x === 3)) for (var ty = 1; ty < 8; ty++) put(x, ty, z, 'stonebrick'); }
+    }
+    showStructure({ size: size, volume: size[0] * size[1] * size[2], blocks: blocks, palette: Object.keys(cache).map(function (key) { return cache[key]; }), blockEntityData: {}, sourceEntities: [], issues: [] }, { name: item.name + '.mcstructure' }, ++state.structureGeneration);
+    $('toolPlace').click();
   }
   /* Mobs estilo replay: só visual no preview, não vão para o mundo. */
   var MOB_TYPES = { cow: 0x8a6f4d, pig: 0xf2a7c3, sheep: 0xe8e8e8, chicken: 0xffffff, villager: 0x7a5b3f, horse: 0x8a5a2b, wolf: 0xb0b0b0, zombie: 0x3f7a4d, skeleton: 0xd8d8d8, creeper: 0x4dff4d, spider: 0x3a3a3a, enderman: 0x141414 };
@@ -993,6 +1058,7 @@
         var type = ($('mobType') && $('mobType').value) || 'cow';
         state.mobs.push({ x: Math.floor(mobHits[0].point.x), y: Math.floor(mobHits[0].point.y) + 1, z: Math.floor(mobHits[0].point.z), type: MOB_TYPES[type] === undefined ? 'cow' : type });
         rebuildMobs();
+        drawWorldMap();
         hint(mobLabel(type) + ' colocado (só visual no preview, não vai para o mundo).');
         return;
       }
@@ -1147,6 +1213,7 @@
     if (clearMobsBtn) clearMobsBtn.addEventListener('click', function () {
       state.mobs = [];
       rebuildMobs();
+      drawWorldMap();
       hint('Mobs removidos do preview.');
     });
     var clearTreesEl = $('clearTrees');
@@ -1176,6 +1243,8 @@
   }
   $("worldFile").addEventListener("change", function () { if (this.files && this.files[0]) loadWorld(this.files[0]); });
   $("structureFile").addEventListener("change", function () { if (this.files && this.files[0]) loadStructure(this.files[0]); });
+  document.querySelectorAll('[data-template]').forEach(function (button) { button.addEventListener('click', function () { shopStructure(button.getAttribute('data-template')); }); });
+  document.querySelectorAll('[data-map-tool]').forEach(function (button) { button.addEventListener('click', function () { var target = $(button.getAttribute('data-map-tool')); if (target) target.click(); }); });
   ["x", "y", "z", "rotation"].forEach(function (id) { $(id).addEventListener("change", function () { try { applyPosition({ x: Number($("x").value) || 0, y: Number($("y").value) || 0, z: Number($("z").value) || 0, rotation: Number($("rotation").value) || 0 }); } catch (e) { hint(e.message); drawWorldMap(); renderAll(true); } }); });
   $("worldMap").addEventListener("click", pickWorldMap);
   $("worldMap").addEventListener("mouseleave", function () { var tip = $("mapTip"); if (tip) tip.hidden = true; });

@@ -329,45 +329,6 @@
     downloadLocalBlob(new Blob([JSON.stringify(lastComparison, null, 2)], { type: "application/json;charset=utf-8" }), base + "-comparacao.json");
   });
 
-  var backupSaveButton = $("saveBackup"), backupLabelInput = $("backupLabel"), backupStatus = $("backupStatus"), backupList = $("backupList");
-  function formatBackupSize(bytes) { return bytes < 1048576 ? Math.max(1, Math.round(bytes / 1024)) + " KB" : (bytes / 1048576).toFixed(1) + " MB"; }
-  function paintLocalBackups() {
-    if (!backupList || !window.RC_backups) return;
-    backupList.textContent = "";
-    window.RC_backups.list().then(function (records) {
-      if (!records.length) { backupList.textContent = "Nenhum backup salvo neste navegador ainda."; return; }
-      records.forEach(function (record) {
-        var row = document.createElement("div"); row.className = "backup-row";
-        var meta = document.createElement("div"); meta.className = "backup-meta";
-        var label = document.createElement("b"); label.textContent = record.label || "Cópia de segurança";
-        var sub = document.createElement("small"); sub.textContent = record.name + " · " + formatBackupSize(record.size) + " · " + new Date(record.createdAt).toLocaleString("pt-BR");
-        meta.appendChild(label); meta.appendChild(sub);
-        var actions = document.createElement("div"); actions.className = "backup-actions";
-        var download = document.createElement("button"); download.type = "button"; download.className = "btn-ghost btn-mini"; download.textContent = "Baixar";
-        download.addEventListener("click", function () { window.RC_backups.download(record.id).catch(function (e) { if (backupStatus) backupStatus.textContent = e.message || "Não consegui baixar esse backup local."; }); });
-        var remove = document.createElement("button"); remove.type = "button"; remove.className = "btn-ghost btn-mini"; remove.textContent = "Excluir";
-        remove.addEventListener("click", function () {
-          if (!window.confirm("Excluir o backup local “" + (record.label || record.name) + "”?")) return;
-          window.RC_backups.remove(record.id).then(paintLocalBackups).catch(function (e) { if (backupStatus) backupStatus.textContent = e.message || "Não consegui excluir o backup."; });
-        });
-        actions.appendChild(download); actions.appendChild(remove); row.appendChild(meta); row.appendChild(actions); backupList.appendChild(row);
-      });
-    }).catch(function (e) { backupList.textContent = "Biblioteca local indisponível: " + String(e && e.message || e); });
-  }
-  if (backupSaveButton) backupSaveButton.addEventListener("click", function () {
-    if (!selected || !window.RC_backups) return;
-    backupSaveButton.disabled = true;
-    if (backupStatus) backupStatus.textContent = "Guardando uma cópia no armazenamento deste navegador…";
-    window.RC_backups.save(selected, backupLabelInput && backupLabelInput.value).then(function (record) {
-      if (backupStatus) backupStatus.textContent = "Backup guardado localmente: " + record.label + ".";
-      if (backupLabelInput) backupLabelInput.value = "";
-      paintLocalBackups();
-    }).catch(function (e) {
-      if (backupStatus) backupStatus.textContent = e.message || "O navegador não conseguiu guardar o backup.";
-    }).then(function () { backupSaveButton.disabled = !selected; });
-  });
-  paintLocalBackups();
-
   var RULE_PRESETS = {
     calm: { label: "Sobrevivência tranquila", values: { difficulty: "1", keepinv: "1", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "1", mobgriefing: "0", naturalregeneration: "1" } },
     hard: { label: "Difícil", values: { difficulty: "3", keepinv: "0", showcoords: "1", daycycle: "1", weather: "1", immediaterespawn: "0", mobgriefing: "1", naturalregeneration: "1" } },
@@ -970,7 +931,6 @@
     if (!files.length) {
       var got = Array.prototype.slice.call(list || []).map(function (f) { return f.name || "?"; }).slice(0, 3).join(", ");
       selected = null; selectedList = [];
-      if (backupSaveButton) backupSaveButton.disabled = true;
       if (compareRunButton) compareRunButton.disabled = true;
       clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
@@ -980,7 +940,6 @@
     var empty = files.filter(function (f) { return !f.size; });
     if (empty.length) {
       selected = null; selectedList = [];
-      if (backupSaveButton) backupSaveButton.disabled = true;
       if (compareRunButton) compareRunButton.disabled = true;
       clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
@@ -993,9 +952,7 @@
     worldDiagnosisReady = false;
     activeWorldDiagnosis = null;
     toolIntentRouted = false;
-    if (backupSaveButton) backupSaveButton.disabled = false;
     if (compareRunButton) compareRunButton.disabled = !comparisonFile;
-    if (backupStatus) backupStatus.textContent = "Cópia selecionada: pronta para guardar somente neste navegador.";
     var big = [];
     try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("file_selected", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
     if (files.length > 1) {

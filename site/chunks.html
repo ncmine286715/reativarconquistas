@@ -7,7 +7,7 @@
 <meta name="description" content="Selecione no mapa as áreas com lag ou corrompidas do seu mundo Minecraft Bedrock e recrie apenas essas chunks pela seed. Tudo roda no navegador.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=26">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -80,7 +80,7 @@
 
   <section class="card chunk-card chunk-danger" aria-labelledby="resetTitle">
     <div class="chunk-step"><span>4</span><div><h2 id="resetTitle">Gerar mundo com chunks restauradas</h2><p class="sub">O download será um novo <b>.mcworld</b>. Importe-o, entre no mundo e visite a área selecionada para ela regenerar.</p></div></div>
-    <label class="accept"><input type="checkbox" id="resetAck"><span>Fiz backup e entendo que construções e itens dentro da área selecionada serão removidos para o terreno nascer de novo pela seed.</span></label>
+    <label class="accept"><input type="checkbox" id="resetAck"><span>Entendo que construções e itens dentro da área selecionada serão removidos no arquivo exportado para o terreno nascer de novo pela seed.</span></label>
     <button type="button" class="primary chunk-reset" id="resetBtn" disabled>Restaurar chunks e baixar novo mundo</button>
     <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden></div>
   </section>
@@ -108,7 +108,7 @@
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=8"></script>
-<script src="chunks.js?v=8"></script>
+<script src="chunks.js?v=9"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
 <script src="pagamento.js?v=28"></script>

@@ -389,7 +389,7 @@
       if (selCount() > freeN) return window.RC_dbx.vipNeed("Grátis: até " + freeN + " chunks por dia (" + selCount() + " selecionados). O VIP é ilimitado.").html;
     }
     var ack = $("resetAck");
-    if (ack && !ack.checked) return "Confirme que fez backup e deseja restaurar a área selecionada pela seed.";
+    if (ack && !ack.checked) return "Confirme que entendeu a recriação da área no arquivo exportado.";
     if (selCount() > MAX_CHUNKS) return "Acima do limite (" + MAX_CHUNKS + "). Divida em partes.";
     return null;
   }
@@ -528,7 +528,7 @@
       }
     }
     var ack = $("resetAck");
-    if (ack && !ack.checked) { status("Marque <b>“Fiz backup e quero restaurar pela seed”</b> para continuar."); return; }
+    if (ack && !ack.checked) { status("Confirme que entendeu a recriação da área no arquivo exportado para continuar."); return; }
     if (selCount() > MAX_CHUNKS) { status("Acima do limite de segurança (" + MAX_CHUNKS + "). Divida em partes."); return; }
     // confirmação em 2 toques: o 1º mostra o resumo do estrago, o 2º executa
     var btn = $("resetBtn");

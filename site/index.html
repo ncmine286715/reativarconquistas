@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=25">
+<link rel="stylesheet" href="style.css?v=26">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -97,7 +97,7 @@
     <p class="kicker">Projeto independente · sem vínculo com Mojang/Microsoft</p>
     <img class="hero-logo" src="hero.png" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
     <h1>Conquistas sumiram?<br><span>Volte a desbloquear</span></h1>
-    <p class="tagline">Solte o <b>.mcworld</b> abaixo. Roda <b>no seu celular/PC</b> · original intacto · <b>até 10 MB grátis por mundo</b>.</p>
+    <p class="tagline">Envie seu <b>.mcworld</b>, escolha o ajuste e baixe um mundo novo. Até <b>10 MB grátis</b>, direto no navegador.</p>
     <div class="hero-cta">
       <a class="primary hero-btn" href="#converter">Corrigir meu mundo grátis</a>
       <a class="btn-ghost hero-btn" href="#planos">Ver o VIP</a>
@@ -113,13 +113,6 @@
     <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
     <span id="quotaText">Verificando seu plano…</span>
   </div>
-
-  <section class="demo" aria-label="Como funciona em 4 passos">
-    <div class="demo-step"><span><b>1.</b> Exporte o <b>.mcworld</b></span></div>
-    <div class="demo-step"><span><b>2.</b> Solte aqui embaixo</span></div>
-    <div class="demo-step"><span><b>3.</b> Baixe corrigido</span></div>
-    <div class="demo-step"><span><b>4.</b> Jogue no Survival</span></div>
-  </section>
 
   <main class="card" id="converter">
     <h2>Editar seu mundo</h2>
@@ -319,7 +312,7 @@
         <input type="checkbox" id="recoverHardcore">
         <span style="flex:1">
           <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">VIP</span></b>
-          <em>Desativa IsHardcore e, se existir, limpa o estado de morte. Faça backup antes; o jogo deve validar o resultado.</em>
+          <em>Desativa IsHardcore e, se existir, limpa o estado de morte. O jogo valida o mundo exportado.</em>
         </span>
       </label>
 
@@ -455,7 +448,7 @@
             </div>
             <label class="accept" style="margin-top:10px">
               <input type="checkbox" id="playerAck">
-              <span>Backup feito.</span>
+              <span>Entendo que o inventário será alterado no arquivo exportado.</span>
             </label>
           </div>
           <div id="playerStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
@@ -489,25 +482,6 @@
 
 
 
-      <h3 class="editor-group-heading">Backups e comparação</h3>
-      <details class="acc" id="accExplore" open>
-        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Proteger · backups locais</summary>
-        <div class="acc-body">
-      <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
-        <div class="wi-title" id="backupTitle">Backups locais</div>
-        <p>Guarde uma cópia neste navegador antes de editar. O arquivo não é enviado; limpar os dados do navegador pode apagar estes backups.</p>
-        <div class="backup-save-row">
-          <input id="backupLabel" type="text" maxlength="80" placeholder="Nome desta cópia (opcional)" aria-label="Nome do backup">
-          <button type="button" class="btn-ghost btn-mini" id="saveBackup" disabled>Guardar original neste aparelho</button>
-        </div>
-        <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Escolha um mundo para guardar uma cópia local.</p>
-        <div id="backupList" class="backup-list"></div>
-      </section>
-
-
-        </div>
-      </details>
-
       <details class="acc" id="accChunks" open>
         <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
         <div class="acc-body">
@@ -524,7 +498,7 @@
           <div id="analysisBox" class="worldinfo" hidden style="margin-top:10px"></div>
           <label class="accept" style="margin-top:10px">
             <input type="checkbox" id="resetAck">
-            <span>Fiz backup e entendo que a área será restaurada pela seed.</span>
+            <span>Entendo que os blocos desta área serão recriados pela seed no arquivo exportado.</span>
           </label>
           <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
         </div>
@@ -554,7 +528,7 @@
   <!-- PLANOS -->
   <section class="section" id="planos">
     <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Créditos para trabalhar em mundos separados no seu ritmo. Passe para mexer em vários mundos ou abrir arquivos maiores.</p>
+    <p class="plans-sub">Escolha pelo tamanho do mundo e pela frequência de uso. Pagamento único, sem renovação automática.</p>
     <div class="plan-groups">
       <div class="plan-group plan-free-group">
         <h3>Comece grátis</h3>
@@ -573,21 +547,21 @@
           <div class="plan plan-world1 plan-credit">
             <h3><img class="mc-ic" src="mc/item/iron_ingot.png" alt="" aria-hidden="true">Ferro</h3>
             <div class="price">R$ 5,99<small> · 1 crédito</small></div>
-            <ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
+            <p class="plan-fit">Para resolver um mundo agora</p><ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
             <a class="btn-plan btn-pay" data-pay="world1" href="#">Comprar 1 crédito · R$ 5,99</a>
           </div>
           <div class="plan plan-credit">
             <span class="vip-flag">Pacote com 3</span>
             <h3><img class="mc-ic" src="mc/item/gold_ingot.png" alt="" aria-hidden="true">Ouro</h3>
             <div class="price">R$ 14,99<small> · 3 créditos</small></div>
-            <ul><li class="yes">3 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 5,00 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
+            <p class="plan-fit">Para cuidar de alguns mundos</p><ul><li class="yes">3 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 5,00 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
             <a class="btn-plan btn-pay" data-pay="ouro" href="#">Comprar 3 créditos · R$ 14,99</a>
           </div>
           <div class="plan plan-credit plan-diamond">
             <span class="vip-flag">Pacote com 5</span>
             <h3><img class="mc-ic" src="mc/item/diamond.png" alt="" aria-hidden="true">Diamante</h3>
             <div class="price">R$ 22,90<small> · 5 créditos</small></div>
-            <ul><li class="yes">5 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 4,58 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
+            <p class="plan-fit">Menor preço por mundo</p><ul><li class="yes">5 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 4,58 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
             <a class="btn-plan btn-pay" data-pay="diamante" href="#">Comprar 5 créditos · R$ 22,90</a>
           </div>
         </div>
@@ -596,23 +570,23 @@
         <div class="plan-group-heading"><h3>Passes de tempo</h3><p>Melhor para trabalhar em vários mundos durante a mesma semana ou mês.</p></div>
         <div class="plans plans-3">
           <div class="plan plan-weekly">
-            <span class="vip-flag">Vários mundos na semana</span>
+            <span class="vip-flag">Mais liberdade por R$ 2 a mais que Ferro</span>
             <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true">Passe 7 dias</h3>
             <div class="price">R$ 7,99<small> · até 500 MB</small></div>
-            <ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
+            <p class="plan-fit">Para usar bastante nesta semana</p><ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
             <a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe · R$ 7,99</a>
           </div>
           <div class="plan plan-vip">
             <span class="vip-flag">Mais tempo</span>
             <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
             <div class="price" id="price-monthly">R$ 24,90<small> · compra única</small></div>
-            <ul><li class="yes">Até <b>10 mundos por lote</b></li><li class="yes">Sem limite comercial de tamanho*</li><li class="yes">Recursos avançados por 30 dias</li></ul>
+            <p class="plan-fit">Para trabalhar o mês inteiro</p><ul><li class="yes">Até <b>10 mundos por lote</b></li><li class="yes">Sem limite comercial de tamanho*</li><li class="yes">Recursos avançados por 30 dias</li></ul>
             <a class="btn-plan btn-pay" data-pay="vip30" href="#">Comprar passe · R$ 24,90</a>
           </div>
           <div class="plan plan-creator">
             <h3><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">Criador</h3>
             <div class="price">R$ 39,90<small> · 30 dias</small></div>
-            <ul><li class="yes">Até <b>20 mundos por lote</b></li><li class="yes">Arquivos grandes, sujeitos ao navegador</li><li class="yes">Recursos avançados por 30 dias</li></ul>
+            <p class="plan-fit">Para lotes maiores</p><ul><li class="yes">Até <b>20 mundos por lote</b></li><li class="yes">Arquivos grandes, sujeitos ao navegador</li><li class="yes">Recursos avançados por 30 dias</li></ul>
             <a class="btn-plan btn-pay" data-pay="creator" href="#">Comprar Criador · R$ 39,90</a>
           </div>
         </div>
@@ -675,11 +649,10 @@
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=8"></script>
-<script src="chunks.js?v=8"></script>
-<script src="player.js?v=8"></script>
-<script src="backups-local.js?v=2"></script>
+<script src="chunks.js?v=9"></script>
+<script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
 <script src="pagamento.js?v=31"></script>
