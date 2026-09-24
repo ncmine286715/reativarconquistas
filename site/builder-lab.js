@@ -3,6 +3,7 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var state = { world: null, worldFile: null, structure: null, structureFile: null, records: {}, decoded: {}, regions: [], mapRegions: [], mapView: null, scene: null, camera: null, renderer: null, controls: null, terrain: null, placed: null, textures: {}, materials: {}, geometries: {}, drag: null, decodeStats: null, terrainInfo: null, chunkPreview: null, missingTextures: {}, erased: {}, dig: {}, paint: {}, playerPos: null, playerPin: null, gizmo: null, gizmoMode: 'translate', mobs: [], mobGroup: null, mapZoom: 1 };
+  var materialRows = [];
   var AIR = /^minecraft:(air|cave_air|void_air)$/;
   state.tool = 'orbit'; state.dirty = true; state.history = new window.RC_Placement.History();
   state.worldGeneration = 0; state.structureGeneration = 0; state.terrainKey = null;
@@ -348,6 +349,30 @@
   function entityTypes() {
     var out = {}; Object.keys(state.structure.blockEntityData || {}).forEach(function (k) { var id = state.structure.blockEntityData[k].id; out[id] = (out[id] || 0) + 1; }); return out;
   }
+  function updateMaterialList(structure) {
+    var panel = $('materialsPanel'), body = $('materialsRows'), summary = $('materialsSummary');
+    if (!panel || !body || !summary) return;
+    var counts = Object.create(null);
+    (structure && structure.blocks || []).forEach(function (block) {
+      if (!block || isAir(block.name)) return;
+      var name = String(block.name || 'unknown:block'); counts[name] = (counts[name] || 0) + 1;
+    });
+    materialRows = Object.keys(counts).map(function (name) {
+      var count = counts[name], stacks = Math.ceil(count / 64);
+      return { block: name, count: count, stacks64: stacks, shulkers: Math.ceil(stacks / 27) };
+    }).sort(function (a, b) { return b.count - a.count || a.block.localeCompare(b.block); });
+    var total = materialRows.reduce(function (sum, row) { return sum + row.count; }, 0);
+    summary.textContent = total.toLocaleString('pt-BR') + ' blocos sólidos · ' + materialRows.length.toLocaleString('pt-BR') + ' tipos. Pilhas e shulkers são estimativas com limite de 64 itens por pilha.';
+    body.textContent = '';
+    materialRows.slice(0, 30).forEach(function (row) {
+      var tr = document.createElement('tr');
+      [row.block, row.count.toLocaleString('pt-BR'), row.stacks64.toLocaleString('pt-BR'), row.shulkers.toLocaleString('pt-BR')].forEach(function (value) {
+        var td = document.createElement('td'); td.textContent = value; tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    panel.hidden = !materialRows.length;
+  }
   function paintValidation(collisions, blocks) {
     var issues = state.structure.issues || [], html = '<p class="issue-ok"><b>' + blocks.toLocaleString("pt-BR") + '</b> blocos sólidos no preview.</p>';
     var terrain = state.terrain && state.terrain.userData;
@@ -371,7 +396,7 @@
     var types = entityTypes(), ids = Object.keys(types).sort(); $("entityTypes").innerHTML = ids.length ? ids.map(function (id) { return '<li>' + esc(id) + ': <b>' + types[id] + '</b></li>'; }).join("") : '<li>Nenhuma block entity</li>';
   }
   function renderAll(terrain) { init3d(); if (terrain) rebuildTerrain(); rebuildStructure(); }
-  function loadWorld(file) {
+  function loadWorldUnchecked(file) {
     var generation = ++state.worldGeneration;
     if (state.chunkPreview) state.chunkPreview.dispose();
     clear(state.terrain); state.terrain = null; state.world = null; state.chunkPreview = null; state.terrainKey = null;
@@ -404,6 +429,47 @@
         if (tourIndex >= 0 && tourIndex <= 1 && !tourWasSkipped) tourShow(2);
       });
     }).catch(function (e) { if (generation !== state.worldGeneration) return; state.world = null; $("status").textContent = "Não consegui abrir o mundo: " + (e.message || "arquivo inválido"); });
+  }
+  function clearWorldForEntitlementCheck() {
+    if (state.chunkPreview) state.chunkPreview.dispose();
+    clear(state.terrain); state.terrain = null; state.world = null; state.chunkPreview = null; state.terrainKey = null;
+    state.terrainPromise = null; state.worldFile = null; state.history = new window.RC_Placement.History(); updateHistory();
+    $("result").hidden = true;
+    $("structureFile").disabled = true;
+  }
+  function loadWorld(file) {
+    if (!file || !window.RC_entitlements) { $("status").textContent = "Nao foi possivel verificar seu plano agora. Tente novamente."; return; }
+    var requestGeneration = ++state.worldGeneration;
+    clearWorldForEntitlementCheck();
+    var decision = $("planDecision");
+    if (decision) decision.textContent = "Verificando seu plano e o limite deste arquivo...";
+    $("status").textContent = "Verificando seu plano...";
+    window.RC_entitlements.load().then(function (entitlement) {
+      if (requestGeneration !== state.worldGeneration) return null;
+      if (entitlement.status !== "ready" && entitlement.status !== "unauthenticated") throw new Error("ENTITLEMENT_UNAVAILABLE");
+      var fileAccess = window.RC_entitlements.canUseFile([file]);
+      if (!fileAccess.allowed) {
+        var sizeMb = (file.size / 1048576).toFixed(1);
+        var limitMb = fileAccess.max_file_mb;
+        if (entitlement.pending_payment) {
+          $("status").textContent = window.RC_entitlements.messageForPending(entitlement.pending_payment);
+        } else if (entitlement.active) {
+          $("status").textContent = "Seu mundo tem " + sizeMb + " MB. Seu plano " + (entitlement.plan_label || entitlement.plan) + " permite ate " + limitMb + " MB.";
+        } else {
+          $("status").textContent = "Seu mundo tem " + sizeMb + " MB. O plano gratuito permite ate " + limitMb + " MB. Consulte os planos no conversor.";
+        }
+        if (decision) decision.textContent = "Arquivo nao permitido pelo limite atual do plano.";
+        return null;
+      }
+      var allowedLimit = fileAccess.max_file_mb === null ? "sem limite comercial" : fileAccess.max_file_mb + " MB";
+      if (decision) decision.textContent = "Mundo detectado: " + (file.size / 1048576).toFixed(1) + " MB · Plano: " + (entitlement.plan_label || entitlement.plan) + " · Limite: " + allowedLimit + " · Arquivo permitido.";
+      return loadWorldUnchecked(file);
+    }).catch(function (error) {
+      if (requestGeneration !== state.worldGeneration) return;
+      clearWorldForEntitlementCheck();
+      if (decision) decision.textContent = "";
+      $("status").textContent = window.RC_entitlements.messageForError(error);
+    });
   }
   function readPlayerPos(world) {
     /* Onde o jogador estava quando salvou: registro ~local_player, tag Pos. */
@@ -542,6 +608,7 @@
       if (generation !== state.structureGeneration) return;
       state.structure = window.RC_builderCore.parseStructure(new Uint8Array(buffer), { allowComplex: true });
       state.erased = {}; state.meshErased = -1; state.meshStructure = null;
+      updateMaterialList(state.structure);
       $("dimensions").textContent = state.structure.size.join(" × "); $("blocks").textContent = state.structure.blocks.length.toLocaleString("pt-BR");
       $("blockEntities").textContent = Object.keys(state.structure.blockEntityData || {}).length.toLocaleString("pt-BR"); $("entities").textContent = (state.structure.sourceEntities || []).length.toLocaleString("pt-BR");
       state.history = new window.RC_Placement.History(); state.history.push(placement()); updateHistory();
@@ -550,7 +617,7 @@
          cola a estrutura no chão sozinha em vez de deixá-la perdida no céu. */
       if (Number($("y").value) < -64 || Number($("y").value) > 319) snapGround().then(focus);
       if (tourIndex === 2 && !tourWasSkipped) tourShow(3);
-    }).catch(function (e) { if (generation !== state.structureGeneration) return; state.structure = null; clear(state.placed); state.placed = null; if (state.outline) state.outline.visible = false; $("status").textContent = "Não consegui validar: " + (e.message || "arquivo inválido"); });
+    }).catch(function (e) { if (generation !== state.structureGeneration) return; state.structure = null; materialRows = []; updateMaterialList(null); clear(state.placed); state.placed = null; if (state.outline) state.outline.visible = false; $("status").textContent = "Não consegui validar: " + (e.message || "arquivo inválido"); });
   }
   /* Mobs estilo replay: só visual no preview, não vão para o mundo. */
   var MOB_TYPES = { cow: 0x8a6f4d, pig: 0xf2a7c3, sheep: 0xe8e8e8, chicken: 0xffffff, villager: 0x7a5b3f, horse: 0x8a5a2b, wolf: 0xb0b0b0, zombie: 0x3f7a4d, skeleton: 0xd8d8d8, creeper: 0x4dff4d, spider: 0x3a3a3a, enderman: 0x141414 };
@@ -639,13 +706,15 @@
   }
   /* Guia interativo do Null. A chave nova faz o tour corrigido aparecer para
      quem já visitou a primeira versão, que só começava depois do upload. */
-  var TOUR_KEY = 'rc_builder_guide_v2_done';
+  var TOUR_KEY = 'rc_builder_guide_v3_done';
   var tourIndex = -1, tourWasSkipped = false, tourOriginFocus = null, tourUpdateTimer = 0;
   var TOUR_STEPS = [
     { sel: '.lab-hero', title: 'Oi, eu sou o Null!', text: 'Vou te mostrar o construtor por partes. O mundo original fica no seu aparelho; aqui você posiciona uma casa, confere o terreno e salva uma cópia editada.' },
+    { sel: '.nav', title: 'As ferramentas do site', text: 'No Início você encontra o conversor e os ajustes do mundo. Restaurar chunks serve para reparar uma área. Este Construtor 3D serve para posicionar estruturas no terreno.' },
     { sel: '#worldFile', title: '1 · Abra seu mundo', text: 'Escolha um arquivo .mcworld. O guia continua assim que o mundo terminar de carregar. No PC, clique no campo; no celular, toque nele e escolha o arquivo.' },
     { sel: '#structureFile', title: '2 · Escolha a construção', text: 'Envie um arquivo .mcstructure. Ele só libera depois que o mundo abrir. Quando a leitura terminar, a casa aparece no preview.' },
     { sel: '#summaryOverview', title: 'Resumo da construção', text: 'Aqui aparecem tamanho, quantidade de blocos, block entities e entidades encontradas no arquivo.' },
+    { sel: '#materialsPanel', title: 'Materiais da estrutura', text: 'Veja os blocos sólidos, pilhas estimadas e baixe a lista completa em CSV para planejar os materiais.' },
     { sel: '.world-map-card', title: 'Escolha uma área visitada', text: 'Cada quadrado representa uma chunk salva no mundo. Toque ou clique numa área verde para levar o preview até lá; no PC, passe o mouse para ver coordenadas. Use + zoom e − zoom para aproximar ou afastar o mapa.' },
     { sel: '#preview', title: 'Navegue pelo terreno 3D', text: 'Arraste com o mouse para girar e use a roda para aproximar. No celular, arraste com um dedo para girar e use pinça com dois dedos para zoom. O contorno azul mostra a área da casa.' },
     { sel: '#toolOrbit', title: 'Orbitar', text: 'Este modo deixa você girar e aproximar a câmera sem mover a construção. Esc também volta para Orbitar.' },
@@ -1131,7 +1200,7 @@
   $("useRegion").addEventListener("click", function () { useRegion(); });
   $("reset").addEventListener("click", function () { applyPosition({ x: 0, y: 64, z: 0, rotation: 0 }); focus(); });
   $("report").addEventListener("click", function () {
-    if (!state.structure) return; var payload = { world: state.worldFile && state.worldFile.name, structure: state.structureFile && state.structureFile.name, dimensions: state.structure.size, position: offset(), rotation: Number($("rotation").value), block_entities: entityTypes(), entities: (state.structure.sourceEntities || []).length, issues: state.structure.issues || [], generated_at: new Date().toISOString() }, url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })), a = document.createElement("a"); a.href = url; a.download = "builder-report.json"; a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 500);
+    if (!state.structure) return; var payload = { world: state.worldFile && state.worldFile.name, structure: state.structureFile && state.structureFile.name, dimensions: state.structure.size, position: offset(), rotation: Number($("rotation").value), block_entities: entityTypes(), entities: (state.structure.sourceEntities || []).length, materials: materialRows, issues: state.structure.issues || [], generated_at: new Date().toISOString() }, url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })), a = document.createElement("a"); a.href = url; a.download = "builder-report.json"; a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 500);
   });
   var exportBtn = $("exportWorld");
   function exportMsg(message) {
@@ -1163,19 +1232,57 @@
     }
     if (!build.ops.length) { hint('Nada mudou no mundo com esses blocos e esse modo.'); exportDone('Nada para gravar com esses blocos e esse modo.'); return; }
     exportMsg('Montando o arquivo (' + build.placed.toLocaleString('pt-BR') + ' blocos, pode demorar em mundos grandes)…');
-    var w = state.world, update;
+    var w = state.world, sourceFile = state.worldFile, update;
     try { update = window.RC_ldbw.buildDbUpdate({ manifestBytes: w.manifestBytes, manifestName: w.manifestName, nextFile: w.nextFile, lastSeq: w.lastSeq, logNumber: w.logNumber, ops: build.ops }); }
     catch (updateError) { exportDone('Falha ao exportar: ' + (updateError.message || updateError)); return; }
-    window.RC_dbx.assemble(w, update.newManifestBytes, update.logName, update.logBytes).then(function (blob) {
+    var operationId = '';
+    try { operationId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(); }
+    catch (operationIdError) { operationId = String(Date.now()) + Math.random(); }
+    var operationDecision = null, worldInfo = { project_id: '', fingerprint: '' };
+    var authorization = window.RC_entitlements.load().then(function (entitlement) {
+      if (entitlement.status !== 'ready' && entitlement.status !== 'unauthenticated') throw new Error('ENTITLEMENT_UNAVAILABLE');
+      var fileAccess = window.RC_entitlements.canUseFile([sourceFile]);
+      if (!fileAccess.allowed) {
+        if (entitlement.pending_payment) throw new Error(window.RC_entitlements.messageForPending(entitlement.pending_payment));
+        throw new Error('Este mundo excede o limite de ' + fileAccess.max_file_mb + ' MB do plano ' + (entitlement.plan_label || entitlement.plan) + '.');
+      }
+      return window.RC_entitlements.worldProjectInfo(sourceFile);
+    }).then(function (info) {
+      worldInfo = info || worldInfo;
+      return window.RC_entitlements.checkOperation({
+        worlds: 1, size_bytes: sourceFile.size, features: { tool: 'builder' }, operation_id: operationId,
+        world_project_id: worldInfo.project_id, world_fingerprint: worldInfo.fingerprint
+      });
+    }).then(function (decision) { operationDecision = decision; return decision; });
+    authorization.then(function () { return window.RC_dbx.assemble(w, update.newManifestBytes, update.logName, update.logBytes); }).then(function (blob) {
       exportMsg('Verificando a gravação…');
       return window.RC_builderCore.verify(blob, build).then(function () { return blob; });
-    }).then(function (blob) {
-      var base = (state.worldFile && state.worldFile.name || 'mundo.mcworld').replace(/\.mcworld$/i, '');
-      window.RC_dbx.downloadBlob(blob, base + '-com-estrutura.mcworld');
+    }).then(async function (blob) {
+      var projectId = operationDecision.world_project_id || worldInfo.project_id;
+      var finalized = operationDecision.requires_credit
+        ? await window.RC_entitlements.markWorldForCompletion(blob, projectId)
+        : { blob: await window.RC_entitlements.markWorld(blob, projectId), fingerprint: '' };
+      if (operationDecision.requires_completion) await window.RC_entitlements.complete(operationId, finalized.fingerprint);
+      var base = (sourceFile && sourceFile.name || 'mundo.mcworld').replace(/\.mcworld$/i, '');
+      window.RC_dbx.downloadBlob(finalized.blob, base + '-com-estrutura.mcworld');
+      if (window.RC_pay && window.RC_pay.track) window.RC_pay.track('operation_completed', { tool: 'builder', worlds: 1 });
+      window.RC_entitlements.refresh().catch(function () {});
       exportDone('Exportado! ' + build.placed.toLocaleString('pt-BR') + ' blocos gravados' + (build.createdSubchunks ? ' (+' + build.createdSubchunks + ' subchunk(s) de ar criada(s) no céu)' : '') + (build.cleared ? ' (' + build.cleared.toLocaleString('pt-BR') + ' de vegetação removida)' : '') + (build.dug ? ' (' + build.dug.toLocaleString('pt-BR') + ' buracos da borracha)' : '') + (build.painted ? ' (' + build.painted.toLocaleString('pt-BR') + ' pintados)' : '') + (erasedCount ? ' (' + erasedCount + ' apagado(s) pela borracha)' : '') + ', ' + build.replaced.toLocaleString('pt-BR') + ' substituídos, ' + build.skipped.toLocaleString('pt-BR') + ' ignorados.');
       hint('Mundo exportado com a estrutura. Abra o arquivo baixado no Minecraft.');
-    }).catch(function (exportError) { exportDone('Falha ao exportar: ' + (exportError.message || exportError)); });
+    }).catch(function (exportError) {
+      if (operationId && window.RC_entitlements) window.RC_entitlements.release(operationId).catch(function () {});
+      var message = window.RC_entitlements ? window.RC_entitlements.messageForError(exportError) : (exportError.message || exportError);
+      exportDone('Falha ao exportar: ' + message);
+    });
   });
   wireTour();
   wireControls();
+  $('downloadMaterials').addEventListener('click', function () {
+    if (!materialRows.length) return;
+    var quote = function (value) { return '"' + String(value).replace(/"/g, '""') + '"'; };
+    var csv = '\ufeffBloco,Unidades,Pilhas de 64,Shulkers estimadas\r\n' + materialRows.map(function (row) { return [row.block, row.count, row.stacks64, row.shulkers].map(quote).join(','); }).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }), url = URL.createObjectURL(blob), a = document.createElement('a');
+    var base = (state.structureFile && state.structureFile.name || 'estrutura').replace(/\.mcstructure$/i, '').replace(/[\\/:*?"<>|]+/g, '-');
+    a.href = url; a.download = base + '-materiais.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  });
 })();

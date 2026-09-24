@@ -156,6 +156,72 @@
     return diagnoseMcworld(arrayBuffer);
   }
 
+  // Verificação estrutural somente-leitura. Confirma presença de arquivos e
+  // consistência dos manifests; não tenta validar o conteúdo interno do LevelDB.
+  async function inspectWorld(arrayBuffer, filename, diagnosis) {
+    var report = { format: "reativaconquistas-integrity-v1", checked_at: new Date().toISOString(), file: String(filename || ""), checks: [], packs: { references: [], missing: [], duplicate_uuids: [] }, limitations: ["A presença de arquivos da pasta db/ não confirma que todos os registros LevelDB estejam íntegros."] };
+    function check(id, status, message, details) { report.checks.push({ id: id, status: status, message: message, details: details || null }); }
+    if (/\.dat$/i.test(filename || "")) {
+      diagnosis = diagnosis || await diagnoseAny(arrayBuffer, filename);
+      check("level_dat", diagnosis.ok ? "ok" : "error", diagnosis.ok ? "level.dat foi lido pelo parser NBT." : (diagnosis.error || "level.dat inválido."));
+      check("world_archive", "unknown", "Arquivo .dat avulso: não contém a pasta db/ nem manifests de pacotes.");
+      report.diagnosis = diagnosis;
+      return report;
+    }
+    if (arrayBuffer && arrayBuffer.byteLength > 100 * 1024 * 1024) {
+      check("archive_scan", "unknown", "A verificação estrutural completa foi pulada para evitar duplicar o uso de memória neste arquivo grande.", { size_bytes: arrayBuffer.byteLength, scan_limit_bytes: 100 * 1024 * 1024 });
+      report.diagnosis = diagnosis || null;
+      report.archive = { scan_skipped: true, reason: "size_limit" };
+      return report;
+    }
+    if (typeof JSZip === "undefined") throw new Error("JSZip não carregou. Recarregue a página.");
+    var zip = await JSZip.loadAsync(arrayBuffer), files = [], lower = Object.create(null);
+    zip.forEach(function (path, entry) {
+      if (entry.dir) return;
+      files.push(path);
+      var key = path.toLowerCase(); lower[key] = (lower[key] || 0) + 1;
+    });
+    var levelName = null;
+    files.some(function (path) { if (/(^|\/)level\.dat$/i.test(path)) { levelName = path; return true; } return false; });
+    diagnosis = diagnosis || await diagnoseAny(arrayBuffer, filename);
+    check("level_dat", levelName && diagnosis.ok ? "ok" : "error", levelName && diagnosis.ok ? "level.dat foi encontrado e lido pelo parser NBT." : (diagnosis.error || "level.dat ausente ou ilegível."), { path: levelName });
+    var worldRoot = levelName ? levelName.slice(0, levelName.length - "level.dat".length) : "";
+    var dbFiles = files.filter(function (path) { return path.toLowerCase().indexOf((worldRoot + "db/").toLowerCase()) === 0; });
+    check("leveldb_folder", dbFiles.length ? "ok" : "error", dbFiles.length ? "A pasta db/ tem arquivos." : "A pasta db/ está ausente ou vazia.", { file_count: dbFiles.length, internal_leveldb_verified: false });
+    var dupes = Object.keys(lower).filter(function (path) { return lower[path] > 1; });
+    check("duplicate_paths", dupes.length ? "warning" : "unknown", dupes.length ? "Há caminhos duplicados no índice do arquivo." : "A leitura do ZIP normaliza os caminhos; a ausência de duplicatas não pode ser confirmada por esta verificação.", { paths: dupes.slice(0, 50), detection_limited: !dupes.length });
+    var manifestByUuid = Object.create(null), manifestFiles = files.filter(function (path) { return /(^|\/)manifest\.json$/i.test(path) && /(^|\/)(behavior_packs|resource_packs)\//i.test(path); });
+    for (var mi = 0; mi < manifestFiles.length; mi++) {
+      var mp = manifestFiles[mi];
+      try {
+        var manifest = JSON.parse(await zip.file(mp).async("string")), uuid = String(manifest && manifest.header && manifest.header.uuid || "").toLowerCase();
+        if (!uuid) { check("pack_manifest:" + mp, "warning", "Manifest sem UUID no cabeçalho.", { path: mp }); continue; }
+        (manifestByUuid[uuid] || (manifestByUuid[uuid] = [])).push({ path: mp, version: manifest.header.version || null, name: manifest.header.name || "" });
+      } catch (e) { check("pack_manifest:" + mp, "error", "Manifest de pacote ilegível.", { path: mp, error: String(e && e.message || e) }); }
+    }
+    report.packs.manifest_count = manifestFiles.length;
+    report.packs.duplicate_uuids = Object.keys(manifestByUuid).filter(function (uuid) { return manifestByUuid[uuid].length > 1; });
+    var packKinds = ["world_behavior_packs.json", "world_resource_packs.json"];
+    for (var ki = 0; ki < packKinds.length; ki++) {
+      var rel = packKinds[ki], packFilePath = (worldRoot + rel).toLowerCase(), actual = files.filter(function (path) { return path.toLowerCase() === packFilePath; })[0];
+      if (!actual) continue;
+      try {
+        var refs = JSON.parse(await zip.file(actual).async("string"));
+        if (!Array.isArray(refs)) throw new Error("O conteúdo não é uma lista.");
+        refs.forEach(function (ref) {
+          var id = String(ref && ref.pack_id || "").toLowerCase(), matches = manifestByUuid[id] || [], item = { type: rel.indexOf("behavior") >= 0 ? "behavior" : "resource", pack_id: id, version: ref && ref.version || null, manifest_count: matches.length };
+          if (!matches.length) report.packs.missing.push(item);
+          else if (item.version && !matches.some(function (m) { return JSON.stringify(m.version) === JSON.stringify(item.version); })) { item.version_mismatch = true; report.packs.missing.push(item); }
+          report.packs.references.push(item);
+        });
+      } catch (e2) { check("pack_reference:" + rel, "warning", "Lista de pacotes ativos ilegível.", { path: actual, error: String(e2 && e2.message || e2) }); }
+    }
+    check("pack_references", report.packs.missing.length || report.packs.duplicate_uuids.length ? "warning" : "ok", report.packs.missing.length ? "Há pacotes ativos sem manifest/versão correspondente." : report.packs.duplicate_uuids.length ? "Há UUIDs de pacotes duplicados." : "As referências de pacotes ativos conferem com os manifests encontrados.", { references: report.packs.references, missing: report.packs.missing, duplicate_uuids: report.packs.duplicate_uuids });
+    report.archive = { file_count: files.length, level_path: levelName, database_file_count: dbFiles.length };
+    report.diagnosis = diagnosis;
+    return report;
+  }
+
   // ---------- level.dat direto (patch_level_dat_file) ----------
   // opts: { rules, worldName } — level.dat avulso não tem .zip p/ foto,
   // mas nome e regras ficam dentro do NBT e aplicam.
@@ -226,6 +292,7 @@
   window.RC_local = {
     diagnoseMcworld: diagnoseMcworld,
     diagnoseAny: diagnoseAny,
+    inspectWorld: inspectWorld,
     patchLevelDat: patchLevelDat,
     convertBatch: convertBatch,
     downloadBlob: downloadBlob

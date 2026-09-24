@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReativaConquistas — conquistas de volta no seu mundo Minecraft Bedrock</title>
-<meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
+<title>ReativaConquistas — ferramentas para mundos Minecraft Bedrock</title>
+<meta name="description" content="Edite seu mundo Minecraft Bedrock direto pelo navegador. Reative conquistas, edite jogadores, gerencie addons e use ferramentas especializadas.">
 <link rel="icon" type="image/png" href="logo.png">
-<meta name="theme-color" content="#5EBB2B">
+<meta name="theme-color" content="#0b100f">
 <link rel="stylesheet" href="style.css?v=16">
-<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+<link rel="stylesheet" href="design-system.css?v=1">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -46,16 +47,16 @@
       <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
     </a>
     <nav class="nav">
+      <a class="hide-m" href="ferramentas.html">Ferramentas</a>
+      <a class="hide-m" href="planos.html">Planos</a>
       <a class="hide-m" href="#como-funciona">Como funciona</a>
-      <a class="hide-m" href="chunks.html">Restaurar chunks</a>
-      <a class="hide-m" href="#planos">Planos</a>
-      <a class="hide-m" href="#faq">Dúvidas</a>
+      <a href="minha-conta.html">Conta</a>
       <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
         <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
         <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
       </button>
-      <a href="minha-conta.html" id="navAuth" hidden>Entrar</a>
-      <a class="btn-nav" href="#converter">Converter grátis</a>
+      <a href="minha-conta.html#login" id="navAuth" hidden>Entrar</a>
+      <a class="btn-nav" href="#converter">Selecionar mundo</a>
     </nav>
   </div>
 </div>
@@ -72,9 +73,10 @@
       <button class="drawer-x" id="drawerClose" type="button" aria-label="Fechar menu">×</button>
     </span>
   </div>
-  <a href="#converter"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Converter mundo</a>
+  <a href="#converter"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Selecionar mundo</a>
+  <a href="ferramentas.html"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Ferramentas</a>
+  <a href="planos.html"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Planos</a>
   <a href="chunks.html"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Restaurar chunks</a>
-  <a href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Planos</a>
   <a href="#como-funciona"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>Como funciona</a>
   <a href="#faq"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Dúvidas</a>
   <a href="minha-conta.html"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Minha conta</a>
@@ -86,7 +88,7 @@
   <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
   <span class="sticky-tx"><b>Até 10 MB grátis por mundo.</b><em>Recupere suas conquistas em segundos</em></span>
   <a class="sticky-go" href="#converter">Converter</a>
-  <a class="sticky-vip" href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Ser VIP</a>
+  <a class="sticky-vip" href="planos.html"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Ver planos</a>
   <button class="sticky-x" id="stickyX" type="button" aria-label="Fechar aviso">×</button>
 </div>
 
@@ -94,18 +96,18 @@
   <div class="page" style="padding-left:0;padding-right:0;max-width:760px">
 
   <header class="hero">
-    <p class="kicker">Projeto independente · sem vínculo com Mojang/Microsoft</p>
+    <p class="kicker">Ferramentas especializadas em Minecraft Bedrock</p>
     <img class="hero-logo" src="hero.png" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
-    <h1>Conquistas sumiram?<br><span>Volte a desbloquear</span></h1>
-    <p class="tagline">Solte o <b>.mcworld</b> abaixo. Roda <b>no seu celular/PC</b> · original intacto · <b>até 10 MB grátis por mundo</b>.</p>
+    <h1>Edite seu mundo Minecraft Bedrock <span>direto pelo navegador.</span></h1>
+    <p class="tagline">Reative conquistas, edite jogadores, gerencie addons, altere configurações e use ferramentas avançadas no seu mundo.</p>
     <div class="hero-cta">
-      <a class="primary hero-btn" href="#converter">Corrigir meu mundo grátis</a>
-      <a class="btn-ghost hero-btn" href="#planos">Ver o VIP</a>
+      <a class="primary hero-btn" href="#converter">Selecionar meu mundo</a>
+      <a class="btn-ghost hero-btn" href="ferramentas.html">Explorar ferramentas</a>
     </div>
     <div class="trust">
-      <span><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>100% no seu aparelho</span>
-      <span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>7 dias para arrependimento</span>
-      <span><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Pix ou cartão</span>
+      <span><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>Backup local disponível antes das alterações</span>
+      <span><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Ferramentas especializadas em Bedrock</span>
+      <span><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Teste gratuito disponível</span>
     </div>
   </header>
 
@@ -122,8 +124,8 @@
   </section>
 
   <main class="card" id="converter">
-    <h2>Editar seu mundo</h2>
-    <p class="sub">Conquistas + mapa + player. Sai um arquivo novo. Original intacto.</p>
+    <h2>Seu espaço de trabalho</h2>
+    <p class="sub">Selecione um mundo para ver o diagnóstico e abrir as ferramentas compatíveis. O arquivo original continua separado.</p>
 
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
@@ -134,8 +136,8 @@
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
-        <span class="drop-title">Toque p/ escolher ou solte o .mcworld</span>
-        <span class="drop-sub">Limite conforme seu plano · selecione o mundo para verificar</span>
+        <span class="drop-title">Selecione seu mundo</span>
+        <span class="drop-sub">.mcworld, .zip de um mundo ou level.dat · o limite é consultado conforme seu plano</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
       </label>
@@ -302,7 +304,7 @@
       <label class="opt locked" id="keepOpt">
         <span style="flex:1">
           <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Manter inventário</b>
-          <em>Não perde itens ao morrer · <a href="#planos" class="unlock">desbloquear</a></em>
+          <em>Não perde itens ao morrer · <a href="planos.html" class="unlock">ver planos</a></em>
           <span class="icon-row" style="margin-top:10px">
             <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
               <option value="-1">Manter como está</option>
@@ -339,7 +341,7 @@
       <label class="opt locked" id="timeOpt">
         <span style="flex:1">
           <b><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Dia/noite + clima</b>
-          <em>Trava tempo e clima · <a href="#planos" class="unlock">desbloquear</a></em>
+          <em>Trava tempo e clima · <a href="planos.html" class="unlock">ver planos</a></em>
           <span class="icon-row" style="margin-top:10px">
             <select id="daycycle" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
               <option value="-1">Dia/noite: manter</option>
@@ -513,73 +515,12 @@
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
   </main>
 
-  <!-- PLANOS -->
-  <section class="section" id="planos">
-    <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Compra única, sem cobrança automática: um crédito para trabalhar em um mundo, com reedições por 30 dias, ou passes para usar os recursos por 7 ou 30 dias.</p>
-    <div class="plans plans-4">
-      <div class="plan">
-        <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
-        <div class="price">R$ 0<small> · p/ sempre</small></div>
-        <ul>
-          <li class="yes">Até <b>10 MB</b> por mundo e 3 operações/dia</li>
-          <li class="yes">Renomear, dificuldade e coordenadas</li>
-          <li class="yes">Raio-X e <b>mapa 2D</b></li>
-          <li class="yes">Processamento <b>local no navegador</b></li>
-        </ul>
-        <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
-      </div>
-      <div class="plan plan-world1">
-        <h3><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Resolver 1 mundo</h3>
-        <div class="price">R$ 5,99<small> · 1 mundo / 150 MB</small></div>
-        <ul>
-          <li class="yes">Um mundo de até <b>150 MB</b></li>
-          <li class="yes">Reedite o mesmo mundo por <b>30 dias</b> após a primeira edição concluída</li>
-          <li class="yes">Modo de jogo, foto, clima e inventário</li>
-          <li class="yes"><b>Recuperação Hardcore</b> quando o marcador existir</li>
-        </ul>
-        <a class="btn-plan btn-pay" data-pay="world1" href="#">Resolver este mundo · R$ 5,99</a>
-        <p class="plan-note">Para uma necessidade pontual.</p>
-      </div>
-      <div class="plan plan-weekly">
-        <span class="vip-flag">Para vários mundos</span>
-        <h3>Passe 7 dias</h3>
-        <div class="price">R$ 7,99<small> · até 500 MB</small></div>
-        <ul>
-          <li class="yes">Até <b>5 mundos por lote</b></li>
-          <li class="yes">Mundos de até <b>500 MB cada</b></li>
-          <li class="yes">Recursos avançados por <b>7 dias</b></li>
-        </ul>
-        <a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe · R$ 7,99</a>
-      </div>
-      <div class="plan plan-vip">
-        <span class="vip-flag">Melhor custo por dia</span>
-        <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
-        <div class="price" id="price-monthly">R$ 24,90<small> · R$ 0,83/dia</small></div>
-        <ul>
-          <li class="yes">Até <b>10 mundos por lote</b></li>
-          <li class="yes">Sem limite comercial de tamanho*</li>
-          <li class="yes">Recursos avançados durante <b>30 dias</b></li>
-          <li class="yes">Modo, inventário, foto e clima</li>
-        </ul>
-        <a class="btn-plan btn-pay" data-pay="vip30" href="#">Comprar passe · R$ 24,90</a>
-        <p class="plan-note">Pagamento único. Não renova automaticamente.</p>
-      </div>
-      <div class="plan-section-label">Uso avançado</div>
-      <div class="plan plan-creator">
-        <h3>Criador</h3>
-        <div class="price">R$ 39,90<small> · 30 dias</small></div>
-        <ul>
-          <li class="yes">Arquivos grandes, sujeitos ao navegador</li>
-          <li class="yes">Até <b>20 mundos por lote</b></li>
-          <li class="yes">Sem limite comercial de tamanho*</li>
-          <li class="yes">Recursos avançados por <b>30 dias</b></li>
-          <li class="yes">Para criadores e donos de Realms</li>
-        </ul>
-        <a class="btn-plan btn-pay" data-pay="creator" href="#">Comprar Criador · R$ 39,90</a>
-      </div>
-    </div>
-    <p class="pay-note">*Arquivos grandes dependem da memória e capacidade do navegador. Pix no checkout seguro; o acesso começa após a confirmação. Os passes são compras únicas, sem renovação automática. <b>Use o mesmo e-mail da sua conta Google.</b></p>
+  <!-- Existing #planos bookmarks now lead to the dedicated pricing page. -->
+  <section class="section rc-plans-link" id="planos">
+    <p class="rc-eyebrow">Acesso e limites</p>
+    <h2>Planos claros para cada mundo</h2>
+    <p class="plans-sub">Compare o plano gratuito, o crédito para um mundo e os passes atuais. Preços e limites refletem o catálogo existente.</p>
+    <a class="primary hero-btn" href="planos.html">Ver planos e limites</a>
   </section>
 
   <section class="section" id="como-funciona">
@@ -646,6 +587,7 @@
 <script src="pagamento.js?v=27"></script>
 <script src="entitlements.js?v=3"></script>
 <script src="guia-site.js?v=3"></script>
+<script src="workspace-ui.js?v=1"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>

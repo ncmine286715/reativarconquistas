@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b100f">
+  <title>Ferramentas — ReativaConquistas</title>
+  <meta name="description" content="Explore ferramentas reais para analisar, editar e manter mundos Minecraft Bedrock.">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="design-system.css?v=1">
+  <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
+</head>
+<body>
+  <div class="topbar"><div class="topbar-in">
+    <a class="brand" href="index.html"><img src="logo.png" width="34" height="34" alt=""><span>ReativaConquistas<small>Ferramentas Bedrock</small></span></a>
+    <nav class="nav" aria-label="Navegação principal">
+      <a href="ferramentas.html" aria-current="page">Ferramentas</a>
+      <a href="planos.html">Planos</a>
+      <a href="index.html#como-funciona">Como funciona</a>
+      <a href="minha-conta.html">Conta</a>
+      <button class="theme-btn" data-rc-theme-toggle type="button" aria-pressed="false" aria-label="Alternar modo claro e escuro">◐</button>
+      <a class="btn-nav" href="index.html#converter">Selecionar mundo</a>
+    </nav>
+  </div></div>
+
+  <main class="rc-page">
+    <header class="rc-page-head">
+      <p class="rc-eyebrow">Caixa de ferramentas Bedrock</p>
+      <h1 class="rc-page-title">Encontre a ferramenta certa para seu mundo.</h1>
+      <p class="rc-page-lede">Abra um mundo no navegador e escolha o que precisa fazer. Diagnóstico e permissões usam os dados e limites atuais do serviço.</p>
+    </header>
+
+    <div class="rc-tool-controls">
+      <label class="visually-hidden" for="rcToolSearch">Buscar ferramentas</label>
+      <input class="rc-tool-search" id="rcToolSearch" type="search" placeholder="Buscar ferramenta" autocomplete="off">
+      <span class="rc-hint" id="rcToolCount" aria-live="polite"></span>
+    </div>
+    <nav class="rc-category-tabs" aria-label="Categorias de ferramentas">
+      <button type="button" data-tool-filter="todas" aria-pressed="true">Todas</button>
+      <button type="button" data-tool-filter="principais" aria-pressed="false">⭐ Principais</button>
+      <button type="button" data-tool-filter="conquistas" aria-pressed="false">Conquistas</button>
+      <button type="button" data-tool-filter="mundo" aria-pressed="false">Mundo</button>
+      <button type="button" data-tool-filter="jogador" aria-pressed="false">Jogador</button>
+      <button type="button" data-tool-filter="addons" aria-pressed="false">Addons</button>
+      <button type="button" data-tool-filter="construcao" aria-pressed="false">Construção</button>
+    </nav>
+
+    <section class="rc-tool-grid" id="rcToolGrid" aria-label="Ferramentas disponíveis">
+      <article class="rc-tool-card" data-tool-card data-category="principais conquistas">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/experience_bottle.png" alt=""></span><h2>Reativar conquistas</h2></div>
+        <p>Analise seu mundo e prepare uma cópia para voltar a desbloquear conquistas.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Uso gratuito conforme limite diário</span><a class="rc-tool-open" href="index.html#converter" data-tool-id="restore_achievements" data-tool-category="conquistas">Selecionar mundo</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="principais mundo">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/filled_map.png" alt=""></span><h2>Raio-X e mapa 2D</h2></div>
+        <p>Confira os dados lidos do mundo, regiões visitadas e cópias locais.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Análise no navegador</span><a class="rc-tool-open" href="index.html#converter" data-tool-id="world_analysis" data-tool-category="mundo">Selecionar mundo</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="mundo">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/iron_sword.png" alt=""></span><h2>Configurações do mundo</h2></div>
+        <p>Ajuste dificuldade, regras, modo de jogo, clima e outros dados disponíveis.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Recursos conforme seu plano</span><a class="rc-tool-open" href="index.html#accPrem" data-tool-id="world_settings" data-tool-category="mundo">Abrir ajustes</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="jogador">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/iron_chestplate.png" alt=""></span><h2>Editor de jogador</h2></div>
+        <p>Edite inventário e, conforme o plano, armadura, ender chest e experiência.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Cota e acesso do servidor</span><a class="rc-tool-open" href="index.html#accPlayer" data-tool-id="player_editor" data-tool-category="jogador">Abrir jogador</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="addons">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/book.png" alt=""></span><h2>Gerenciar addons</h2></div>
+        <p>Inspecione pacotes e escolha quais arquivos compatíveis entram na cópia.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Limites conforme seu plano</span><a class="rc-tool-open" href="index.html#accPacks" data-tool-id="addons" data-tool-category="addons">Abrir addons</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="principais mundo">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/iron_pickaxe.png" alt=""></span><h2>Restaurar chunks</h2></div>
+        <p>Selecione regiões para regeneração e confira os dados que serão removidos.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">Limite indicado antes da operação</span><a class="rc-tool-open" href="chunks.html" data-tool-id="chunks_restore" data-tool-category="mundo">Abrir ferramenta</a></div>
+      </article>
+      <article class="rc-tool-card" data-tool-card data-category="principais construcao">
+        <div class="rc-tool-card-top"><span class="rc-tool-card-icon"><img src="mc/item/oak_door.png" alt=""></span><h2>Builder 3D</h2><span class="rc-tool-beta">BETA</span></div>
+        <p>Visualize o terreno e posicione uma estrutura .mcstructure antes de exportar.</p>
+        <div class="rc-tool-card-foot"><span class="rc-tool-cost">BETA com cota definida pelo plano</span><a class="rc-tool-open" href="builder-lab.html" data-tool-id="builder" data-tool-category="construcao">Abrir Builder</a></div>
+      </article>
+    </section>
+    <p class="rc-hint" id="rcToolEmpty" hidden>Nenhuma ferramenta corresponde a essa busca. Tente outra palavra ou categoria.</p>
+    <p class="rc-hint" style="margin-top:18px">Os limites são consultados no servidor. Esta biblioteca inclui somente ferramentas que já existem no produto.</p>
+  </main>
+
+  <footer class="foot"><nav aria-label="Links do site"><a href="index.html">Início</a><a href="planos.html">Planos</a><a href="minha-conta.html">Conta</a><a href="termos.html">Termos</a><a href="privacidade.html">Privacidade</a></nav></footer>
+
+  <script src="config.js?v=26"></script>
+  <script src="firebase-config.js?v=13"></script>
+  <script src="auth.js?v=15"></script>
+  <script src="pagamento.js?v=27"></script>
+  <script src="entitlements.js?v=3"></script>
+  <script src="workspace-ui.js?v=1"></script>
+</body>
+</html>

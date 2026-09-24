@@ -6,12 +6,13 @@
 <title>Minha conta — ReativaConquistas</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="stylesheet" href="style.css?v=11">
-<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+<link rel="stylesheet" href="design-system.css?v=1">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
 <a class="brand" href="index.html"><img src="logo.png" width="30" height="30" alt="ReativaConquistas" style="border-radius:8px;display:block"><span>ReativaConquistas<small>minha conta</small></span></a>
-<nav class="nav"><a href="index.html#converter">Converter</a><a href="index.html#planos">Planos</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro"><svg class="ic ic-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2a6 6 0 0 0 3 8 6 6 0 0 1-8-3 6 6 0 0 1 5-5z" fill="currentColor"/></svg><svg class="ic ic-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 6h4v4H6z M7 1h2v2H7z M7 13h2v2H7z M1 7h2v2H1z M13 7h2v2h-2z" fill="currentColor"/></svg></button></nav>
+<nav class="nav"><a href="index.html">Início</a><a href="ferramentas.html">Ferramentas</a><a href="planos.html">Planos</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo claro e escuro"><svg class="ic ic-moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M11 2a6 6 0 0 0 3 8 6 6 0 0 1-8-3 6 6 0 0 1 5-5z" fill="currentColor"/></svg><svg class="ic ic-sun" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 6h4v4H6z M7 1h2v2H7z M7 13h2v2H7z M1 7h2v2H1z M13 7h2v2h-2z" fill="currentColor"/></svg></button></nav>
 </div></div>
 <div class="page" style="max-width:640px">
 <div class="card" style="margin-top:26px">
@@ -19,7 +20,7 @@
 <div id="box"><p class="sub">Carregando…</p></div>
 <div class="row2" id="actions" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap" hidden>
 <a class="btn-ghost" href="index.html#converter" style="flex:1;text-align:center;text-decoration:none">Converter</a>
-<a class="btn-ghost" href="index.html#planos" style="flex:1;text-align:center;text-decoration:none">Ver planos</a>
+<a class="btn-ghost" href="planos.html" style="flex:1;text-align:center;text-decoration:none">Ver planos</a>
 <button class="btn-ghost" id="logout" type="button" style="flex:1" hidden>Sair</button>
 </div>
 </div>
@@ -91,7 +92,7 @@
         if (ent.pending_payment) details += "<p class='sub'><b>" + (ent.pending_payment.status === "checkout_creation_uncertain" ? "Cobrança em confirmação:" : "Pagamento em confirmação:") + "</b> " + esc(window.RC_entitlements.messageForPending(ent.pending_payment)) + "</p>";
         show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" + details + pendingAction +
           "<p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>" +
-          (active ? "<p><a href='index.html#converter'><b>Ir converter</b></a></p>" : (ent.pending_payment ? "" : "<p class='sub'><a href='index.html#planos'><b>Ver planos</b></a> para mundos maiores e recursos extras.</p>")));
+          (active ? "<p><a href='index.html#converter'><b>Ir editar um mundo</b></a></p>" : (ent.pending_payment ? "" : "<p class='sub'><a href='planos.html'><b>Ver planos</b></a> para limites maiores e recursos extras.</p>")));
         var resume = document.getElementById("resumePendingPayment");
         if (resume) resume.onclick = function () { resume.disabled = true; if (window.RC_pay) window.RC_pay.checkout(ent.pending_payment.plan, null); };
         var refresh = document.getElementById("refreshBenefits");
@@ -113,5 +114,6 @@
 })();
 </script>
 <script src="guia-site.js?v=3"></script>
+<script src="workspace-ui.js?v=1"></script>
 </body>
 </html>

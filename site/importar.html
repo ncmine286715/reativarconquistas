@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fff7ef">
+  <meta name="description" content="Guia local para importar um mundo .mcworld no Minecraft Bedrock em Windows, Android e iOS.">
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="design-system.css?v=1">
+  <title>Como importar um mundo Bedrock — ReativaConquistas</title>
+  <style>
+    .import-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:18px 0}
+    .import-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow-sm)}
+    .import-card h2{margin:0 0 8px;font-size:18px;color:var(--orange-dark)}
+    .import-card li{margin:7px 0;line-height:1.5}
+    .import-note{padding:13px 15px;border-left:4px solid var(--orange);border-radius:8px;background:var(--orange-soft);line-height:1.55}
+    .import-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0}
+    .import-sources{font-size:12px;color:var(--muted);line-height:1.6}
+    @media print{.topbar,.import-actions,.foot,#rcSiteGuideLauncher{display:none!important}.page{max-width:none;padding:0}.import-card{break-inside:avoid;box-shadow:none}}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-in">
+    <a class="brand" href="index.html"><img src="logo.png" width="34" height="34" alt="" style="border-radius:9px"><span>ReativaConquistas<small>Ajuda para importar mundos</small></span></a>
+    <nav class="nav" aria-label="Navegação"><a href="index.html">Início</a><a href="builder-lab.html">Construtor 3D</a></nav>
+  </div></header>
+  <main class="page import-page">
+    <p class="kicker">GUIA RÁPIDO</p>
+    <h1>Importar o mundo no Minecraft</h1>
+    <p class="sub">O site baixa uma nova cópia. Importe o arquivo terminado em <code>.mcworld</code>; seu original continua separado.</p>
+    <div class="import-note"><b>Antes de começar:</b> espere o download terminar e não renomeie um arquivo compactado comum para <code>.mcworld</code>. O arquivo precisa ser um pacote Bedrock válido.</div>
+    <div class="import-actions">
+      <button type="button" class="btn-primary" onclick="window.print()">Imprimir / salvar como PDF</button>
+      <a class="btn-ghost" href="index.html#converter">Voltar ao conversor</a>
+    </div>
+    <div class="import-steps">
+      <section class="import-card"><h2>Windows</h2><ol>
+        <li>Abra a pasta <b>Downloads</b> e localize o resultado com final <code>.mcworld</code>.</li>
+        <li>Na pasta Downloads, dê dois cliques no arquivo <code>.mcworld</code>. Se houver escolha de aplicativo, selecione Minecraft.</li>
+        <li>Aguarde as mensagens de importação. Depois abra Minecraft → <b>Jogar</b> e procure o mundo na lista.</li>
+      </ol></section>
+      <section class="import-card"><h2>Android</h2><ol>
+        <li>Baixe o <code>.mcworld</code> e abra o app <b>Arquivos</b> ou a pasta <b>Downloads</b>.</li>
+        <li>Toque no arquivo. Se aparecer uma lista de apps, escolha <b>Minecraft</b>.</li>
+        <li>Espere a confirmação de importação e procure o mundo em <b>Jogar</b>.</li>
+      </ol></section>
+      <section class="import-card"><h2>iPhone / iPad</h2><ol>
+        <li>Baixe o arquivo e abra-o no app <b>Arquivos</b>.</li>
+        <li>Toque no <code>.mcworld</code> ou use <b>Compartilhar</b> → <b>Abrir no Minecraft</b>.</li>
+        <li>Aguarde a confirmação. O mundo importado aparece no menu <b>Jogar</b>.</li>
+      </ol></section>
+      <section class="import-card"><h2>Xbox, PlayStation e Switch</h2><ol>
+        <li>Consoles não abrem diretamente o arquivo baixado pelo navegador do site.</li>
+        <li>O fluxo documentado pela Microsoft para levar mundos com Add-Ons ao console usa um mundo hospedado em <b>Realms</b>, configurado primeiro num dispositivo Bedrock compatível.</li>
+        <li>O acesso a Realms requer assinatura. Confira a edição, a conta e os recursos disponíveis no seu jogo antes de transferir.</li>
+      </ol></section>
+    </div>
+    <section class="import-card">
+      <h2>Se não importar</h2>
+      <ul>
+        <li>Confirme que baixou o arquivo completo e que o nome termina em <code>.mcworld</code>.</li>
+        <li>Abra pelo app do Minecraft, não tente extrair ou compactar o arquivo manualmente.</li>
+        <li>Se aparecer uma mensagem de erro, mantenha o original e tente importar novamente uma cópia recém-baixada.</li>
+        <li>Pacotes de comportamento podem bloquear conquistas; o jogo pode mostrar avisos ao importar ou abrir o mundo.</li>
+      </ul>
+    </section>
+    <p class="import-sources">Passos baseados no guia oficial da Microsoft para <a href="https://learn.microsoft.com/en-us/minecraft/creator/documents/gettingstarted?view=minecraft-bedrock-stable">importar Add-Ons e mundos</a> e nas <a href="https://learn.microsoft.com/en-us/minecraft/creator/documents/minecraftfileextensions?view=minecraft-bedrock-stable">extensões oficiais do Bedrock</a>. As telas podem variar conforme a versão e o sistema.</p>
+  </main>
+  <footer class="foot"><nav><a href="index.html">Início</a><a href="chunks.html">Restaurar chunks</a><a href="termos.html">Termos</a><a href="privacidade.html">Privacidade</a></nav><p>O arquivo é importado pelo Minecraft no seu dispositivo; o site não consegue abrir o jogo por você.</p></footer>
+  <script src="guia-site.js?v=3"></script>
+  <script src="workspace-ui.js?v=1"></script>
+</body>
+</html>

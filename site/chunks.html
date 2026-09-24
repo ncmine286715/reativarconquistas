@@ -8,12 +8,13 @@
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
 <link rel="stylesheet" href="style.css?v=16">
-<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+<link rel="stylesheet" href="design-system.css?v=1">
+<script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}</script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
   <a class="brand" href="index.html"><img src="logo.png" width="34" height="34" alt="ReativaConquistas" style="border-radius:9px;display:block"><span>ReativaConquistas<small>ferramenta de chunks</small></span></a>
-  <nav class="nav"><a href="index.html#converter">Conversor</a><a href="#como-funciona">Como funciona</a><a href="#planos">Planos</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">◐</button><a href="minha-conta.html" id="navAuth" hidden>Entrar</a></nav>
+  <nav class="nav"><a href="index.html">Início</a><a href="ferramentas.html">Ferramentas</a><a href="planos.html">Planos</a><a href="minha-conta.html">Conta</a><button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo claro e escuro">◐</button><a href="minha-conta.html" id="navAuth" hidden>Entrar</a></nav>
 </div></div>
 
 <main class="page chunk-page">
@@ -93,7 +94,7 @@
   <section class="section chunk-plans" id="planos">
     <h2>Precisa restaurar uma área maior?</h2>
     <p class="plans-sub">O teste gratuito cobre áreas pequenas. O passe de 7 dias amplia o uso e custa R$ 7,99 em pagamento único, sem renovação automática.</p>
-    <div class="map-actions"><a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe de 7 dias · R$ 7,99</a><a class="btn-ghost" href="index.html#planos">Comparar todos os planos</a></div>
+    <div class="map-actions"><a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe de 7 dias · R$ 7,99</a><a class="btn-ghost" href="planos.html">Comparar todos os planos</a></div>
   </section>
 </main>
 
@@ -123,6 +124,7 @@
   refresh();
 })();
 </script>
-<script src="guia-site.js?v=3"></script>
+  <script src="guia-site.js?v=3"></script>
+  <script src="workspace-ui.js?v=1"></script>
 </body>
 </html>

@@ -1,0 +1,30 @@
+#rcSiteGuide[hidden]{display:none!important}
+#rcSiteGuide{position:fixed;inset:0;z-index:12000;font-family:inherit}
+#rcSiteGuide .rc-guide-shade{position:absolute;inset:0;background:rgba(10,14,22,.72)}
+#rcSiteGuide .rc-guide-card{position:absolute;left:50%;bottom:max(16px,env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:12px;width:min(760px,calc(100vw - 28px));max-height:calc(100vh - 32px);transform:translateX(-50%)}
+#rcSiteGuide .rc-guide-mascot{display:block;width:132px;height:180px;flex:0 0 auto;object-fit:cover;object-position:center 10%;border:1px solid #ffffff40;border-radius:15px;background:#111827;box-shadow:0 10px 26px #0007}
+#rcSiteGuide .rc-guide-balloon{position:relative;flex:1;min-width:0;max-height:calc(100vh - 48px);overflow:auto;padding:16px 17px 14px;border:1px solid #f1dfc9;border-radius:17px;background:#fff;color:#29231d;box-shadow:0 16px 55px #0007;font-size:14px;line-height:1.5}
+#rcSiteGuide .rc-guide-balloon:after{position:absolute;bottom:-10px;left:30px;width:18px;height:18px;transform:rotate(45deg);border-right:1px solid #f1dfc9;border-bottom:1px solid #f1dfc9;background:#fff;content:""}
+#rcSiteGuide .rc-guide-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px}
+#rcSiteGuide .rc-guide-progress{color:#9a5a1a;font-size:10px;font-weight:850;letter-spacing:.09em}
+#rcSiteGuide .rc-guide-close{display:grid;width:34px;height:34px;place-items:center;border:1px solid #e7d4bc;border-radius:50%;background:#fff;color:#51483e;font-size:22px;line-height:1;cursor:pointer}
+#rcSiteGuide .rc-guide-title{margin:0 0 5px;font-size:18px;line-height:1.25;color:#29231d}
+#rcSiteGuide .rc-guide-text{margin:0;color:#4b433a}
+#rcSiteGuide .rc-guide-actions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-top:12px}
+#rcSiteGuide .rc-guide-actions button{min-height:42px;padding:8px 12px;border:1px solid #e7d4bc;border-radius:9px;background:#fff;color:#51483e;font-family:inherit;font-size:13px;font-weight:650;line-height:1.2;cursor:pointer}
+#rcSiteGuide .rc-guide-actions button:hover{border-color:#f97316;background:#fff7ed}
+#rcSiteGuide .rc-guide-actions .rc-guide-next{border-color:#f97316;background:#f97316;color:#fff;font-weight:800}
+#rcSiteGuideLauncher{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:9999;display:flex;align-items:center;gap:8px;min-height:44px;padding:7px 13px;border:1px solid #f97316;border-radius:999px;background:#fff;color:#7c2d12;box-shadow:0 5px 20px #0002;font:inherit;font-size:13px;font-weight:700;line-height:1.2;cursor:pointer}
+#rcSiteGuideLauncher:hover{background:#fff7ed}
+#rcSiteGuideLauncher .rc-guide-question{display:grid;width:26px;height:26px;place-items:center;border-radius:50%;background:#f97316;color:#fff;font-size:16px;font-weight:900}
+@media(max-width:520px){
+  #rcSiteGuide .rc-guide-card{gap:7px;width:calc(100vw - 16px);bottom:max(10px,env(safe-area-inset-bottom))}
+  #rcSiteGuide .rc-guide-mascot{width:62px;height:100px;border-radius:11px}
+  #rcSiteGuide .rc-guide-balloon{padding:11px;border-radius:14px;font-size:13px;line-height:1.4}
+  #rcSiteGuide .rc-guide-title{font-size:16px}
+  #rcSiteGuide .rc-guide-text{font-size:12.5px}
+  #rcSiteGuide .rc-guide-actions{gap:5px;margin-top:9px}
+  #rcSiteGuide .rc-guide-actions button{min-height:42px;padding:7px 8px;font-size:12px}
+  #rcSiteGuide .rc-guide-actions .rc-guide-next{flex:1}
+  #rcSiteGuideLauncher{right:10px;bottom:max(10px,env(safe-area-inset-bottom));padding:6px 10px}
+}

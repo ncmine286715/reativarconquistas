@@ -419,8 +419,8 @@
         var fl = freeLeft();
         var lim = freeLimitMB();
         quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + freeDailyLimit() + " hoje</b>)" +
-          (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o uso extra com um plano</b></a>"
-            : ". Mundos maiores que " + lim + " MB — <a href='#planos'><b>ver planos</b></a>") + "<br>" +
+          (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='planos.html'><b>libere o uso extra com um plano</b></a>"
+            : ". Mundos maiores que " + lim + " MB — <a href='planos.html'><b>ver planos</b></a>") + "<br>" +
           "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipRefresh'><b>Verificar de novo</b></a>. Use a mesma conta Google da compra.</span>";
       }
     }
@@ -478,17 +478,17 @@
     var kw = "";
     try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl(plan) || ""; } catch (e) {}
     if (kw) {
-      setStatus("", escapeHtml(msg) + ' <a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>');
+      setStatus("", escapeHtml(msg) + ' <a href="' + kw + '"><b>Liberar agora</b></a> · <a href="planos.html">Ver planos</a>');
       return;
     }
-    setStatus("", escapeHtml(msg) + ' <a href="#planos"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
+    setStatus("", escapeHtml(msg) + ' <a href="planos.html"><b>Ver planos</b></a> · <a href="minha-conta.html"><b>Minha conta</b></a>');
     try { if (window.RC_pay && !window.RC_pay.kiwifyUrl(plan) && window.RC_pay.enabled()) window.RC_pay.openPayModal(msg, plan, context); } catch (e) {}
   }
 
   /* ---------- arquivo ---------- */
   function showFilePaywall(worlds, sizeBytes, message) {
     if (!window.RC_pay || !window.RC_pay.planCatalog) {
-      setStatus("err", escapeHtml(message) + " <a href='#planos'>Ver planos</a>");
+      setStatus("err", escapeHtml(message) + " <a href='planos.html'>Ver planos</a>");
       return;
     }
     window.RC_pay.planCatalog().then(function (catalog) {
@@ -1282,7 +1282,7 @@
         }
         try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_completed", { worlds: 1 }); } catch (e0) {}
       // gatilho pós-valor: só aparece DEPOIS da conversão grátis dar certo
-      var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? O <a href='#planos'><b>VIP</b></a> libera mundos gigantes, foto e modo de jogo.</span>";
+      var nudge = isPremiumAny() ? "" : "<br><span style='font-size:13px'>Curtiu? Os <a href='planos.html'><b>planos</b></a> liberam mundos maiores e recursos avançados.</span>";
       var warn = "";
       (res.warnings || []).forEach(function (w) {
         warn += "<br><span style='font-size:13px'>Atenção: <b>" + escapeHtml(w) + "</b></span>";
@@ -1413,7 +1413,7 @@
         ? "<br>Trava de pack: <b>ativa</b> — remova os behavior packs <b>dentro do jogo</b> antes de exportar o mundo" : "";
       // gatilho contextual: mundo em Criativo/Aventura + usuário grátis
       var vipMode = (!isPremiumAny() && (rep.gameType || []).filter(function (g) { return +g !== 0 && String(g).indexOf("tag") !== 0; }).length)
-        ? "<br>Quer <b>manter o Criativo/Aventura</b> em vez de ir para Sobrevivência? Só o <a href='#planos'><b>VIP</b></a> permite." : "";
+        ? "<br>Quer <b>manter o Criativo/Aventura</b> em vez de ir para Sobrevivência? Consulte os <a href='planos.html'><b>planos</b></a>." : "";
       // addons: o level.dat pode estar limpo e as conquistas continuarem
       // bloqueadas por pacotes de comportamento personalizados
       var pcD = packCount(rep);
