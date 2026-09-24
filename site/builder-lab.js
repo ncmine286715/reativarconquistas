@@ -477,8 +477,10 @@
     }).catch(function (error) {
       if (requestGeneration !== state.worldGeneration) return;
       clearWorldForEntitlementCheck();
+      // Permite escolher o mesmo arquivo novamente após uma falha temporária da API.
+      $("worldFile").value = "";
       if (decision) decision.textContent = "";
-      $("status").textContent = window.RC_entitlements.messageForError(error);
+      $("status").textContent = window.RC_entitlements.messageForError(error) + (error && error.code === "API_NETWORK_UNAVAILABLE" ? " Selecione o mundo novamente para tentar de novo." : "");
     });
   }
   function readPlayerPos(world) {

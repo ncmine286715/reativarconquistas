@@ -24,7 +24,17 @@
     opts.headers = opts.headers || {};
     // O login atual é Firebase/Google. Não envie rc_token legado:
     // uma sessão antiga poderia associar a cobrança ao e-mail errado.
-    return fetch(base() + path, opts).then(function (res) {
+    function request(attempt) {
+      return fetch(base() + path, opts).catch(function (error) {
+        // Leituras do plano podem ser repetidas sem reservar créditos nem criar cobranças.
+        if (attempt === 0 && (!opts.method || opts.method === "GET") &&
+            (path === "/api/config" || path === "/api/entitlements")) {
+          return new Promise(function (resolve) { setTimeout(resolve, 800); }).then(function () { return request(1); });
+        }
+        throw Object.assign(new Error("Não foi possível conectar ao servidor para verificar seu plano. Confira a conexão e tente novamente."), { code: "API_NETWORK_UNAVAILABLE", cause: error });
+      });
+    }
+    return request(0).then(function (res) {
       return res.text().then(function (txt) {
         var j = {};
         try { j = txt ? JSON.parse(txt) : {}; } catch (e) {}
