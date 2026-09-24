@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Painel administrativo — ReativaConquistas</title>
 <link rel="icon" type="image/png" href="logo.png">
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=26">
 <link rel="stylesheet" href="admin.css?v=1">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
@@ -33,6 +33,21 @@
       <article><span>Conversão</span><strong id="statConversion">—</strong><small>Pix gerados → pagos</small></article>
       <article><span>Desistências</span><strong id="statAbandoned">—</strong><small>Pix sem pagamento após 20 min</small></article>
       <article><span>Pendentes</span><strong id="statPending">—</strong><small>Aguardando confirmação</small></article>
+    </section>
+    <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">FUNIL</span><h2>Da visita ao uso</h2></div></div>
+      <div id="funnelSummary" class="admin-funnel">Carregando eventos…</div>
+      <p class="admin-note">Visitas, cliques e operações são eventos aproximados, não pessoas únicas. Pix e receita vêm dos registros de checkout e compra. O histórico de checkout guarda até 300 registros.</p>
+    </section>
+    <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">POR PRODUTO</span><h2>Planos e receita</h2></div></div>
+      <div class="admin-table-wrap"><table><thead><tr><th>Plano</th><th>Cliques*</th><th>Pix criados</th><th>Pagos</th><th>Pix → pago</th><th>Receita</th></tr></thead><tbody id="planFunnelRows"></tbody></table></div>
+      <p class="admin-note">*Cliques são eventos aproximados. A conversão Pix → pago considera apenas os checkouts registrados no período.</p>
+    </section>
+    <section class="card admin-panel admin-wide">
+      <div class="admin-panel-head"><div><span class="admin-eyebrow">ORIGEM</span><h2>Ferramentas ligadas a vendas</h2></div></div>
+      <div class="admin-table-wrap"><table><thead><tr><th>Ferramenta</th><th>Pagamentos</th><th>Receita</th></tr></thead><tbody id="toolSalesRows"></tbody></table></div>
+      <p class="admin-note">Atribuição pela ferramenta que abriu o checkout. Compras sem ferramenta identificada não entram nesta tabela.</p>
     </section>
 
     <section class="admin-grid">
@@ -84,6 +99,6 @@
 <script src="config.js?v=26"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
-<script src="admin.js?v=5"></script>
+<script src="admin.js?v=6"></script>
 </body>
 </html>
