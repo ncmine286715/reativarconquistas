@@ -436,17 +436,9 @@
     if (!state.counts) return;
     var dims = Object.keys(state.counts).map(Number).sort();
     var total = dims.reduce(function (a, d) { return a + state.counts[d]; }, 0);
-    var bd = state.boundsByDim[state.activeDim];
-    var w = bd ? (bd.maxCx - bd.minCx + 1) : 0;
-    var h = bd ? (bd.maxCz - bd.minCz + 1) : 0;
-    var parts = dims.map(function (d) { return (DIM_NAMES[d] || d) + ": <b>" + state.counts[d] + "</b>"; });
-    setStats(
-      "<b>" + total + " chunks</b> em " + esc(state.fileName) +
-      " · " + parts.join(" · ") +
-      (bd ? "<br>Visão: <b>" + (DIM_NAMES[state.activeDim] || state.activeDim) + "</b> " + w + "×" + h + " chunks (~" + (w * 16) + "×" + (h * 16) + " blocos)" : "") +
-      (state.spawnChunk ? " · spawn no chunk <b>" + state.spawnChunk.cx + ", " + state.spawnChunk.cz + "</b> <span style='color:#b91c1c'>●</span>" : "") +
-      "<br><span style='font-size:12px'>Arraste p/ mover e use roda/pinça p/ zoom. O mapa é somente visualização: nenhum chunk é apagado ou alterado.</span>"
-    );
+    var status = total + " chunks · " + (DIM_NAMES[state.activeDim] || "dimensão");
+    if (state.spawnChunk) status += " · spawn " + state.spawnChunk.cx + ", " + state.spawnChunk.cz;
+    setStats("<b>" + status + "</b>");
   }
 
   function resetState() {
@@ -578,6 +570,7 @@
         if (window.RC_sel) window.RC_sel.clear();
         try { if (window.RC_selChanged) window.RC_selChanged(); } catch (e) {}
         paintDims(); paintModes(); paintPins(); paintStats(); requestAnimationFrame(function () { draw(); });
+        try { window.dispatchEvent(new CustomEvent("rc-map-ready")); } catch (e) {}
       });
     }).catch(function (err) {
       if (my !== seq) return;
@@ -613,7 +606,7 @@
     h.textContent = state.mode === "select"
       ? "Toque num chunk p/ alternar · arraste p/ área · arraste com 2 dedos move o mapa"
       : state.mode === "pin" ? "Toque ou clique no mapa para colocar um pin; arraste para cancelar"
-        : "Arraste p/ mover · roda/pinça = zoom · passe o mouse p/ ver coordenadas";
+        : "Arraste para mover · pinça ou botões para zoom";
   }
   function paintModes() {
     var sb = $("mapSpawnBtn");

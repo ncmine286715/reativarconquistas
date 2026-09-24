@@ -1567,3 +1567,6 @@ body {
 .world-map-hero .map-export-tools{justify-content:flex-end;margin-top:8px}
 @media(max-width:600px){.world-map-hero{padding:8px}.world-map-hero .map-canvas-wrap{height:clamp(360px,65vh,600px)}.world-map-hero .map-icon-tools{right:6px;top:6px;gap:4px;padding:4px}.world-map-hero .map-icon-tools button{width:38px;height:38px;min-height:38px}}
 #mapPreview{scroll-margin-top:76px}
+
+.world-map-hero>.wi-title{margin-bottom:6px}
+.world-map-hero .map-stats{margin:0 0 8px;font-size:12px;color:var(--muted)}

@@ -359,6 +359,7 @@
 
   function bind() {
     var input = $("file"), drop = $("drop");
+    window.addEventListener("rc-map-ready", ensure);
     function track(f) {
       curFile = f; mode = "blocks";
       window.RC_terrainLayer = null;
@@ -366,12 +367,12 @@
     }
     if (input) input.addEventListener("change", function () {
       var f = (input.files && input.files[0]) || null;
-      if (f && !/\.dat$/i.test(f.name || "")) { track(f); setTimeout(ensure, 2500); }
+      if (f && !/\.dat$/i.test(f.name || "")) { track(f); }
       else { curFile = null; window.RC_terrainLayer = null; }
     });
     if (drop) drop.addEventListener("drop", function (e) {
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f && !/\.dat$/i.test(f.name || "")) { track(f); setTimeout(ensure, 2500); }
+      if (f && !/\.dat$/i.test(f.name || "")) { track(f); }
     });
     // reconfere quando o mapa termina (hook simples via clique nas abas de dimensão)
     document.addEventListener("click", function (e) {
