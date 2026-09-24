@@ -1540,3 +1540,11 @@ body {
   .tool-directory { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
   .tool-directory a { min-height: 88px; padding: 10px; }
 }
+
+/* Navegação curta e grupos de edição */
+.tool-directory a img{display:block;width:29px;height:29px;object-fit:contain;image-rendering:pixelated;margin-bottom:7px}
+.editor-group-heading{display:flex;align-items:baseline;gap:10px;margin:24px 0 8px;padding:0 2px;color:var(--ink);font-size:17px}
+.editor-group-heading small{font-size:12px;font-weight:500;color:var(--muted)}
+.plan-section-label{margin-top:20px;letter-spacing:0;text-transform:none;font-size:14px;color:var(--ink)}
+
+@media (min-width:701px){.plans.plans-4{grid-template-columns:repeat(2,minmax(0,1fr));max-width:900px;margin-left:auto;margin-right:auto}}

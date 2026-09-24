@@ -2,25 +2,15 @@
 (function () {
   "use strict";
 
-  var KEY = "rc_site_guide_v2_done";
+  var KEY = "rc_site_guide_v3_done";
   var file = (location.pathname.split("/").pop() || "index.html").toLowerCase();
   var guides = {
     "index.html": [
-      { target: "#toolNav", title: "Escolha sua ferramenta", text: "As funções ficam separadas por assunto. Toque em uma categoria para ir direto até ela; você pode explorar antes de enviar o mundo." },
-      { target: "#drop", title: "Abra seu mundo", text: "Selecione um .mcworld, .zip ou level.dat. O site analisa a cópia aqui no navegador e mostra o diagnóstico antes de qualquer edição." },
-      { target: "#diffOpt", title: "Dificuldade", text: "Escolha Pacífico, Fácil, Normal ou Difícil. Se quiser conservar o valor do mundo, mantenha a opção atual." },
-      { target: "#coordOpt", title: "Coordenadas", text: "Ligue ou desligue a exibição de XYZ sem alterar as outras configurações." },
-      { target: "#renameOpt", title: "Nome do mundo", text: "Renomeie a cópia que será baixada. O arquivo original continua com você." },
-      { target: "#keepOpt", title: "Manter inventário", text: "Escolha se o jogador conserva os itens após morrer. O requisito de plano aparece antes de gerar a cópia." },
-      { target: "#modeOpt", title: "Modo de jogo", text: "Manter o modo atual é grátis. Para mudar para Sobrevivência, Criativo ou Aventura, confira o plano indicado." },
-      { target: "#hardcoreOpt", title: "Recuperar Hardcore", text: "Esta ferramenta só atua quando o marcador Hardcore existe. Faça backup e confira o resultado no jogo." },
-      { target: "#accPacks > summary", title: "Addons em seu lugar", text: "Coloque ou remova pacotes aqui. Behavior packs podem impedir conquistas; o diagnóstico avisa quando encontrar um." },
-      { target: "#accPlayer > summary", title: "Inventário do jogador", text: "Edite itens, equipamento e experiência nesta seção, separada das regras do mundo." },
-      { target: "#accExplore > summary", title: "Mapa e proteção", text: "Depois do upload, use mapa 2D, comparação e backups locais para conhecer e proteger o mundo." },
-      { target: "#operationActions", title: "Conquistas e download", text: "Revise os ajustes, aceite os termos e gere uma nova cópia. Esta etapa também prepara as flags de conquistas." },
-      { target: "#toolChunks", title: "Restaurar chunks", text: "Se uma região estiver corrompida, abra a ferramenta própria para selecionar e revisar as chunks antes de regenerar." },
-      { target: "#toolBuilder", title: "Construtor 3D", text: "Abra o Builder para posicionar uma .mcstructure no terreno e exportar outra cópia do mundo." },
-      { target: "#planos h2", title: "Limites e planos", text: "Veja o custo e o limite de cada opção antes de comprar. O botão Guia do site reabre este tour quando precisar." }
+      { target: "#toolNav", title: "Escolha uma área", text: "Abra Mundo, Jogador, Addons ou Mapa. Cada ferramenta tem seu lugar." },
+      { target: "#drop", title: "Envie seu mundo", text: "Selecione o arquivo e veja o diagnóstico antes de editar." },
+      { target: "#accFree > summary", title: "Ajuste o mundo", text: "Nome, dificuldade, coordenadas e regras do mundo ficam juntos." },
+      { target: "#accPlayer > summary", title: "Edite jogador e addons", text: "Inventário e pacotes têm áreas próprias logo abaixo." },
+      { target: "#operationActions", title: "Gere a cópia", text: "Confira as mudanças e baixe seu novo mundo." }
     ],
     "chunks.html": [
       { target: "#drop", title: "Abra uma cópia", text: "Escolha o .mcworld ou .zip. A página vai carregar o mapa do mundo." },
@@ -48,7 +38,7 @@
 
   var stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
-  stylesheet.href = "guia-site.css?v=2";
+  stylesheet.href = "guia-site.css?v=3";
   document.head.appendChild(stylesheet);
 
   var launcher = document.createElement("button");

@@ -1,7 +1,7 @@
 /* ReativaConquistas — Service Worker do site e do Construtor 3D.
    Páginas HTML sempre revalidam online para evitar servir conteúdo antigo.
    Recursos com ?v= podem usar cache-first; sem rede, usamos o cache local. */
-var CACHE = 'rc-builder-v16';
+var CACHE = 'rc-builder-v17';
 var CORE = [
   'index.html',
   'importar.html',
@@ -9,14 +9,14 @@ var CORE = [
   'config.js?v=26',
   'firebase-config.js?v=13',
   'auth.js?v=15',
-  'pagamento.js?v=28',
+  'pagamento.js?v=29',
   'entitlements.js?v=3',
   'tool-intents.js?v=1',
-  'guia-site.css?v=2',
-  'guia-site.js?v=5',
+  'guia-site.css?v=3',
+  'guia-site.js?v=6',
   'assets/null-apresenta.png',
   'assets/null-guia.png',
-  'style.css?v=18',
+  'style.css?v=19',
   'mapa-2d.js?v=9',
   'backups-local.js?v=2',
   'app.js?v=29',

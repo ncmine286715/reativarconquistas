@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -123,17 +123,17 @@
 
   <main class="card" id="converter">
     <h2>Editar seu mundo</h2>
-    <p class="sub">Carregue e analise seu mundo, escolha uma categoria e gere uma nova cópia quando estiver pronto.</p>
+    <p class="sub">Envie seu mundo, escolha o que editar e baixe uma cópia.</p>
 
     <nav class="tool-directory editor-categories" id="toolNav" aria-label="Escolha uma ferramenta">
-      <a id="toolUpload" href="#accFile"><b>Enviar mundo</b><small>Abra o .mcworld e veja o diagnóstico.</small></a>
-      <a id="toolAchievements" href="#operationActions"><b>Conquistas</b><small>Gere uma cópia com as conquistas reativadas.</small></a>
-      <a id="toolWorld" href="#accFree"><b>Configurações do mundo</b><small>Nome, dificuldade, coordenadas e regras.</small></a>
-      <a id="toolPlayer" href="#accPlayer"><b>Jogador</b><small>Inventário, equipamento e XP.</small></a>
-      <a id="toolAddons" href="#accPacks"><b>Addons</b><small>Coloque ou remova pacotes do mundo.</small></a>
-      <a id="toolExplore" href="#accExplore"><b>Mapa e backups</b><small>Explore, compare e proteja seu mundo.</small></a>
-      <a id="toolChunks" href="chunks.html"><b>Restaurar chunks</b><small>Recupere uma área problemática.</small></a>
-      <a id="toolBuilder" href="builder-lab.html"><b>Construtor 3D</b><small>Posicione uma estrutura .mcstructure.</small></a>
+      <a id="toolUpload" href="#accFile"><img src="mc/item/grass_block.png" alt=""><b>Enviar mundo</b><small>Arquivo e diagnóstico</small></a>
+      <a id="toolWorld" href="#accFree"><img src="mc/item/experience_bottle.png" alt=""><b>Mundo</b><small>Nome, regras e clima</small></a>
+      <a id="toolPlayer" href="#accPlayer"><img src="mc/item/netherite_sword.png" alt=""><b>Jogador</b><small>Itens, equipamento e XP</small></a>
+      <a id="toolAddons" href="#accPacks"><img src="mc/item/book.png" alt=""><b>Addons</b><small>Adicionar e remover</small></a>
+      <a id="toolExplore" href="#accExplore"><img src="mc/item/filled_map.png" alt=""><b>Mapa e backup</b><small>Explorar e comparar</small></a>
+      <a id="toolAchievements" href="#operationActions"><img src="mc/item/lantern.png" alt=""><b>Conquistas</b><small>Gerar e baixar</small></a>
+      <a id="toolChunks" href="chunks.html"><img src="mc/item/map.png" alt=""><b>Chunks</b><small>Restaurar uma área</small></a>
+      <a id="toolBuilder" href="builder-lab.html"><img src="mc/item/diamond_chestplate.png" alt=""><b>Construtor 3D</b><small>Posicionar estruturas</small></a>
     </nav>
 
     <form id="form" novalidate>
@@ -167,17 +167,7 @@
           <span id="wiDiagnosticText"></span>
           <a id="wiDiagnosticLink" href="#accPacks">Revisar addons</a>
         </div>
-                <nav class="editor-advanced-links" id="advancedTools" aria-label="Ferramentas avançadas e locais">
-          <b>Atalhos avançados</b>
-          <a href="#passportDownload">Passaporte</a>
-          <a href="#reportDownload">Diagnóstico</a>
-          <a href="#compareTitle">Comparar mundos</a>
-          <a href="#backupPanel">Backups locais</a>
-          <a href="#mapPreview">Mapa 2D</a>
-          <a href="chunks.html">Restaurar chunks</a>
-          <a href="objetivos.html">Livro de objetivos</a>
-          <a href="importar.html">Guia de importação</a>
-        </nav>
+
         <p class="wi-integrity" id="wiIntegrity" aria-live="polite">Verificação estrutural ainda não iniciada.</p>
         <div class="map-actions" style="margin-top:10px">
           <button type="button" class="btn-ghost btn-mini" id="passportDownload">Baixar passaporte JSON</button>
@@ -201,59 +191,9 @@
         </div>
       </details>
 
-      <details class="acc" id="accExplore" open>
-        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Explorar e proteger · mapa e backups</summary>
-        <div class="acc-body">
-      <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
-        <div class="wi-title" id="backupTitle">Backups locais</div>
-        <p>Guarde uma cópia neste navegador antes de editar. O arquivo não é enviado; limpar os dados do navegador pode apagar estes backups.</p>
-        <div class="backup-save-row">
-          <input id="backupLabel" type="text" maxlength="80" placeholder="Nome desta cópia (opcional)" aria-label="Nome do backup">
-          <button type="button" class="btn-ghost btn-mini" id="saveBackup" disabled>Guardar original neste aparelho</button>
-        </div>
-        <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Escolha um mundo para guardar uma cópia local.</p>
-        <div id="backupList" class="backup-list"></div>
-      </section>
-
-      <div id="mapPreview" class="mappreview" hidden>
-        <div class="wi-title">Mapa 2D <span class="wi-sub">visualização da pasta db/ — nada é alterado · grátis</span></div>
-        <div id="mapStats" class="map-stats">Lendo…</div>
-        <div id="mapDims" class="map-dims" hidden></div>
-        <div class="map-modes">
-          <button type="button" class="map-dim on" id="mapModePan">✋ Mover</button>
-          <button type="button" class="map-dim" id="mapModeSel">▦ Selecionar</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
-          <button type="button" class="map-dim" id="mapModePin">Colocar pin</button>
-          <span id="mapHint" class="map-hint"></span>
-        </div>
-        <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
-        <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>visitado</span><span><i class="sq" style="background:#b91c1c"></i>● spawn</span><span><i class="sq" style="background:#22c55e"></i>● jogador</span></div>
-      <div class="map-actions">
-          <button type="button" class="btn-ghost btn-mini" id="mapZoomIn" aria-label="Aproximar mapa">+ zoom</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
-        </div>
-        <div class="map-actions">
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPng">Baixar mapa PNG</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPoster">Criar pôster do mundo</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportCard">Criar cartão HTML</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPins">Exportar pins JSON</button>
-        </div>
-        <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
-        <a class="chunk-tool-link chunk-tool-repair" href="chunks.html">
-          <span class="chunk-tool-pixel" aria-hidden="true"><img class="repair-pick" src="mc/item/iron_pickaxe.png" alt=""><img class="repair-rock" src="mc/block/bedrock.png" alt=""></span>
-          <span class="chunk-tool-copy"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</span>
-        </a>
-        <a class="chunk-tool-link chunk-tool-builder" href="builder-lab.html">
-          <span class="chunk-tool-pixel" aria-hidden="true"><img class="builder-door" src="mc/item/oak_door.png" alt=""><img class="builder-grass" src="mc/item/grass_block.png" alt=""></span>
-          <span class="chunk-tool-copy"><b>NOVO · beta grátis: cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</span>
-        </a>
-      </div>
-        </div>
-      </details>
-
+      <h3 class="editor-group-heading">Mundo <small>Configurações e regras</small></h3>
       <details class="acc" id="accFree">
-        <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · ajustes básicos</summary>
+        <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · nome, dificuldade e coordenadas</summary>
         <div class="acc-body">
 
       <label class="opt" id="diffOpt">
@@ -306,7 +246,7 @@
       
 
       <details class="acc" id="accPrem">
-        <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · regras e ajustes avançados</summary>
+        <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · modo, regras, clima e aparência</summary>
         <div class="acc-body">
 
       <label class="opt locked" id="keepOpt">
@@ -422,6 +362,7 @@
         </div>
       </details>
 
+      <h3 class="editor-group-heading">Jogador e addons</h3>
       <details class="acc" id="accPlayer">
         <summary><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Jogador · inventário e equipamento</summary>
         <div class="acc-body">
@@ -511,6 +452,58 @@
 
 
 
+      <h3 class="editor-group-heading">Mapa e proteção</h3>
+      <details class="acc" id="accExplore" open>
+        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Explorar e proteger · mapa e backups</summary>
+        <div class="acc-body">
+      <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
+        <div class="wi-title" id="backupTitle">Backups locais</div>
+        <p>Guarde uma cópia neste navegador antes de editar. O arquivo não é enviado; limpar os dados do navegador pode apagar estes backups.</p>
+        <div class="backup-save-row">
+          <input id="backupLabel" type="text" maxlength="80" placeholder="Nome desta cópia (opcional)" aria-label="Nome do backup">
+          <button type="button" class="btn-ghost btn-mini" id="saveBackup" disabled>Guardar original neste aparelho</button>
+        </div>
+        <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Escolha um mundo para guardar uma cópia local.</p>
+        <div id="backupList" class="backup-list"></div>
+      </section>
+
+      <div id="mapPreview" class="mappreview" hidden>
+        <div class="wi-title">Mapa 2D <span class="wi-sub">visualização da pasta db/ — nada é alterado · grátis</span></div>
+        <div id="mapStats" class="map-stats">Lendo…</div>
+        <div id="mapDims" class="map-dims" hidden></div>
+        <div class="map-modes">
+          <button type="button" class="map-dim on" id="mapModePan">✋ Mover</button>
+          <button type="button" class="map-dim" id="mapModeSel">▦ Selecionar</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
+          <button type="button" class="map-dim" id="mapModePin">Colocar pin</button>
+          <span id="mapHint" class="map-hint"></span>
+        </div>
+        <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
+        <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>visitado</span><span><i class="sq" style="background:#b91c1c"></i>● spawn</span><span><i class="sq" style="background:#22c55e"></i>● jogador</span></div>
+      <div class="map-actions">
+          <button type="button" class="btn-ghost btn-mini" id="mapZoomIn" aria-label="Aproximar mapa">+ zoom</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
+        </div>
+        <div class="map-actions">
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPng">Baixar mapa PNG</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPoster">Criar pôster do mundo</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportCard">Criar cartão HTML</button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPins">Exportar pins JSON</button>
+        </div>
+        <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
+        <a class="chunk-tool-link chunk-tool-repair" href="chunks.html">
+          <span class="chunk-tool-pixel" aria-hidden="true"><img class="repair-pick" src="mc/item/iron_pickaxe.png" alt=""><img class="repair-rock" src="mc/block/bedrock.png" alt=""></span>
+          <span class="chunk-tool-copy"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</span>
+        </a>
+        <a class="chunk-tool-link chunk-tool-builder" href="builder-lab.html">
+          <span class="chunk-tool-pixel" aria-hidden="true"><img class="builder-door" src="mc/item/oak_door.png" alt=""><img class="builder-grass" src="mc/item/grass_block.png" alt=""></span>
+          <span class="chunk-tool-copy"><b>NOVO · beta grátis: cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</span>
+        </a>
+      </div>
+        </div>
+      </details>
+
       <details class="acc" id="accChunks" open>
         <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
         <div class="acc-body">
@@ -539,7 +532,7 @@
     
       <div class="operation-heading" id="operationActions">
         <h3>Conquistas e arquivo final</h3>
-        <p>A recuperação das flags de conquistas acontece ao gerar a cópia. O diagnóstico pode ser executado separadamente, sem exportar.</p>
+        <p>Confira os ajustes e baixe uma nova cópia do mundo.</p>
       </div>
       <label class="accept">
         <input type="checkbox" id="accept">
@@ -557,8 +550,9 @@
   <!-- PLANOS -->
   <section class="section" id="planos">
     <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Compra única, sem cobrança automática: um crédito para trabalhar em um mundo, com reedições por 30 dias, ou passes para usar os recursos por 7 ou 30 dias.</p>
+    <p class="plans-sub">Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.</p>
     <div class="plans plans-4">
+      <div class="plan-section-label">Para começar ou editar um mundo</div>
       <div class="plan">
         <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
         <div class="price">R$ 0<small> · p/ sempre</small></div>
@@ -580,11 +574,12 @@
           <li class="yes"><b>Recuperação Hardcore</b> quando o marcador existir</li>
         </ul>
         <a class="btn-plan btn-pay" data-pay="world1" href="#">Resolver este mundo · R$ 5,99</a>
-        <p class="plan-note">Para uma necessidade pontual.</p>
+        <p class="plan-note">Créditos não expiram antes do uso. Após começar, reedite este mundo por 30 dias.</p>
       </div>
+      <div class="plan-section-label">Para editar vários mundos · passes de tempo</div>
       <div class="plan plan-weekly">
         <span class="vip-flag">Para vários mundos</span>
-        <h3>Passe 7 dias</h3>
+        <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Passe 7 dias</h3>
         <div class="price">R$ 7,99<small> · até 500 MB</small></div>
         <ul>
           <li class="yes">Até <b>5 mundos por lote</b></li>
@@ -606,9 +601,9 @@
         <a class="btn-plan btn-pay" data-pay="vip30" href="#">Comprar passe · R$ 24,90</a>
         <p class="plan-note">Pagamento único. Não renova automaticamente.</p>
       </div>
-      <div class="plan-section-label">Uso avançado</div>
+      <div class="plan-section-label">Uso avançado · para lotes maiores</div>
       <div class="plan plan-creator">
-        <h3>Criador</h3>
+        <h3><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Criador</h3>
         <div class="price">R$ 39,90<small> · 30 dias</small></div>
         <ul>
           <li class="yes">Arquivos grandes, sujeitos ao navegador</li>
@@ -626,7 +621,7 @@
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
-      <div class="step"><b>1.</b> Você escolhe as alterações; manter o modo atual é grátis e mudar o modo exige plano pago.</div>
+      <div class="step"><b>1.</b> Escolha o que mudar.</div>
       <div class="step"><b>2.</b> Só isso muda. Mapa e itens intactos.</div>
       <div class="step"><b>3.</b> Abra no Survival, sem cheats. Vale a regra da Mojang.</div>
     </div>
@@ -685,9 +680,9 @@
 <script src="app.js?v=29"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
-<script src="pagamento.js?v=28"></script>
+<script src="pagamento.js?v=29"></script>
 <script src="entitlements.js?v=3"></script>
-<script src="guia-site.js?v=5"></script>
+<script src="guia-site.js?v=6"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>

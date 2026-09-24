@@ -179,7 +179,7 @@
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
     }
     var overview = document.querySelector(".plans-sub");
-    if (overview) overview.textContent = "Compra única, sem cobrança automática. O crédito libera um mundo para várias edições por " + ((PUBLIC_PLANS.world1 && PUBLIC_PLANS.world1.project_window_days) || 30) + " dias; os passes liberam os recursos por tempo determinado.";
+    if (overview) overview.textContent = "Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.";
   }
   function ensurePlanCatalog() {
     if (planCatalogReady) return Promise.resolve(PUBLIC_PLANS);
