@@ -42,7 +42,7 @@
     return ms ? new Date(Number(ms)).toLocaleString("pt-BR") : "—";
   }
   function planName(plan) {
-    return ({ world1: "1 mundo", vip7: "7 dias", vip30: "30 dias", creator: "Criador" })[plan] || plan || "—";
+    return ({ world1: "Ferro", ouro: "Ouro", diamante: "Diamante", vip7: "7 dias", vip30: "30 dias", creator: "Criador" })[plan] || plan || "—";
   }
   function sourceName(item) {
     if (item.manual) return "Manual";
@@ -88,6 +88,24 @@
     document.getElementById("statConversion").textContent = (summary.conversion_percent || 0) + "%";
     document.getElementById("statAbandoned").textContent = summary.abandoned_count || 0;
     document.getElementById("statPending").textContent = summary.pending_count || 0;
+    var funnel = data.funnel || {};
+    document.getElementById("funnelSummary").innerHTML = [
+      ["Visitas*", funnel.page_views], ["Viram preços*", funnel.pricing_views],
+      ["Clicaram em comprar*", funnel.plan_clicks], ["Abriram checkout*", funnel.checkout_opens],
+      ["Pediram Pix*", funnel.pix_requests], ["Pix criados", funnel.pix_created],
+      ["Pagos", funnel.paid], ["Benefícios liberados*", funnel.benefit_activated],
+      ["Operações concluídas*", funnel.operation_completed]
+    ].map(function (item, index) {
+      return "<span><small>" + esc(item[0]) + "</small><strong>" + esc(item[1] || 0) + "</strong>" + (index < 8 ? "<b aria-hidden='true'>→</b>" : "") + "</span>";
+    }).join("");
+    document.getElementById("planFunnelRows").innerHTML = (data.plan_funnel || []).map(function (item) {
+      return "<tr><td>" + esc(planName(item.plan)) + "</td><td>" + esc(item.clicks || 0) + "</td><td>" + esc(item.pix_created || 0) + "</td><td>" + esc(item.paid || 0) + "</td><td>" + esc(item.pix_to_paid_percent || 0) + "%</td><td>" + esc(money(item.revenue_cents)) + "</td></tr>";
+    }).join("");
+    document.getElementById("toolSalesRows").innerHTML = (data.tool_sales || []).length
+      ? data.tool_sales.map(function (item) {
+        return "<tr><td>" + esc(item.source.replace(/^tool_/, "").replace(/_/g, " ")) + "</td><td>" + esc(item.paid) + "</td><td>" + esc(money(item.revenue_cents)) + "</td></tr>";
+      }).join("")
+      : "<tr><td colspan='3' class='admin-empty'>Ainda não há compras atribuídas a uma ferramenta.</td></tr>";
     document.getElementById("purchaseCount").textContent = (data.purchases || []).length;
     document.getElementById("manualGrantCount").textContent = (data.manual_grants || []).length;
     document.getElementById("abandonedCount").textContent = (data.abandoned || []).length;
