@@ -70,6 +70,28 @@
     } catch (e) {}
   }
   track("page_view");
+  function observePricing() {
+    if (!("IntersectionObserver" in window)) return;
+    var root = document.getElementById("planos");
+    if (!root) return;
+    var seen = {};
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var id = entry.target.getAttribute("data-pay") || "pricing";
+        if (seen[id]) return;
+        seen[id] = true;
+        if (id === "pricing") track("pricing_view", { source: "pricing_card" });
+        else track("plan_card_view", { plan: id, source: "pricing_card" });
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.3 });
+    observer.observe(root);
+    Array.prototype.forEach.call(root.querySelectorAll(".plan [data-pay]"), function (button) {
+      var card = button.closest(".plan");
+      if (card) { card.setAttribute("data-pay", button.getAttribute("data-pay")); observer.observe(card); }
+    });
+  }
 
   // Telemetria de erro: o navegador conta o que travou (leitura só com segredo).
   function logClient(step, message) {
@@ -144,6 +166,7 @@
     if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + " cada. Não expiram até o uso; reedite cada mundo por " + (p.project_window_days || 30) + " dias após começar.";
     return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
   }
+  var PLAN_ACTIONS = { world1: "Editar 1 mundo", ouro: "Comprar 3 mundos", diamante: "Comprar 5 mundos", vip7: "Liberar por 7 dias", vip30: "Usar por 30 dias", creator: "Escolher Criador" };
   function applyPlanCatalog(config) {
     PUBLIC_PLANS = config && config.plans || {};
     PLAN_IDS.forEach(function (id) {
@@ -163,18 +186,36 @@
       var card = button.closest ? button.closest(".plan") : null;
       if (card && p.kind === "world_credit" && paymentProvider() === "kiwify") card.hidden = true;
       var priceBox = card && card.querySelector(".price");
+      var quantityBox = card && card.querySelector(".plan-quantity");
+      var unitBox = card && card.querySelector(".plan-unit");
       var list = card && card.querySelector("ul");
       var creditPlan = p.kind === "world_credit";
-      if (priceBox) priceBox.innerHTML = escH(planPrice(id)) + "<small> · " + escH(creditPlan ? (p.credit_count || 1) + " crédito(s)" : (p.duration_days || 0) + " dias") + "</small>";
+      if (priceBox) priceBox.textContent = planPrice(id);
+      if (quantityBox) quantityBox.textContent = creditPlan ? (p.credit_count || 1) + ((p.credit_count || 1) === 1 ? " mundo" : " mundos") : (p.duration_days || 0) + " dias de acesso";
+      if (unitBox) {
+        if (creditPlan) {
+          var countForUnit = p.credit_count || 1;
+          var saving = (+PUBLIC_PLANS.world1.price_cents * countForUnit) - (+p.price_cents || 0);
+          unitBox.textContent = priceText(Math.round((+p.price_cents || 0) / countForUnit)) + " por mundo" + (saving > 0 ? " · economize " + priceText(saving) : "");
+        } else unitBox.textContent = "Até " + (p.max_batch || 1) + " mundos por lote";
+      }
       if (list) {
         var count = p.credit_count || 1;
         var bullets = creditPlan
-          ? [count + " crédito(s) · " + size + " cada", priceText(Math.round((+p.price_cents || 0) / count)) + " por mundo" + ((+PUBLIC_PLANS.world1.price_cents * count > +p.price_cents) ? " · economize " + priceText((+PUBLIC_PLANS.world1.price_cents * count) - (+p.price_cents || 0)) : ""), "Cada crédito cobre um mundo", "Sem validade até o uso; reedite por " + (p.project_window_days || 30) + " dias após começar"]
-          : ["Acesso por " + (p.duration_days || 0) + " dias", size, batch, "Recursos avançados incluídos no plano"];
+          ? [size, "Um mundo por vez", "Sem validade antes do uso; o mundo fica liberado por " + (p.project_window_days || 30) + " dias"]
+          : [size, batch, "Ferramentas avançadas durante o período"];
         list.innerHTML = bullets.map(function (item) { return "<li class='yes'>" + escH(item) + "</li>"; }).join("");
       }
-      button.textContent = String(p.label || id) + " · " + planPrice(id);
+      button.textContent = PLAN_ACTIONS[id] || "Comprar";
+      button.setAttribute("aria-label", button.textContent + " por " + planPrice(id));
     });
+    var diamondBadge = document.querySelector(".plan-diamond .vip-flag");
+    if (diamondBadge && PUBLIC_PLANS.world1 && PUBLIC_PLANS.ouro && PUBLIC_PLANS.diamante) {
+      diamondBadge.hidden = !(PUBLIC_PLANS.diamante.price_cents / PUBLIC_PLANS.diamante.credit_count <
+        PUBLIC_PLANS.ouro.price_cents / PUBLIC_PLANS.ouro.credit_count &&
+        PUBLIC_PLANS.diamante.price_cents / PUBLIC_PLANS.diamante.credit_count <
+        PUBLIC_PLANS.world1.price_cents / PUBLIC_PLANS.world1.credit_count);
+    }
     var creditGrid = document.querySelector(".credit-plans");
     var creditGroup = creditGrid && creditGrid.closest ? creditGrid.closest(".plan-group") : null;
     if (creditGroup) creditGroup.hidden = !creditGrid.querySelector(".plan:not([hidden])");
@@ -185,7 +226,7 @@
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
     }
     var overview = document.querySelector(".plans-sub");
-    if (overview) overview.textContent = "Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.";
+    if (overview) overview.textContent = "Créditos para mundos específicos, sem prazo para começar. Passes para vários mundos durante 7 ou 30 dias. Compra única.";
   }
   function ensurePlanCatalog() {
     if (planCatalogReady) return Promise.resolve(PUBLIC_PLANS);
@@ -367,6 +408,7 @@
     checkoutRequestId = newRequestId();
     storeCheckoutContext(plan, context);
     track("checkout_opened", Object.assign({ plan: plan }, context));
+    track("checkout_open", Object.assign({ plan: plan }, context));
     closePay();
     var user = currentUser();
     if (!user || !user.email) {
@@ -593,7 +635,11 @@
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
           track("pix_create_clicked", Object.assign({ plan: plan }, context));
-          depixCreate(plan, doc, pixEmail, context.source).then(function (r) {
+          track("pix_requested", Object.assign({ plan: plan }, context));
+          var intent = window.RC_toolIntents && window.RC_toolIntents.resolve(context.tool);
+          var purchaseSource = intent ? "tool_" + intent.slug.replace(/-/g, "_") : context.source;
+          depixCreate(plan, doc, pixEmail, purchaseSource).then(function (r) {
+            track("pix_created", Object.assign({ plan: plan }, context));
             var url = r.url || r.payment_url;
             if (!url) throw new Error("Resposta sem link de pagamento.");
             try { localStorage.setItem("rc_pending_depix", r.id || ""); } catch (e) {}
@@ -787,6 +833,7 @@
   function wire() {
     if (wireInstalled) return;
     wireInstalled = true;
+    observePricing();
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
       var plan = String(b.getAttribute("data-pay") || "");
       if (!depixEnabled() && !kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }
@@ -795,6 +842,7 @@
         e.preventDefault();
         var source = b.getAttribute("data-source") || "pricing_card";
         track("buy_clicked", { plan: plan, price_cents: PUBLIC_PLANS[plan] ? +PUBLIC_PLANS[plan].price_cents : 0, source: source });
+        track("plan_click", { plan: plan, source: source });
         checkout(plan, null, { source: source });
       });
     });
