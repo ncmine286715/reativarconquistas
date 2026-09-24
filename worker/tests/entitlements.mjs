@@ -66,6 +66,8 @@ assert.equal(worker.PLAN_LIMITS.free.max_file_bytes, 10 * MB);
 assert.deepEqual([worker.PLAN_LIMITS.world1.credit_count, worker.PLAN_LIMITS.ouro.credit_count, worker.PLAN_LIMITS.diamante.credit_count], [1, 3, 5], "Worker catalog defines each credit balance");
 assert.deepEqual([worker.PLAN_LIMITS.world1.price_cents, worker.PLAN_LIMITS.ouro.price_cents, worker.PLAN_LIMITS.diamante.price_cents], [599, 1499, 2290], "credit prices are server-owned");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now).allowed, true, "free users may use a 5 MB world");
+assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now, { tool: "convert", mode: "survival", reactivate_achievements: true, remove_behavior_packs: true }).allowed, true, "restoring achievements may put a free world into Survival and remove packs");
+assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now, { tool: "convert", mode: "survival" }).code, "NO_ENTITLEMENT", "ordinary mode edits still require a paid plan");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 11 * MB, now).code, "NO_ENTITLEMENT", "free users cannot use an 11 MB world");
 assert.equal(worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now, { tool: "chunks_restore", chunks_count: 9 }).code, "NO_ENTITLEMENT", "free chunk restore obeys the central free capability limit");
 const freeBuilder = worker.checkEntitlement({ plan: "free", premium_until_ms: 0 }, 1, 5 * MB, now, { tool: "builder" });

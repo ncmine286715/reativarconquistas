@@ -882,7 +882,7 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
     (tool === "chunks_restore" && chunkCount > maxChunks) ||
     (tool === "player_basic" && playerAdvanced));
   const paidFeature = sizeBytes > free.max_file_bytes || worlds > free.max_batch ||
-    (features.mode && String(features.mode).toLowerCase() !== "keep") || features.hardcore === true ||
+    (features.mode && String(features.mode).toLowerCase() !== "keep" && !(String(features.mode).toLowerCase() === "survival" && features.reactivate_achievements === true)) || features.hardcore === true ||
     addPacks > free.capabilities.add_behavior_packs || playerAdvanced ||
     toolRequiresPremium;
 

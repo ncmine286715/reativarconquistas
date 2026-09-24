@@ -229,7 +229,8 @@
     var NBT = needNbt();
     gameMode = gameMode || "survival";
     opts = opts || {};
-    if (gameMode !== "keep" && opts.paidEntitlement !== true) {
+    if (opts.reactivateAchievements !== false) gameMode = "survival";
+    if (gameMode !== "keep" && opts.paidEntitlement !== true && !(gameMode === "survival" && opts.reactivateAchievements !== false)) {
       throw new Error("PAID_GAME_MODE|Alterar o modo de jogo exige um plano pago.");
     }
     var raw = u8(arrayBuffer);

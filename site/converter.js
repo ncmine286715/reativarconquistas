@@ -206,6 +206,18 @@
     if (extra.removeBehaviorPacks) (hits.hasLockedBehaviorPack || []).forEach(function (h) {
       if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (hasLockedBehaviorPack) = " + h.val + " -> 0"); }
     });
+    if (extra.removeResourcePacks) (hits.hasLockedResourcePack || []).forEach(function (h) {
+      if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (hasLockedResourcePack) = " + h.val + " -> 0"); }
+    });
+    if (extra.reactivateAchievements !== false) Object.keys(hits).forEach(function (name) {
+      if (name !== "educationFeaturesEnabled" && name !== "experiments_ever_used" && name !== "saved_with_toggled_experiments" && name !== "requiresCopiedPackRemovalCheck" && !((hits[name] || []).some(function (h) { return /experiments/i.test(h.path || ""); }))) return;
+      (hits[name] || []).forEach(function (h) {
+        if (h.tag === TAG_BYTE && h.val !== 0 && (name === "educationFeaturesEnabled" || name === "experiments_ever_used" || name === "saved_with_toggled_experiments" || name === "requiresCopiedPackRemovalCheck" || /experiments/i.test(h.path || ""))) {
+          buf[h.off] = 0;
+          changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
+        }
+      });
+    });
     if (recoverHardcore) {
       var hardcoreHits = (hits.IsHardcore || []).filter(function (h) { return h.tag === TAG_BYTE; });
       if (!hardcoreHits.length) throw new Error("HARDCORE_NOT_DETECTED|O marcador Bedrock IsHardcore não foi encontrado.");
@@ -323,6 +335,10 @@
         if (h.tag === TAG_BYTE && h.val !== 0) throw new Error(name + " ainda = " + h.val);
       });
     });
+    if (reactivateAchievements !== false) {
+      var modes = (hits.GameType || []).filter(function (h) { return h.tag === TAG_INT; });
+      if (!modes.length || modes.some(function (h) { return h.val !== 0; })) throw new Error("Validação falhou: o mundo não ficou em Sobrevivência.");
+    }
     return true;
   }
 
@@ -388,7 +404,8 @@
   async function convertMcworld(arrayBuffer, opts) {
     opts = opts || {};
     var gameMode = opts.gameMode || "survival";
-    if (gameMode !== "keep" && opts.paidEntitlement !== true) {
+    if (opts.reactivateAchievements !== false) gameMode = "survival";
+    if (gameMode !== "keep" && opts.paidEntitlement !== true && !(gameMode === "survival" && opts.reactivateAchievements !== false)) {
       throw new Error("PAID_GAME_MODE|Alterar o modo de jogo exige um plano pago.");
     }
     var iconBytes = opts.iconBytes || null; // Uint8Array em JPEG (world_icon.jpeg)
@@ -404,6 +421,7 @@
     var packInfo = await scanBehaviorPacks(zip, worldPrefix);
     var reactivateAchievements = opts.reactivateAchievements !== false;
     var stripPacks = !!opts.stripBehaviorPacks || reactivateAchievements;
+    var stripResourcePacks = reactivateAchievements;
     var warnings = [];
     var packCount = packInfo.active || packInfo.folders.length;
     if (stripPacks && (typeof opts.stripPackLimit === "number") && packCount > opts.stripPackLimit) {
@@ -424,7 +442,7 @@
     var split = splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
 
-    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, recoverHardcore: !!opts.recoverHardcore, reactivateAchievements: reactivateAchievements, removeBehaviorPacks: stripPacks });
+    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, recoverHardcore: !!opts.recoverHardcore, reactivateAchievements: reactivateAchievements, removeBehaviorPacks: stripPacks, removeResourcePacks: stripResourcePacks });
     var changes = patched.changes.slice();
 
     // Nome de verdade: dentro do level.dat (LevelName) + levelname.txt espelho.
@@ -449,11 +467,12 @@
       var base = baseNameOf(rel);
       var low = rel.toLowerCase();
       var worldRelative = rel.slice(0, worldPrefix.length) === worldPrefix ? rel.slice(worldPrefix.length).toLowerCase() : "";
-      // Remoção de addons: tira os pacotes de comportamento e os vínculos
-      // do mundo (resource_packs ficam — visuais não bloqueiam conquistas).
+      // A reativação retira também os recursos do addon para não deixar
+      // dependências ou referências que o jogo possa reanexar na importação.
       if (stripPacks && (worldRelative === "world_behavior_packs.json" || worldRelative === "world_behavior_pack_history.json" || worldRelative.indexOf("behavior_packs/") === 0 || worldRelative.indexOf("development_behavior_packs/") === 0)) {
         return;
       }
+      if (stripResourcePacks && (worldRelative === "world_resource_packs.json" || worldRelative === "world_resource_pack_history.json" || worldRelative.indexOf("resource_packs/") === 0 || worldRelative.indexOf("development_resource_packs/") === 0)) return;
       // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
       if (iconBytes && (base === "world_icon.jpeg" || base === "world_icon.jpg" || base === "world_icon.png" || base === "pack_icon.png")) {
         return;
@@ -472,6 +491,7 @@
     if (stripPacks && packCount > 0) {
       changes.push("addons de comportamento removidos: " + packCount);
     }
+    if (stripResourcePacks && (zip.file(worldPrefix + "world_resource_packs.json") || Object.keys(zip.files).some(function (name) { return name.slice(0, worldPrefix.length) === worldPrefix && /^resource_packs\//i.test(name.slice(worldPrefix.length)); }))) changes.push("pacotes de recursos removidos");
     if (iconBytes) {
       out.file("world_icon.jpeg", iconBytes);
       changes.push("foto do mundo atualizada (world_icon.jpeg)");
@@ -494,6 +514,7 @@
     var checkSplit = splitLevelDat(checkRaw);
     validateBody(checkSplit.body, reactivateAchievements);
     if (stripPacks && (checkZip.file(worldPrefix + "world_behavior_packs.json") || Object.keys(checkZip.files).some(function (name) { return name.slice(0, worldPrefix.length) === worldPrefix && /^(behavior_packs|development_behavior_packs)\//i.test(name.slice(worldPrefix.length)); }))) throw new Error("Validação falhou: pacotes de comportamento permaneceram no mundo.");
+    if (stripResourcePacks && (checkZip.file(worldPrefix + "world_resource_packs.json") || Object.keys(checkZip.files).some(function (name) { return name.slice(0, worldPrefix.length) === worldPrefix && /^(resource_packs|development_resource_packs)\//i.test(name.slice(worldPrefix.length)); }))) throw new Error("Validação falhou: pacotes de recursos permaneceram no mundo.");
     if (opts.recoverHardcore) assertHardcoreRecovered(checkSplit.body);
     if (iconBytes && !checkZip.file("world_icon.jpeg")) throw new Error("Validação falhou: ícone não foi preservado.");
     return { blob: blob, changes: changes, warnings: warnings, packInfo: packInfo };

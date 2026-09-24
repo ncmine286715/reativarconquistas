@@ -1006,7 +1006,7 @@
   }
 
   function updateSubmit() {
-    submit.disabled = !(selected && accept.checked);
+    submit.disabled = checkingEntitlement || !(selected && accept.checked);
     if (diagBtn) diagBtn.disabled = !selected;
   }
 
@@ -1027,7 +1027,7 @@
   if (gameSel) gameSel.addEventListener("change", function () {
     // Any explicit mode change is a paid operation. `keep` is the no-op/free
     // choice and remains available so the rest of the free tools work.
-    if (gameSel.value !== "keep" && !remotePremOk()) {
+    if (gameSel.value !== "keep" && !(gameSel.value === "survival" && $('reactivateAchievements') && $('reactivateAchievements').checked) && !remotePremOk()) {
       lockedHint("Alterar o modo de jogo é uma função paga.", "world1", { tool: gameSel.value === "creative" ? "criativo" : "mundo" });
       gameSel.value = "keep";
     }
@@ -1241,30 +1241,29 @@
   function batchLimit() {
     return serverEntitlement.status === "ready" || serverEntitlement.status === "unauthenticated" ? Math.max(1, +serverEntitlement.max_batch || 1) : 0;
   }
-  var submitEntitlementBypass = false;
+  var checkingEntitlement = false;
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    if (!submitEntitlementBypass) {
-      if (!window.RC_entitlements) { setStatus("err", "Não foi possível verificar seu plano agora. Tente novamente."); return; }
-      submit.disabled = true;
-      setStatus("ok", "Verificando seu plano...");
-      window.RC_entitlements.load().then(function (ent) {
-        if (ent.status !== "ready" && ent.status !== "unauthenticated") throw new Error("ENTITLEMENT_UNAVAILABLE");
-        serverEntitlement = Object.assign({}, ent, { ready: ent.status === "ready", until: +ent.premium_until_ms || 0, email: ent.account_email || "" });
-        window.RC_entitlementState = serverEntitlement;
-        paintQuota();
-        updateSubmit();
-        submitEntitlementBypass = true;
-        form.requestSubmit();
-        setTimeout(function () { submitEntitlementBypass = false; }, 0);
-      }).catch(function (err) {
-        submit.disabled = false;
-        var expired = err && (err.entitlement_status === "session_expired" || err.status === 401);
-        setStatus("err", expired ? "Sua sessão Google expirou. Entre novamente e atualize seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar um plano existente.");
-      });
-      return;
-    }
-    submitEntitlementBypass = false;
+    if (checkingEntitlement || !selected || !accept.checked) return;
+    if (!window.RC_entitlements) { setStatus("err", "Não foi possível verificar seu plano agora. Tente novamente."); return; }
+    checkingEntitlement = true;
+    updateSubmit();
+    setStatus("ok", "Verificando seu plano...");
+    window.RC_entitlements.load().then(function (ent) {
+      if (ent.status !== "ready" && ent.status !== "unauthenticated") throw new Error("ENTITLEMENT_UNAVAILABLE");
+      serverEntitlement = Object.assign({}, ent, { ready: ent.status === "ready", until: +ent.premium_until_ms || 0, email: ent.account_email || "" });
+      window.RC_entitlementState = serverEntitlement;
+      checkingEntitlement = false;
+      paintQuota();
+      try { runConversion(); } catch (error) { presentOperationFailure(error); updateSubmit(); }
+    }).catch(function (err) {
+      checkingEntitlement = false;
+      updateSubmit();
+      var expired = err && (err.entitlement_status === "session_expired" || err.status === 401);
+      setStatus("err", expired ? "Sua sessão Google expirou. Entre novamente e atualize seus benefícios." : "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária para verificar um plano existente.");
+    });
+  });
+  function runConversion() {
     try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("operation_started", { worlds: selectedList.length || 1, source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e0) {}
     if (!selected || submit.disabled) return;
     if (!accept.checked) { setStatus("err", "Para converter, você precisa <b>aceitar os Termos</b> marcando a caixinha acima."); return; }
@@ -1272,12 +1271,14 @@
     var prem = remotePremOk();
     var premUnlimited = isPremiumAny(); // Premium da conta (AbacatePay)
     var batch = selectedList.length > 1;
+    var reactivateAchievements = !!($('reactivateAchievements') && $('reactivateAchievements').checked);
     var mode = "survival";
     try {
       var gs = $("gamemode");
       if (gs && ["survival", "creative", "adventure", "keep"].indexOf(gs.value) >= 0) mode = gs.value;
     } catch (e2) { mode = "survival"; }
-    if (mode !== "keep" && !prem) {
+    if (reactivateAchievements) mode = "survival";
+    if (mode !== "keep" && !(reactivateAchievements && mode === "survival") && !prem) {
       lockedHint("Alterar o modo de jogo é uma função paga. O plano grátis pode manter o modo atual.", "world1", { tool: mode === "creative" ? "criativo" : "mundo" });
       return;
     }
@@ -1318,9 +1319,8 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
-    var reactivateAchievements = !!($('reactivateAchievements') && $('reactivateAchievements').checked);
     stripPacks = stripPacks || reactivateAchievements;
-    var addPacks = selectedPacks.filter(function (p) { return !reactivateAchievements || p.kind === "resource"; }).map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
+    var addPacks = selectedPacks.filter(function () { return !reactivateAchievements; }).map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
     if (addPacks.length && !prem && addPacks.length > freeAddPacksLimit()) {
       lockedHint("Grátis: até " + freeAddPacksLimit() + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
       return;
@@ -1356,7 +1356,7 @@
     var featureTools = ["convert"];
     if (wantChunks) featureTools.push("chunks_restore");
     if (wantPlayer) featureTools.push("player_basic");
-    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore ||
+    var premiumRequested = remotePlan() === "world1" || (mode !== "keep" && !reactivateAchievements) || wantsHardcore ||
       addPacks.length > freeAddPacksLimit() || selectedList.some(function (f) { return f.size > freeLimitMB() * 1024 * 1024; }) ||
       (wantChunks && window.RC_reset.selCount() > freeChunksLimit()) || playerAdvanced;
     var operationId = "";
@@ -1379,7 +1379,7 @@
         Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
         { mode: mode, hardcore: wantsHardcore, advanced_rules: wantsKeep || wantsTime,
           tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced,
-          remove_behavior_packs: stripPacks,
+          remove_behavior_packs: stripPacks, reactivate_achievements: reactivateAchievements,
           add_packs: addPacks.length, rename: false, icon: !!(wantIcon && wantIcon.checked), tool: "convert" },
         operationId,
         info.project_id,
@@ -1394,7 +1394,7 @@
       if (!window.RC_pay || !window.RC_pay.authorizeOperation) { setStatus("err", "Não foi possível validar a operação no servidor. Tente novamente."); return; }
       entitlementCheck = function () { return worldInfoPromise.then(function (info) { return window.RC_pay.authorizeOperation(
         selectedList.length, Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
-        { mode: mode, tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced, remove_behavior_packs: stripPacks },
+        { mode: mode, tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced, remove_behavior_packs: stripPacks, reactivate_achievements: reactivateAchievements },
         operationId, info.project_id, info.fingerprint
       ); }).then(function (decision) { operationDecision = decision; return decision; }); };
     }
@@ -1598,7 +1598,7 @@
       presentOperationFailure(err);
       submit.disabled = false;
     });
-  });
+  }
 
   /* ---------- diagnóstico --check (somente leitura, não consome cota) ---------- */
   if (diagBtn) diagBtn.addEventListener("click", function () {
