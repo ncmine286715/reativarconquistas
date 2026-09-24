@@ -129,6 +129,7 @@
   var index = -1;
   var activeTarget = null;
   var originalScroll = 0;
+  var originalDetails = [];
   var updateFrame = 0;
 
   function positionSpotlight() {
@@ -160,7 +161,12 @@
   function render(i) {
     if (i >= steps.length) { finish(); return; }
     if (i < 0) return;
-    if (index < 0) originalScroll = window.scrollY;
+    if (index < 0) {
+      originalScroll = window.scrollY;
+      originalDetails = Array.prototype.map.call(document.querySelectorAll('details.acc'), function (section) {
+        return { element: section, open: section.open };
+      });
+    }
     index = i;
     var step = steps[index];
     overlay.hidden = false;
@@ -190,6 +196,8 @@
     overlay.setAttribute("aria-hidden", "true");
     spotlight.hidden = true;
     try { localStorage.setItem(KEY, "1"); } catch (e) {}
+    originalDetails.forEach(function (item) { item.element.open = item.open; });
+    originalDetails = [];
     window.scrollTo({ top: originalScroll, behavior: "smooth" });
     launcher.focus();
   }
