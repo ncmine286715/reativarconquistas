@@ -157,7 +157,7 @@ const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
 const PURCHASABLE_PLAN_IDS = new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
-const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
+const ANALYTICS_EVENTS = new Set(["page_view", "pricing_view", "plan_card_view", "plan_click", "checkout_open", "pix_requested", "pix_created", "benefit_activated", "download_completed", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
 const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall", "tool_conquistas", "tool_hardcore", "tool_criativo", "tool_keep_inventory", "tool_jogador", "tool_addons", "tool_chunks", "tool_mundo", "tool_upload", "tool_builder"]);
 const TELEMETRY_REASONS = new Set(["terms", "email", "document", "session_expired", "unavailable"]);
 const TELEMETRY_ERRORS = new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
@@ -954,6 +954,35 @@ export default {
         const pending = checkouts.filter((item) => item.status === "pending");
         const revenue = purchases.reduce((sum, item) => sum + (+item.amount_cents || 0), 0);
         const decided = purchases.length + abandoned.length;
+        const daysToRead = Math.min(days, 31);
+        const dailyMetrics = await Promise.all(Array.from({ length: daysToRead }, (_, offset) =>
+          env.PREMIUM_KV.get("analytics:" + analyticsDay(Date.now() - offset * 86400000), "json").catch(() => null)));
+        const funnelEvents = {};
+        const planEvents = {};
+        for (const day of dailyMetrics) {
+          for (const [event, count] of Object.entries(day && day.events || {})) funnelEvents[event] = (funnelEvents[event] || 0) + (+count || 0);
+          for (const [plan, events] of Object.entries(day && day.plans || {})) {
+            planEvents[plan] ||= {};
+            for (const [event, count] of Object.entries(events)) planEvents[plan][event] = (planEvents[plan][event] || 0) + (+count || 0);
+          }
+        }
+        const planFunnel = [...PURCHASABLE_PLAN_IDS].map((plan) => {
+          const planCheckouts = checkouts.filter((item) => item.plan === plan);
+          const planPurchases = purchases.filter((item) => item.plan === plan);
+          const paid = planPurchases.length;
+          const generated = planCheckouts.length;
+          return { plan, clicks: planEvents[plan]?.plan_click || 0, pix_created: generated, paid,
+            revenue_cents: planPurchases.reduce((sum, item) => sum + (+item.amount_cents || 0), 0),
+            pix_to_paid_percent: generated ? Math.round(paid * 1000 / generated) / 10 : 0 };
+        });
+        const toolSales = {};
+        for (const purchase of purchases) {
+          const source = String(purchase.source || "");
+          if (!source.startsWith("tool_")) continue;
+          toolSales[source] ||= { source, paid: 0, revenue_cents: 0 };
+          toolSales[source].paid++;
+          toolSales[source].revenue_cents += +purchase.amount_cents || 0;
+        }
         return json({
           admin_email: admin.email,
           period_days: days,
@@ -964,6 +993,13 @@ export default {
             pending_count: pending.length,
             conversion_percent: decided ? Math.round(purchases.length * 1000 / decided) / 10 : 0
           },
+          funnel: { page_views: funnelEvents.page_view || 0, pricing_views: funnelEvents.pricing_view || 0,
+            plan_clicks: funnelEvents.plan_click || 0, checkout_opens: funnelEvents.checkout_open || 0,
+            pix_requests: funnelEvents.pix_requested || 0, pix_created: checkouts.length, paid: purchases.length,
+            benefit_activated: funnelEvents.plan_granted || 0, operation_completed: funnelEvents.operation_completed || 0,
+            download_started: funnelEvents.download_started || 0, period_days: daysToRead },
+          plan_funnel: planFunnel,
+          tool_sales: Object.values(toolSales).sort((a, b) => b.paid - a.paid),
           purchases: purchases.slice(0, 150),
           manual_grants: manualGrants.slice(0, 150),
           abandoned: abandoned.slice(0, 150),
@@ -1527,7 +1563,7 @@ export default {
           body: JSON.stringify({ operation_id: operationId, world_project_id: String(body.world_project_id || "").slice(0, 120), world_fingerprint: String(body.world_fingerprint || "").slice(0, 64) })
         });
         const out = await r.json();
-        if (r.ok && out.credit_consumed) await metric(env, "credit_consumed", { plan: "world1" }, req);
+        if (r.ok && out.credit_consumed && !out.duplicate) await metric(env, "credit_consumed", { plan: "world1" }, req);
         return json(out, r.status, cors);
       }
 
@@ -1840,7 +1876,8 @@ export class EntitlementDO {
               data.world_projects[reservation.project_id] = { created_at: now, expires_at: now + WORLD_PROJECT_WINDOW_MS, operations: {}, fingerprints: {} };
               creditConsumed = true;
             } else if (!project || +project.expires_at <= now) return { persist: false, status: 409, value: { error: "World session expired.", code: "WORLD_PROJECT_EXPIRED" } };
-            else project.expires_at = now + WORLD_PROJECT_WINDOW_MS;
+            // The 30-day edit window starts with the first completed use.
+            // Subsequent edits must not silently extend that window.
             const activeProject = data.world_projects[reservation.project_id];
             activeProject.fingerprints = activeProject.fingerprints && typeof activeProject.fingerprints === "object" ? activeProject.fingerprints : {};
             if (reservation.fingerprint) { activeProject.fingerprints[reservation.fingerprint] = true; data.world_fingerprints[reservation.fingerprint] = reservation.project_id; }
