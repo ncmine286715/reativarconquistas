@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -553,8 +553,9 @@
 
   <!-- PLANOS -->
   <section class="section" id="planos">
-    <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Créditos para trabalhar em mundos separados no seu ritmo. Passe para mexer em vários mundos ou abrir arquivos maiores.</p>
+    <p class="plans-kicker">PLANOS E CRÉDITOS</p>
+    <h2>Escolha como quer usar o ReativaConquistas</h2>
+    <p class="plans-sub"><span>Alguns mundos, sem pressa? <b>Créditos.</b></span><span>Várias ferramentas por alguns dias? <b>Passes.</b></span></p>
     <details class="plan-choice"><summary>Não sabe qual escolher? Veja em 10 segundos</summary><div><p><b>Um mundo, sem pressa:</b> Ferro. <b>Vários mundos, sem prazo para começar:</b> Ouro ou Diamante.</p><p><b>Vários mundos nesta semana:</b> Passe 7 dias. <b>Um mês de uso:</b> Passe 30 dias. <b>Lotes grandes:</b> Criador.</p></div></details>
     <div class="plan-groups">
       <div class="plan-group plan-free-group">
@@ -568,50 +569,50 @@
           </div>
         </div>
       </div>
-      <div class="plan-group">
+      <div class="plan-group plan-group-credits">
         <div class="plan-group-heading"><h3>Créditos por mundo</h3><p>Para editar mundos específicos, no seu ritmo. Sem validade até usar; um mundo por vez, até 150 MB. Cada mundo fica liberado por 30 dias após o primeiro uso.</p></div>
         <div class="plans plans-3 credit-plans">
-          <div class="plan plan-world1 plan-credit">
+          <div class="plan plan-world1 plan-credit plan-iron">
             <h3><img class="mc-ic" src="mc/item/iron_ingot.png" alt="" aria-hidden="true">Ferro</h3>
             <strong class="plan-quantity">1 mundo</strong><div class="price">R$ 5,99</div><p class="plan-unit">R$ 5,99 por mundo</p>
             <ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
-            <a class="btn-plan btn-pay" data-pay="world1" href="#">Editar 1 mundo</a>
+            <a class="btn-plan btn-pay" data-pay="world1" href="#">Comprar Ferro <span aria-hidden="true">→</span></a>
           </div>
-          <div class="plan plan-credit">
+          <div class="plan plan-credit plan-gold">
             <h3><img class="mc-ic" src="mc/item/gold_ingot.png" alt="" aria-hidden="true">Ouro</h3>
-            <strong class="plan-quantity">3 mundos</strong><div class="price">R$ 14,99</div><p class="plan-unit">R$ 5,00 por mundo · economize R$ 2,98</p>
+            <strong class="plan-quantity">3 mundos</strong><div class="price">R$ 14,99</div><p class="plan-unit">R$ 5,00 por mundo</p><p class="plan-saving">Economize R$ 2,98 comparado ao Ferro</p>
             <ul><li class="yes">3 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 5,00 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
-            <a class="btn-plan btn-pay" data-pay="ouro" href="#">Comprar 3 mundos</a>
+            <a class="btn-plan btn-pay" data-pay="ouro" href="#">Escolher Ouro <span aria-hidden="true">→</span></a>
           </div>
           <div class="plan plan-credit plan-diamond">
             <span class="vip-flag">Melhor preço por mundo</span>
             <h3><img class="mc-ic" src="mc/item/diamond.png" alt="" aria-hidden="true">Diamante</h3>
-            <strong class="plan-quantity">5 mundos</strong><div class="price">R$ 22,90</div><p class="plan-unit">R$ 4,58 por mundo · economize R$ 7,05</p>
+            <strong class="plan-quantity">5 mundos</strong><div class="price">R$ 22,90</div><p class="plan-unit">R$ 4,58 por mundo</p><p class="plan-saving">Economize R$ 7,05 comparado ao Ferro</p>
             <ul><li class="yes">5 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 4,58 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
-            <a class="btn-plan btn-pay" data-pay="diamante" href="#">Comprar 5 mundos</a>
+            <a class="btn-plan btn-pay" data-pay="diamante" href="#">Escolher Diamante <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </div>
-      <div class="plan-group">
+      <div class="plan-group plan-group-passes">
         <div class="plan-group-heading"><h3>Passes de tempo</h3><p>Para usar várias ferramentas e trabalhar em vários mundos durante o período. O limite por lote é de cada envio, não do total de mundos no passe.</p></div>
         <div class="plans plans-3">
           <div class="plan plan-weekly">
             <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true">Passe 7 dias</h3>
             <strong class="plan-quantity">7 dias de acesso</strong><div class="price">R$ 7,99</div><p class="plan-unit">Vários mundos durante o período</p>
             <ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
-            <a class="btn-plan btn-pay" data-pay="vip7" href="#">Liberar por 7 dias</a>
+            <a class="btn-plan btn-pay" data-pay="vip7" href="#">Liberar 7 dias <span aria-hidden="true">→</span></a>
           </div>
           <div class="plan plan-vip">
             <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
             <strong class="plan-quantity">30 dias de acesso</strong><div class="price" id="price-monthly">R$ 24,90</div><p class="plan-unit">Até 10 mundos por lote</p>
             <ul><li class="yes">Até <b>10 mundos por lote</b></li><li class="yes">Sem limite comercial de tamanho*</li><li class="yes">Recursos avançados por 30 dias</li></ul>
-            <a class="btn-plan btn-pay" data-pay="vip30" href="#">Usar por 30 dias</a>
+            <a class="btn-plan btn-pay" data-pay="vip30" href="#">Liberar 30 dias <span aria-hidden="true">→</span></a>
           </div>
           <div class="plan plan-creator">
             <h3><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">Criador</h3>
             <strong class="plan-quantity">30 dias de acesso</strong><div class="price">R$ 39,90</div><p class="plan-unit">Até 20 mundos por lote</p>
             <ul><li class="yes">Até <b>20 mundos por lote</b></li><li class="yes">Arquivos grandes, sujeitos ao navegador</li><li class="yes">Recursos avançados por 30 dias</li></ul>
-            <a class="btn-plan btn-pay" data-pay="creator" href="#">Escolher Criador</a>
+            <a class="btn-plan btn-pay" data-pay="creator" href="#">Ativar Criador <span aria-hidden="true">→</span></a>
           </div>
         </div>
       </div>
@@ -680,7 +681,7 @@
 <script src="app.js?v=29"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
-<script src="pagamento.js?v=32"></script>
+<script src="pagamento.js?v=33"></script>
 <script src="entitlements.js?v=3"></script>
 <script src="guia-site.js?v=8"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
