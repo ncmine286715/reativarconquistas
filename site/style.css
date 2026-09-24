@@ -1580,6 +1580,37 @@ body {
 .plan-credit .mc-ic{width:24px;height:24px;vertical-align:-5px;margin-right:7px;image-rendering:pixelated}
 @media(max-width:860px){.credit-plans,.plan-group .plans-3{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto;width:100%}}
 
+/* Comparação rápida e cards compactos dentro do visual existente. */
+#planos .plan-choice{margin:16px auto 6px;max-width:680px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+#planos .plan-choice summary{padding:12px 16px;cursor:pointer;font-weight:750;font-size:14px}
+#planos .plan-choice>div{padding:0 16px 12px;font-size:13px;line-height:1.45;color:var(--muted)}
+#planos .plan-choice p{margin:7px 0}
+#planos .plan-group .plans-3{margin-top:12px;gap:12px}
+#planos .plan-group .plan{min-width:0;padding:19px 18px}
+#planos .plan-group .plan h3{font-size:16px;margin:0 0 6px;min-width:0}
+#planos .plan-quantity{display:block;font-size:16px;color:var(--ink);margin-top:7px}
+#planos .plan-group .price{font-size:31px;line-height:1.15;margin:3px 0 0;white-space:nowrap}
+#planos .plan-unit{margin:5px 0 0;min-height:1.4em;font-size:12px;font-weight:700;color:var(--muted)}
+#planos .plan-group .plan ul{margin:10px 0 12px;font-size:12.5px}
+#planos .plan-group .plan li{padding-top:5px;padding-bottom:5px}
+#planos .plan-group .plan li::before{top:5px}
+#planos .plan-group .plan .btn-plan{padding:11px 9px;font-size:14px;min-height:44px}
+#planos .plan-group .plan-diamond{border:2px solid #5ac7d5}
+#planos .plan-group .plan-vip{border:2px solid var(--orange);box-shadow:0 8px 25px rgba(249,115,22,.13)}
+#planos .plan-group .vip-flag{font-size:10px;padding:4px 9px;max-width:calc(100% - 20px)}
+.admin-funnel{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.admin-funnel span{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;background:var(--card)}
+.admin-funnel small{font-size:12px;color:var(--muted)}
+.admin-funnel strong{font-size:18px;color:var(--ink)}
+.admin-funnel b{color:var(--orange-dark)}
+@media(max-width:860px){
+  #planos .plan-group .plans-3>.plan-vip{margin-top:0}
+  #planos .plan-group .plan{padding:13px 15px}
+  #planos .plan-group .plan ul{margin:7px 0 9px}
+  #planos .plan-group .price{font-size:28px}
+  #planos .plan-group .vip-flag{position:static;transform:none;align-self:flex-start;margin:-4px 0 7px;box-shadow:none}
+}
+
 
 /* Ações complementares do mapa: cartões com área de toque confortável no celular. */
 .map-secondary-tools{display:block;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
