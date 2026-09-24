@@ -1570,3 +1570,15 @@ body {
 
 .world-map-hero>.wi-title{margin-bottom:6px}
 .world-map-hero .map-stats{margin:0 0 8px;font-size:12px;color:var(--muted)}
+
+/* Ações complementares junto ao mapa, com menos peso que as ferramentas principais. */
+.map-secondary-tools[hidden]{display:none!important}
+.map-secondary-tools{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 18px}
+.map-secondary-label{grid-column:1/-1;color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+.map-secondary-link{display:flex;align-items:center;gap:10px;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg-soft,#f8f7f3);color:var(--ink);text-decoration:none;transition:border-color .15s,background .15s}
+.map-secondary-link:hover,.map-secondary-link:focus-visible{border-color:var(--orange);background:var(--orange-soft);color:var(--ink);text-decoration:none}
+.map-secondary-link>img{width:34px;height:34px;flex:0 0 auto;object-fit:contain;image-rendering:pixelated}
+.map-secondary-link>span:nth-child(2){display:grid;gap:2px;min-width:0}
+.map-secondary-link b{font-size:13px}.map-secondary-link small{color:var(--muted);font-size:11px;line-height:1.3}
+.map-secondary-arrow{margin-left:auto;color:var(--muted);font-size:16px}
+@media(max-width:520px){.map-secondary-tools{gap:7px}.map-secondary-link{gap:7px;padding:9px 8px}.map-secondary-link>img{width:28px;height:28px}.map-secondary-link b{font-size:12px}.map-secondary-link small{font-size:10px}}

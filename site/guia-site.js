@@ -6,7 +6,7 @@
   var file = (location.pathname.split("/").pop() || "index.html").toLowerCase();
   var guides = {
     "index.html": [
-      { target: "#toolNav", title: "Escolha uma área", text: "Abra Mundo, Jogador, Addons ou Mapa. Cada ferramenta tem seu lugar." },
+      { target: "#accFile > summary", title: "Comece pelo mundo", text: "Envie seu arquivo para ver o mapa. As ferramentas de edição ficam organizadas nas seções abaixo." },
       { target: "#drop", title: "Envie seu mundo", text: "Selecione o arquivo e veja o diagnóstico antes de editar." },
       { target: "#accFree > summary", title: "Ajuste o mundo", text: "Nome, dificuldade, coordenadas e regras do mundo ficam juntos." },
       { target: "#accPlayer > summary", title: "Edite jogador e addons", text: "Inventário e pacotes têm áreas próprias logo abaixo." },

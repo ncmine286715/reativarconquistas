@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="style.css?v=22">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -125,16 +125,6 @@
     <h2>Editar seu mundo</h2>
     <p class="sub">Envie seu mundo, escolha o que editar e baixe uma cópia.</p>
 
-    <nav class="tool-directory editor-categories" id="toolNav" aria-label="Escolha uma ferramenta">
-      <a id="toolUpload" href="#accFile"><img src="mc/item/grass_block.png" alt=""><b>Enviar mundo</b><small>Arquivo e diagnóstico</small></a>
-      <a id="toolWorld" href="#accFree"><img src="mc/item/experience_bottle.png" alt=""><b>Mundo</b><small>Nome, regras e clima</small></a>
-      <a id="toolPlayer" href="#accPlayer"><img src="mc/item/netherite_sword.png" alt=""><b>Jogador</b><small>Itens, equipamento e XP</small></a>
-      <a id="toolAddons" href="#accPacks"><img src="mc/item/book.png" alt=""><b>Addons</b><small>Adicionar e remover</small></a>
-      <a id="toolExplore" href="#mapPreview"><img src="mc/item/filled_map.png" alt=""><b>Mapa e backup</b><small>Ver mapa e proteger</small></a>
-      <a id="toolAchievements" href="#operationActions"><img src="mc/item/lantern.png" alt=""><b>Conquistas</b><small>Gerar e baixar</small></a>
-      <a id="toolChunks" href="chunks.html"><img src="mc/item/map.png" alt=""><b>Chunks</b><small>Restaurar uma área</small></a>
-      <a id="toolBuilder" href="builder-lab.html"><img src="mc/item/diamond_chestplate.png" alt=""><b>Construtor 3D</b><small>Posicionar estruturas</small></a>
-    </nav>
 
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
@@ -182,6 +172,20 @@
         <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
       </section>
 
+
+      <nav class="map-secondary-tools" id="mapSecondaryTools" aria-label="Outras ferramentas do mundo" hidden>
+        <span class="map-secondary-label">Outras ferramentas</span>
+        <a class="map-secondary-link" href="chunks.html">
+          <img src="mc/item/map.png" alt="" aria-hidden="true">
+          <span><b>Restaurar chunks</b><small>Recupere uma área do mundo</small></span>
+          <span class="map-secondary-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="map-secondary-link" href="builder-lab.html">
+          <img src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">
+          <span><b>Construtor 3D</b><small>Posicione uma estrutura no mundo</small></span>
+          <span class="map-secondary-arrow" aria-hidden="true">↗</span>
+        </a>
+      </nav>
 
       <div id="worldInfo" class="worldinfo" hidden>
         <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — <span id="wiSize">tamanho indisponível</span> — nada foi alterado</span></div>
@@ -679,7 +683,7 @@
 <script src="auth.js?v=15"></script>
 <script src="pagamento.js?v=29"></script>
 <script src="entitlements.js?v=3"></script>
-<script src="guia-site.js?v=6"></script>
+<script src="guia-site.js?v=7"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>
