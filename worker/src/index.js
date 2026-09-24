@@ -989,6 +989,8 @@ export default {
           summary: {
             paid_count: purchases.length,
             revenue_cents: revenue,
+            average_ticket_cents: purchases.length ? Math.round(revenue / purchases.length) : 0,
+            revenue_per_page_view_cents: funnelEvents.page_view ? Math.round(revenue / funnelEvents.page_view) : 0,
             abandoned_count: abandoned.length,
             pending_count: pending.length,
             conversion_percent: decided ? Math.round(purchases.length * 1000 / decided) / 10 : 0
