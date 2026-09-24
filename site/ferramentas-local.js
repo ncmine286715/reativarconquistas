@@ -237,14 +237,14 @@
     if (wasGzip) raw = await NBT.gunzipAsync(raw);
     var split = NBT.splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
-    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null, recoverHardcore: !!opts.recoverHardcore });
+    var patched = NBT.patchBody(split.body, gameMode, difficulty, { rules: opts.rules || null, recoverHardcore: !!opts.recoverHardcore, reactivateAchievements: opts.reactivateAchievements !== false });
     var changes = patched.changes.slice();
     if (opts.worldName && NBT.patchLevelName) {
       var renamed = NBT.patchLevelName(patched.buf, opts.worldName);
       patched.buf = renamed.buf;
       renamed.changes.forEach(function (c) { changes.push(c); });
     }
-    NBT.validateBody(patched.buf);
+    NBT.validateBody(patched.buf, opts.reactivateAchievements !== false);
     var packed = await NBT.packBody(patched.buf, split.meta);
     var blob = new Blob([packed], { type: "application/octet-stream" });
     return { blob: blob, changes: changes };

@@ -5,6 +5,12 @@
   var pending = null;
   var authWait = null;
   var listeners = [];
+  function withTimeout(promise, ms, message) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error(message)); }, ms);
+      Promise.resolve(promise).then(function (value) { clearTimeout(timer); resolve(value); }, function (error) { clearTimeout(timer); reject(error); });
+    });
+  }
 
   function user() { try { return window.RC_auth && window.RC_auth.user ? window.RC_auth.user() : null; } catch (e) { return null; } }
   function emptyRights() {
@@ -48,9 +54,16 @@
     if (!authWait) {
       authWait = new Promise(function (resolve, reject) {
         var settled = false;
+        var timer = setTimeout(function () {
+          if (settled) return;
+          settled = true;
+          authWait = null;
+          reject(new Error("A sessão Google demorou para carregar. Recarregue a página e tente novamente."));
+        }, 12000);
         window.RC_auth.onChange(function () {
           if (settled || (window.RC_auth && window.RC_auth.ready === false)) return;
           settled = true;
+          clearTimeout(timer);
           authWait = null;
           load({ force: true }).then(resolve, reject);
         });
@@ -75,7 +88,7 @@
     var request = { identity: key, promise: null };
     publish(Object.assign(emptyRights(), { status: "loading", authenticated: !!currentUser, error: null, loaded_at: 0 }), key);
     pending = request;
-    request.promise = Promise.resolve().then(function () {
+    request.promise = withTimeout(Promise.resolve().then(function () {
       if (!window.RC_pay) throw new Error("ENTITLEMENT_CLIENT_UNAVAILABLE");
       if (currentUser) {
         if (typeof window.RC_pay.entitlements !== "function") throw new Error("ENTITLEMENT_CLIENT_UNAVAILABLE");
@@ -89,7 +102,7 @@
         if (!valid(guest)) throw new Error("PLAN_CATALOG_INVALID");
         return guest;
       });
-    }).then(function (ent) {
+    }), 15000, "A verificação do plano demorou demais. Tente novamente.").then(function (ent) {
       if (identityKey() !== key) return load({ force: true });
       if (!valid(ent) || (currentUser && ent.authenticated !== true)) throw new Error("ENTITLEMENT_RESPONSE_INVALID");
       var status = currentUser ? "ready" : "unauthenticated";

@@ -92,7 +92,7 @@ export const PLAN_LIMITS = Object.freeze({
     capabilities: {
       restore_achievements: true, change_mode: false, hardcore: false,
       advanced_rules: true, change_difficulty: true, world_icon: true,
-      rename: true, remove_behavior_packs: false, add_behavior_packs: 2,
+      rename: true, remove_behavior_packs: true, add_behavior_packs: 2,
       chunks_restore: { max_chunks: 8, daily_operations: 1 },
       player: { basic_inventory: true, armor: false, ender_chest: false, xp: false, max_enchantment: "vanilla", daily_operations: 2 },
       builder: { daily_operations: 3 },
@@ -883,7 +883,6 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
     (tool === "player_basic" && playerAdvanced));
   const paidFeature = sizeBytes > free.max_file_bytes || worlds > free.max_batch ||
     (features.mode && String(features.mode).toLowerCase() !== "keep") || features.hardcore === true ||
-    features.remove_behavior_packs === true ||
     addPacks > free.capabilities.add_behavior_packs || playerAdvanced ||
     toolRequiresPremium;
 

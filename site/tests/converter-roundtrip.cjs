@@ -24,6 +24,8 @@ function level({ hardcore = true, includeHardcore = true } = {}) {
     Uint8Array.of(10, 0, 0),
     includeHardcore ? named(1, 'IsHardcore', Uint8Array.of(hardcore ? 1 : 0)) : new Uint8Array(),
     named(1, 'PlayerHasDied', Uint8Array.of(hardcore ? 1 : 0)),
+    named(1, 'cheatsEnabled', Uint8Array.of(1)),
+    named(1, 'hasLockedBehaviorPack', Uint8Array.of(1)),
     named(3, 'GameType', i32(1)),
     named(3, 'Difficulty', i32(3)),
     named(1, 'doimmediaterespawn', Uint8Array.of(0)),
@@ -62,6 +64,29 @@ function hits(body) { const h = {}; RC_nbt.walkCollect(body, h); return h; }
   assert.equal(h.naturalregeneration[0].val, 0);
   assert.deepEqual(Array.from(await zout.file('custom/unknown.bin').async('uint8array')), Array.from(untouched));
   assert.ok(out.changes.some(x => /IsHardcore/.test(x)));
+  assert.equal(h.cheatsEnabled[0].val, 0);
+
+  const packedWorld = new JSZip();
+  packedWorld.file('Meu mundo/level.dat', originalLevel);
+  packedWorld.file('Meu mundo/world_behavior_packs.json', '[{"pack_id":"test"}]');
+  packedWorld.file('Meu mundo/behavior_packs/test/manifest.json', '{}');
+  packedWorld.file('Meu mundo/development_behavior_packs/dev/manifest.json', '{}');
+  packedWorld.file('Meu mundo/resource_packs/visual/manifest.json', '{}');
+  const packedInput = await packedWorld.generateAsync({ type: 'arraybuffer', compression: 'STORE' });
+  const cleaned = await RC_convert(packedInput, { gameMode: 'keep' });
+  const cleanedZip = await JSZip.loadAsync(cleaned.blob);
+  assert.equal(cleanedZip.file('Meu mundo/world_behavior_packs.json'), null);
+  assert.equal(cleanedZip.file('Meu mundo/behavior_packs/test/manifest.json'), null);
+  assert.equal(cleanedZip.file('Meu mundo/development_behavior_packs/dev/manifest.json'), null);
+  assert.ok(cleanedZip.file('Meu mundo/resource_packs/visual/manifest.json'));
+  const cleanedHits = hits(RC_nbt.splitLevelDat(new Uint8Array(await cleanedZip.file('Meu mundo/level.dat').async('uint8array'))).body);
+  assert.equal(cleanedHits.cheatsEnabled[0].val, 0);
+  assert.equal(cleanedHits.hasLockedBehaviorPack[0].val, 0);
+  const untouchedMode = await RC_convert(packedInput, { gameMode: 'keep', reactivateAchievements: false });
+  const untouchedZip = await JSZip.loadAsync(untouchedMode.blob);
+  assert.ok(untouchedZip.file('Meu mundo/world_behavior_packs.json'));
+  const untouchedHits = hits(RC_nbt.splitLevelDat(new Uint8Array(await untouchedZip.file('Meu mundo/level.dat').async('uint8array'))).body);
+  assert.equal(untouchedHits.cheatsEnabled[0].val, 1);
 
   await assert.rejects(() => RC_convert(input, { gameMode: 'creative' }), /PAID_GAME_MODE/);
   const noMarker = new JSZip(); noMarker.file('level.dat', level({ hardcore: false }));

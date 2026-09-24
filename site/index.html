@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -136,6 +136,10 @@
       </label>
 
       <p id="toolIntent" class="tool-intent" hidden></p>
+      <label class="opt achievements-main" id="achievementsOpt">
+        <input type="checkbox" id="reactivateAchievements" checked>
+        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Corrige as flags do mundo e remove add-ons de comportamento que bloqueiam conquistas. O arquivo original fica intacto.</em></span>
+      </label>
 
       <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
         <div class="wi-title">Mapa do mundo</div>
@@ -458,7 +462,7 @@
       <details class="acc" id="accPacks">
         <summary><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Addons</summary>
         <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Remova até <b>2 addons grátis</b> por mundo. Para remover todos, resolva o mundo por R$ 5,99.</p>
+          <p class="sub" style="margin:6px 0 10px">Ao reativar conquistas, os add-ons de comportamento são removidos automaticamente. Pacotes visuais permanecem.</p>
           <label class="opt" id="packOpt">
             <span style="flex:1">
               <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
@@ -470,11 +474,11 @@
               </span>
             </span>
           </label>
-      <label class="opt locked" id="stripOpt">
+      <label class="opt" id="stripOpt">
         <input type="checkbox" id="stripPacks">
         <span style="flex:1">
-              <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover addons <span class="acc-badge">1 grátis</span></b>
-          <em>Tira behavior packs · conquistas voltam</em>
+              <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover add-ons de comportamento</b>
+          <em>Também pode ser usado sem marcar a reativação acima.</em>
         </span>
       </label>
         </div>
@@ -641,9 +645,9 @@
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=26"></script>
-<script src="converter.js?v=16"></script>
+<script src="converter.js?v=17"></script>
 <script src="pixel-icons.js?v=14"></script>
-<script src="ferramentas-local.js?v=15"></script>
+<script src="ferramentas-local.js?v=16"></script>
 <script src="mapa-2d.js?v=12"></script>
 <script src="mapa-terreno.js?v=5"></script>
 <script src="nbt-bedrock.js?v=3"></script>
@@ -652,11 +656,11 @@
 <script src="chunks.js?v=9"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
 <script src="pagamento.js?v=31"></script>
-<script src="entitlements.js?v=3"></script>
+<script src="entitlements.js?v=4"></script>
 <script src="guia-site.js?v=8"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>

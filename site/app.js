@@ -475,12 +475,12 @@
   }
   function isPremiumAny() { return remotePremOk(); }
   // Consulta os benefícios vinculados ao UID da sessão Firebase atual.
-  function refreshRemotePrem() {
+  function refreshRemotePrem(force) {
     if (!window.RC_entitlements) return Promise.reject(new Error("Entitlement service unavailable."));
     serverEntitlement = Object.assign({}, serverEntitlement, { ready: false, status: "loading" });
     window.RC_entitlementState = serverEntitlement;
     paintQuota();
-    return window.RC_entitlements.refresh().then(function (e) {
+    return (force ? window.RC_entitlements.refresh() : window.RC_entitlements.load()).then(function (e) {
       serverEntitlement = Object.assign({}, e, { ready: e.status === "ready", until: +e.premium_until_ms || 0, email: e.account_email || googleEmail() });
       window.RC_entitlementState = serverEntitlement;
       paintQuota();
@@ -547,12 +547,8 @@
       }
     }
     // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
-    ["stripOpt"].forEach(function (id) {
-      var el = $(id);
-      if (el) el.classList.toggle("locked", !vip);
-    });
     var r1 = $("vipRefresh");
-    if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(); });
+    if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(true); });
     updateSubmit();
   }
 
@@ -1322,8 +1318,9 @@
     var newName = wantRename && wantRename.checked ? (renameInput.value || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
     var stripEl = $("stripPacks");
     var stripPacks = !!(stripEl && stripEl.checked);
-    if (stripPacks && !prem) { lockedHint("Remover pacotes de comportamento é um recurso pago.", "vip7"); return; }
-    var addPacks = selectedPacks.map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
+    var reactivateAchievements = !!($('reactivateAchievements') && $('reactivateAchievements').checked);
+    stripPacks = stripPacks || reactivateAchievements;
+    var addPacks = selectedPacks.filter(function (p) { return !reactivateAchievements || p.kind === "resource"; }).map(function (p) { return { folder: p.folder, kind: p.kind, files: p.files, pack: p.pack }; });
     if (addPacks.length && !prem && addPacks.length > freeAddPacksLimit()) {
       lockedHint("Grátis: até " + freeAddPacksLimit() + " pacotes por mundo (" + addPacks.length + " escolhidos). O VIP instala quantos precisar.", "vip30");
       return;
@@ -1359,7 +1356,7 @@
     var featureTools = ["convert"];
     if (wantChunks) featureTools.push("chunks_restore");
     if (wantPlayer) featureTools.push("player_basic");
-    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore || stripPacks ||
+    var premiumRequested = remotePlan() === "world1" || mode !== "keep" || wantsHardcore ||
       addPacks.length > freeAddPacksLimit() || selectedList.some(function (f) { return f.size > freeLimitMB() * 1024 * 1024; }) ||
       (wantChunks && window.RC_reset.selCount() > freeChunksLimit()) || playerAdvanced;
     var operationId = "";
@@ -1397,7 +1394,7 @@
       if (!window.RC_pay || !window.RC_pay.authorizeOperation) { setStatus("err", "Não foi possível validar a operação no servidor. Tente novamente."); return; }
       entitlementCheck = function () { return worldInfoPromise.then(function (info) { return window.RC_pay.authorizeOperation(
         selectedList.length, Math.max.apply(null, selectedList.map(function (f) { return f.size || 0; })),
-        { mode: mode, tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced },
+        { mode: mode, tools: featureTools, chunks_count: wantChunks ? window.RC_reset.selCount() : 0, player_advanced: playerAdvanced, remove_behavior_packs: stripPacks },
         operationId, info.project_id, info.fingerprint
       ); }).then(function (decision) { operationDecision = decision; return decision; }); };
     }
@@ -1468,7 +1465,7 @@
       var rl = /\((keepinventory|showcoordinates|dodaylightcycle|doweathercycle|doimmediaterespawn|mobgriefing|naturalregeneration)\) = \d+ -> (\d)/.exec(c);
       if (rl) { out.push((RULE_TXT[rl[1]] || rl[1]) + (rl[2] === "1" ? " ligado" : " desligado")); return; }
       if (/foto do mundo|world_icon/.test(c)) { out.push("foto do mundo atualizada"); return; }
-      if (/addons removidos/.test(c)) { out.push("addons removidos (conquistas desbloqueadas dos packs)"); return; }
+      if (/addons de comportamento removidos/.test(c)) { out.push(c); return; }
       if (/addon instalado/.test(c)) { out.push(c.replace(/^addon instalado \(([^)]+)\)/, "pacote $1 instalado")); return; }
       if (/nome alterado/.test(c)) { out.push("mundo renomeado"); return; }
       if (/levelname\.txt/.test(c)) { out.push("nome em levelname.txt"); return; }
@@ -1508,7 +1505,7 @@
         warn += "<br><span style='font-size:13px'>Atenção: <b>" + escapeHtml(w) + "</b></span>";
       });
       if (addPacks.some(function (p) { return p.kind !== "resource"; })) {
-        warn += "<br><span style='font-size:13px'>Atenção: pacotes de <b>comportamento</b> instalados <b>bloqueiam conquistas</b> no jogo. Para jogar com conquistas, converta com <b>“Remover addons” (VIP)</b>.</span>";
+        warn += "<br><span style='font-size:13px'>Pacotes de comportamento instalados podem bloquear conquistas. Gere o mundo novamente com a opção Reativar conquistas marcada.</span>";
       }
       var extraTxt = (extras && extras.length) ? "<br>" + extras.map(function (x) { return "· " + escapeHtml(x); }).join(" ") : "";
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +
@@ -1522,7 +1519,7 @@
     // mas nome e regras ficam dentro do NBT e aplicam.
     if (!batch && /\.dat$/i.test(selected.name || "")) {
       selected.arrayBuffer().then(function (ab) {
-        return operationGate.then(function () { return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem }); });
+        return operationGate.then(function () { return window.RC_local.patchLevelDat(ab, mode, difficulty, { rules: rules, worldName: newName, recoverHardcore: wantsHardcore, paidEntitlement: prem, reactivateAchievements: reactivateAchievements }); });
       }).then(function (res) {
         return finishSingle(selected.name.replace(/\.dat$/i, "") + "-conquistas.dat", selected, res, null);
       }).catch(function (err) {
@@ -1535,7 +1532,7 @@
 
     // lote VIP: vale modo + regras (foto/nome: um por vez)
     if (batch) {
-      operationGate.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : freeAddPacksLimit(), addPacks: addPacks }); }).then(function (results) {
+      operationGate.then(function () { return window.RC_local.convertBatch(selectedList, { gameMode: mode, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, reactivateAchievements: reactivateAchievements, stripBehaviorPacks: stripPacks, addPacks: addPacks }); }).then(function (results) {
         if (operationDecision && operationDecision.requires_completion && window.RC_entitlements) return window.RC_entitlements.complete(operationId).then(function () { return results; });
         return results;
       }).then(function (results) {
@@ -1565,7 +1562,7 @@
       if (wantIcon.checked && arr[1] && !(arr[1][0] === 0xFF && arr[1][1] === 0xD8)) {
         throw new Error("Ícone inválido: o mundo usa world_icon.jpeg (JPEG). Escolha a imagem de novo.");
       }
-      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, stripBehaviorPacks: stripPacks, stripPackLimit: prem ? 9999 : freeAddPacksLimit(), addPacks: addPacks }).then(function (res) {
+      return window.RC_convert(arr[0], { gameMode: mode, iconBytes: arr[1], worldName: newName, difficulty: difficulty, rules: rules, recoverHardcore: wantsHardcore, paidEntitlement: prem, reactivateAchievements: reactivateAchievements, stripBehaviorPacks: stripPacks, addPacks: addPacks }).then(function (res) {
         return { res: res, iconBytes: arr[1] };
       });
     }).then(function (both) {

@@ -196,12 +196,15 @@
     var buf = new Uint8Array(body); // cópia
     var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
     var changes = [];
-    FLAGS.forEach(function (name) {
+    if (extra.reactivateAchievements !== false) FLAGS.forEach(function (name) {
       (hits[name] || []).forEach(function (h) {
         if (h.tag !== TAG_BYTE || h.val === 0) return;
         buf[h.off] = 0;
         changes.push("byte " + h.path + " (" + name + ") = " + h.val + " -> 0");
       });
+    });
+    if (extra.removeBehaviorPacks) (hits.hasLockedBehaviorPack || []).forEach(function (h) {
+      if (h.tag === TAG_BYTE && h.val !== 0) { buf[h.off] = 0; changes.push("byte " + h.path + " (hasLockedBehaviorPack) = " + h.val + " -> 0"); }
     });
     if (recoverHardcore) {
       var hardcoreHits = (hits.IsHardcore || []).filter(function (h) { return h.tag === TAG_BYTE; });
@@ -307,7 +310,7 @@
     return (i >= 0 ? rel.slice(i + 1) : rel).toLowerCase();
   }
 
-  function validateBody(body) {
+  function validateBody(body, reactivateAchievements) {
     var r = new Reader(body);
     if (r.byte() !== TAG_COMPOUND) throw new Error("root não é Compound");
     r.string();
@@ -315,7 +318,7 @@
     if (r.p !== body.length) throw new Error("bytes sobrando no NBT: " + (body.length - r.p));
     var hits = {};
     walkCollect(body, hits);
-    FLAGS.forEach(function (name) {
+    if (reactivateAchievements !== false) FLAGS.forEach(function (name) {
       (hits[name] || []).forEach(function (h) {
         if (h.tag === TAG_BYTE && h.val !== 0) throw new Error(name + " ainda = " + h.val);
       });
@@ -361,17 +364,19 @@
   // bloqueiam conquistas no jogo, mesmo com o level.dat 100% limpo.
   // (A Mojang só mantém conquistas com add-ons do Marketplace.)
   // Detecta pastas behavior_packs/ e conta os ativos em world_behavior_packs.json.
-  async function scanBehaviorPacks(zip) {
+  async function scanBehaviorPacks(zip, prefix) {
+    prefix = prefix || "";
     var folders = [];
     try {
       zip.forEach(function (rel) {
-        var m = /^behavior_packs\/([^\/]+)/i.exec(rel);
+        if (rel.slice(0, prefix.length) !== prefix) return;
+        var m = /^(?:behavior_packs|development_behavior_packs)\/([^\/]+)/i.exec(rel.slice(prefix.length));
         if (m && folders.indexOf(m[1]) < 0) folders.push(m[1]);
       });
     } catch (e) {}
     var active = 0;
     try {
-      var f = zip.file("world_behavior_packs.json");
+      var f = zip.file(prefix + "world_behavior_packs.json");
       if (f) {
         var arr = JSON.parse(await f.async("string"));
         if (arr && arr.length) active = arr.length;
@@ -395,8 +400,10 @@
     var zip = await JSZip.loadAsync(arrayBuffer);
     var levelName = findLevelName(zip);
     if (!levelName) throw new Error("level.dat não encontrado no .mcworld");
-    var packInfo = await scanBehaviorPacks(zip);
-    var stripPacks = !!opts.stripBehaviorPacks;
+    var worldPrefix = levelName.slice(0, levelName.length - "level.dat".length);
+    var packInfo = await scanBehaviorPacks(zip, worldPrefix);
+    var reactivateAchievements = opts.reactivateAchievements !== false;
+    var stripPacks = !!opts.stripBehaviorPacks || reactivateAchievements;
     var warnings = [];
     var packCount = packInfo.active || packInfo.folders.length;
     if (stripPacks && (typeof opts.stripPackLimit === "number") && packCount > opts.stripPackLimit) {
@@ -417,14 +424,14 @@
     var split = splitLevelDat(raw);
     split.meta.gzipped = wasGzip || split.meta.gzipped;
 
-    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, recoverHardcore: !!opts.recoverHardcore });
+    var patched = patchBody(split.body, gameMode, difficultyOpt, { rules: rulesOpt, recoverHardcore: !!opts.recoverHardcore, reactivateAchievements: reactivateAchievements, removeBehaviorPacks: stripPacks });
     var changes = patched.changes.slice();
 
     // Nome de verdade: dentro do level.dat (LevelName) + levelname.txt espelho.
     var renamed = patchLevelName(patched.buf, worldName);
     patched.buf = renamed.buf;
     renamed.changes.forEach(function (c) { changes.push(c); });
-    validateBody(patched.buf);
+    validateBody(patched.buf, reactivateAchievements);
     if (opts.recoverHardcore) assertHardcoreRecovered(patched.buf);
     var packed = await packBody(patched.buf, split.meta);
 
@@ -441,9 +448,10 @@
       if (entry.dir) return;
       var base = baseNameOf(rel);
       var low = rel.toLowerCase();
+      var worldRelative = rel.slice(0, worldPrefix.length) === worldPrefix ? rel.slice(worldPrefix.length).toLowerCase() : "";
       // Remoção de addons: tira os pacotes de comportamento e os vínculos
       // do mundo (resource_packs ficam — visuais não bloqueiam conquistas).
-      if (stripPacks && (low === "world_behavior_packs.json" || low === "world_behavior_pack_history.json" || low.indexOf("behavior_packs/") === 0)) {
+      if (stripPacks && (worldRelative === "world_behavior_packs.json" || worldRelative === "world_behavior_pack_history.json" || worldRelative.indexOf("behavior_packs/") === 0 || worldRelative.indexOf("development_behavior_packs/") === 0)) {
         return;
       }
       // Troca de foto: remove ícones antigos p/ não duplicar nem pesar o .mcworld.
@@ -462,7 +470,7 @@
     });
     await Promise.all(jobs);
     if (stripPacks && packCount > 0) {
-      changes.push("addons removidos (pacotes de comportamento: " + packCount + ") — conquistas desbloqueadas dos packs");
+      changes.push("addons de comportamento removidos: " + packCount);
     }
     if (iconBytes) {
       out.file("world_icon.jpeg", iconBytes);
@@ -484,7 +492,8 @@
     var checkRaw = new Uint8Array(await checkZip.file(checkRel).async("uint8array"));
     if (checkRaw.length >= 2 && checkRaw[0] === 0x1f && checkRaw[1] === 0x8b) checkRaw = await gunzipAsync(checkRaw);
     var checkSplit = splitLevelDat(checkRaw);
-    validateBody(checkSplit.body);
+    validateBody(checkSplit.body, reactivateAchievements);
+    if (stripPacks && (checkZip.file(worldPrefix + "world_behavior_packs.json") || Object.keys(checkZip.files).some(function (name) { return name.slice(0, worldPrefix.length) === worldPrefix && /^(behavior_packs|development_behavior_packs)\//i.test(name.slice(worldPrefix.length)); }))) throw new Error("Validação falhou: pacotes de comportamento permaneceram no mundo.");
     if (opts.recoverHardcore) assertHardcoreRecovered(checkSplit.body);
     if (iconBytes && !checkZip.file("world_icon.jpeg")) throw new Error("Validação falhou: ícone não foi preservado.");
     return { blob: blob, changes: changes, warnings: warnings, packInfo: packInfo };

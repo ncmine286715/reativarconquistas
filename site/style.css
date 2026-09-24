@@ -148,6 +148,10 @@ a:hover { color: var(--orange); }
   border-radius: 999px; padding: 2px 8px; background: #fff; white-space: nowrap;
 }
 .opt.locked { opacity: .85; border-style: dashed; }
+.achievements-main { border: 2px solid var(--orange); background: var(--orange-soft); box-shadow: var(--shadow-sm); margin: 16px 0 20px; }
+.achievements-main > input { width: 22px; height: 22px; }
+.achievements-main b { font-size: 16px; color: var(--orange-dark); }
+.achievements-main em { color: var(--ink); }
 .opt .unlock { color: var(--orange-dark); font-weight: 700; font-size: 12.5px; }
 
 .icon-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

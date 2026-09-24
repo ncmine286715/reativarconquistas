@@ -12,7 +12,7 @@ let catalogCalls = 0;
 const context = {
   window: {},
   document: { addEventListener() {} },
-  Promise, Date, Number, Array, Object, Error, String, Boolean, Math,
+  Promise, Date, Number, Array, Object, Error, String, Boolean, Math, setTimeout, clearTimeout,
   console: { error() {}, warn() {}, log() {} }
 };
 context.window.RC_auth = {
