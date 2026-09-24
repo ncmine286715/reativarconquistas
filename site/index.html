@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -125,9 +125,20 @@
     <h2>Editar seu mundo</h2>
     <p class="sub">Carregue e analise seu mundo, escolha uma categoria e gere uma nova cópia quando estiver pronto.</p>
 
+    <nav class="tool-directory editor-categories" id="toolNav" aria-label="Escolha uma ferramenta">
+      <a id="toolUpload" href="#accFile"><b>Enviar mundo</b><small>Abra o .mcworld e veja o diagnóstico.</small></a>
+      <a id="toolAchievements" href="#operationActions"><b>Conquistas</b><small>Gere uma cópia com as conquistas reativadas.</small></a>
+      <a id="toolWorld" href="#accFree"><b>Configurações do mundo</b><small>Nome, dificuldade, coordenadas e regras.</small></a>
+      <a id="toolPlayer" href="#accPlayer"><b>Jogador</b><small>Inventário, equipamento e XP.</small></a>
+      <a id="toolAddons" href="#accPacks"><b>Addons</b><small>Coloque ou remova pacotes do mundo.</small></a>
+      <a id="toolExplore" href="#accExplore"><b>Mapa e backups</b><small>Explore, compare e proteja seu mundo.</small></a>
+      <a id="toolChunks" href="chunks.html"><b>Restaurar chunks</b><small>Recupere uma área problemática.</small></a>
+      <a id="toolBuilder" href="builder-lab.html"><b>Construtor 3D</b><small>Posicione uma estrutura .mcstructure.</small></a>
+    </nav>
+
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
-        <summary><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Arquivo, visão geral e ferramentas locais <span class="acc-badge" id="badgeFile">aguardando</span></summary>
+        <summary><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Enviar mundo e ver diagnóstico <span class="acc-badge" id="badgeFile">aguardando</span></summary>
         <div class="acc-body">
       <label id="drop" class="drop" for="file" tabindex="0">
         <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
@@ -156,16 +167,7 @@
           <span id="wiDiagnosticText"></span>
           <a id="wiDiagnosticLink" href="#accPacks">Revisar addons</a>
         </div>
-        <nav class="editor-categories" aria-label="Categorias do editor">
-          <a href="#worldInfo">Visão geral</a>
-          <a href="#operationActions">Conquistas</a>
-          <a href="#accFree">Mundo</a>
-          <a href="#accPlayer">Jogador</a>
-          <a href="#accPacks">Addons</a>
-          <a href="builder-lab.html">Construção · Builder</a>
-          <a href="#advancedTools">Avançado</a>
-        </nav>
-        <nav class="editor-advanced-links" id="advancedTools" aria-label="Ferramentas avançadas e locais">
+                <nav class="editor-advanced-links" id="advancedTools" aria-label="Ferramentas avançadas e locais">
           <b>Atalhos avançados</b>
           <a href="#passportDownload">Passaporte</a>
           <a href="#reportDownload">Diagnóstico</a>
@@ -196,7 +198,12 @@
           <div id="compareResults" class="compare-results"></div>
         </section>
       </div>
+        </div>
+      </details>
 
+      <details class="acc" id="accExplore" open>
+        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Explorar e proteger · mapa e backups</summary>
+        <div class="acc-body">
       <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
         <div class="wi-title" id="backupTitle">Backups locais</div>
         <p>Guarde uma cópia neste navegador antes de editar. O arquivo não é enviado; limpar os dados do navegador pode apagar estes backups.</p>
@@ -296,30 +303,7 @@
         </div>
       </details>
 
-      <details class="acc" id="accPacks">
-        <summary><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Addons</summary>
-        <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Remova até <b>2 addons grátis</b> por mundo. Para remover todos, resolva o mundo por R$ 5,99.</p>
-          <label class="opt" id="packOpt">
-            <span style="flex:1">
-              <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
-              <em>.mcpack/.mcaddon/.zip · behavior bloqueia conquistas</em>
-              <span class="icon-row" style="margin-top:10px">
-                <input type="file" id="packFiles" accept=".mcpack,.mcaddon,.zip" multiple hidden>
-                <button type="button" class="btn-ghost" id="packBtn">Escolher pacotes</button>
-                <span id="packList" class="pack-list" style="font-size:12.5px"></span>
-              </span>
-            </span>
-          </label>
-      <label class="opt locked" id="stripOpt">
-        <input type="checkbox" id="stripPacks">
-        <span style="flex:1">
-              <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover addons <span class="acc-badge">1 grátis</span></b>
-          <em>Tira behavior packs · conquistas voltam</em>
-        </span>
-      </label>
-        </div>
-      </details>
+      
 
       <details class="acc" id="accPrem">
         <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · regras e ajustes avançados</summary>
@@ -438,30 +422,6 @@
         </div>
       </details>
 
-
-
-      <details class="acc" id="accChunks" open>
-        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
-        <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Selecione no mapa as áreas com problema. A restauração recria o terreno pela seed e baixa um novo mundo; o original fica intacto.</p>
-          <div class="map-actions" style="margin-top:0">
-            <button type="button" class="btn-ghost" id="selModeBtn">🖌 Selecionar no mapa</button>
-            <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar</button>
-            <span id="selCount" style="font-size:13px;align-self:center">nada pintado ainda</span>
-          </div>
-          <div class="map-actions" style="margin-top:8px">
-            <button type="button" class="btn-ghost btn-mini" id="mapAnalyzeBtn">Analisar chunks selecionadas</button>
-            <button type="button" class="btn-plan btn-mini" id="resetBtn">Restaurar chunks e baixar</button>
-          </div>
-          <div id="analysisBox" class="worldinfo" hidden style="margin-top:10px"></div>
-          <label class="accept" style="margin-top:10px">
-            <input type="checkbox" id="resetAck">
-            <span>Fiz backup e entendo que a área será restaurada pela seed.</span>
-          </label>
-          <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
-        </div>
-      </details>
-
       <details class="acc" id="accPlayer">
         <summary><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Jogador · inventário e equipamento</summary>
         <div class="acc-body">
@@ -523,6 +483,57 @@
           <div id="playerStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
         </div>
       </details>
+
+      <details class="acc" id="accPacks">
+        <summary><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Addons</summary>
+        <div class="acc-body">
+          <p class="sub" style="margin:6px 0 10px">Remova até <b>2 addons grátis</b> por mundo. Para remover todos, resolva o mundo por R$ 5,99.</p>
+          <label class="opt" id="packOpt">
+            <span style="flex:1">
+              <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
+              <em>.mcpack/.mcaddon/.zip · behavior bloqueia conquistas</em>
+              <span class="icon-row" style="margin-top:10px">
+                <input type="file" id="packFiles" accept=".mcpack,.mcaddon,.zip" multiple hidden>
+                <button type="button" class="btn-ghost" id="packBtn">Escolher pacotes</button>
+                <span id="packList" class="pack-list" style="font-size:12.5px"></span>
+              </span>
+            </span>
+          </label>
+      <label class="opt locked" id="stripOpt">
+        <input type="checkbox" id="stripPacks">
+        <span style="flex:1">
+              <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover addons <span class="acc-badge">1 grátis</span></b>
+          <em>Tira behavior packs · conquistas voltam</em>
+        </span>
+      </label>
+        </div>
+      </details>
+
+
+
+      <details class="acc" id="accChunks" open>
+        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
+        <div class="acc-body">
+          <p class="sub" style="margin:6px 0 10px">Selecione no mapa as áreas com problema. A restauração recria o terreno pela seed e baixa um novo mundo; o original fica intacto.</p>
+          <div class="map-actions" style="margin-top:0">
+            <button type="button" class="btn-ghost" id="selModeBtn">🖌 Selecionar no mapa</button>
+            <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar</button>
+            <span id="selCount" style="font-size:13px;align-self:center">nada pintado ainda</span>
+          </div>
+          <div class="map-actions" style="margin-top:8px">
+            <button type="button" class="btn-ghost btn-mini" id="mapAnalyzeBtn">Analisar chunks selecionadas</button>
+            <button type="button" class="btn-plan btn-mini" id="resetBtn">Restaurar chunks e baixar</button>
+          </div>
+          <div id="analysisBox" class="worldinfo" hidden style="margin-top:10px"></div>
+          <label class="accept" style="margin-top:10px">
+            <input type="checkbox" id="resetAck">
+            <span>Fiz backup e entendo que a área será restaurada pela seed.</span>
+          </label>
+          <div id="chunkStatus" class="status" role="status" aria-live="polite" hidden style="margin-top:10px"></div>
+        </div>
+      </details>
+
+      
 
 
     
@@ -671,12 +682,12 @@
 <script src="player.js?v=8"></script>
 <script src="backups-local.js?v=2"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=29"></script>
 <script src="firebase-config.js?v=13"></script>
 <script src="auth.js?v=15"></script>
 <script src="pagamento.js?v=28"></script>
 <script src="entitlements.js?v=3"></script>
-<script src="guia-site.js?v=3"></script>
+<script src="guia-site.js?v=4"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 </body>
 </html>

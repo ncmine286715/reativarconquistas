@@ -28,3 +28,14 @@
   #rcSiteGuide .rc-guide-actions .rc-guide-next{flex:1}
   #rcSiteGuideLauncher{right:10px;bottom:max(10px,env(safe-area-inset-bottom));padding:6px 10px}
 }
+
+#rcSiteGuide .rc-guide-shade[hidden],#rcSiteGuide .rc-guide-spotlight[hidden]{display:none!important}
+#rcSiteGuide .rc-guide-spotlight{position:absolute;z-index:1;box-sizing:border-box;border:3px solid #fb923c;border-radius:12px;background:transparent;box-shadow:0 0 0 100vmax rgba(10,14,22,.68),0 0 0 5px rgba(251,146,60,.23);pointer-events:none}
+#rcSiteGuide .rc-guide-card{z-index:2}
+#rcSiteGuide .rc-guide-card.rc-guide-card-top{top:max(12px,env(safe-area-inset-top));bottom:auto}
+@media (max-width:620px){
+  #rcSiteGuide .rc-guide-card.rc-guide-card-top{top:max(8px,env(safe-area-inset-top));bottom:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  #rcSiteGuide .rc-guide-spotlight{transition:none}
+}

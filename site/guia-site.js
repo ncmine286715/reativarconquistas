@@ -2,56 +2,53 @@
 (function () {
   "use strict";
 
-  var KEY = "rc_site_guide_v1_done";
+  var KEY = "rc_site_guide_v2_done";
   var file = (location.pathname.split("/").pop() || "index.html").toLowerCase();
-  var general = [
-    { title: "Oi! Eu sou o Null", text: "Vou explicar o ReativaConquistas. O site tem ferramentas para analisar, ajustar e restaurar mundos Minecraft Bedrock. Quando você edita um mundo, recebe um arquivo novo; o original continua com você." },
-    { title: "Conversor e ajustes", text: "Na página Início, abra um .mcworld para ver as informações do mundo. Você pode usar as opções disponíveis para ajustar configurações e preparar uma cópia para importar no Minecraft." },
-    { title: "Ferramentas para o mapa", text: "Use Restaurar chunks para analisar e selecionar uma área com problema. Use Construtor 3D para visualizar o terreno e posicionar uma construção .mcstructure." },
-    { title: "Sua conta e ajuda", text: "O menu do site leva para planos, conta e suporte. Se quiser rever esta explicação, toque no botão Guia do site que fica no canto da tela." }
-  ];
   var guides = {
     "index.html": [
-      general[0],
-      { title: "Abra o conversor", text: "Escolha o arquivo .mcworld na área Editar seu mundo. A análise roda nesta página; confira o resumo antes de escolher qualquer mudança." },
-      { title: "Ficha do mundo e mapa", text: "Depois da análise, baixe o passaporte JSON e uma cópia do original. No mapa 2D, marque casas, vilas e portais com pins; eles ficam no navegador. Você também pode baixar o mapa em PNG e os pins em JSON." },
-      { title: "Proteja e organize suas cópias", text: "Use Backups locais para guardar uma cópia neste navegador, Comparar mundos para ver diferenças de configuração, e o Livro de objetivos para planejar sua próxima sessão. Esses recursos não enviam o arquivo para o site." },
-      { title: "Escolha o que quer fazer", text: "Aqui ficam os ajustes de mundo e jogador. As ferramentas Restaurar chunks e Construtor 3D aparecem mais abaixo nesta página e também no menu." },
-      { title: "Baixe e importe a cópia", text: "Confira as opções e baixe o resultado. O arquivo original não é substituído. Para recursos pagos, confira os limites e preços em Planos." },
-      { title: "Outras ferramentas", text: "Restaurar chunks serve para regenerar uma área selecionada. Construtor 3D serve para posicionar uma .mcstructure sobre o terreno visitado." }
+      { target: "#toolNav", title: "Escolha sua ferramenta", text: "As funções ficam separadas por assunto. Toque em uma categoria para ir direto até ela; você pode explorar antes de enviar o mundo." },
+      { target: "#drop", title: "Abra seu mundo", text: "Selecione um .mcworld, .zip ou level.dat. O site analisa a cópia aqui no navegador e mostra o diagnóstico antes de qualquer edição." },
+      { target: "#diffOpt", title: "Dificuldade", text: "Escolha Pacífico, Fácil, Normal ou Difícil. Se quiser conservar o valor do mundo, mantenha a opção atual." },
+      { target: "#coordOpt", title: "Coordenadas", text: "Ligue ou desligue a exibição de XYZ sem alterar as outras configurações." },
+      { target: "#renameOpt", title: "Nome do mundo", text: "Renomeie a cópia que será baixada. O arquivo original continua com você." },
+      { target: "#keepOpt", title: "Manter inventário", text: "Escolha se o jogador conserva os itens após morrer. O requisito de plano aparece antes de gerar a cópia." },
+      { target: "#modeOpt", title: "Modo de jogo", text: "Manter o modo atual é grátis. Para mudar para Sobrevivência, Criativo ou Aventura, confira o plano indicado." },
+      { target: "#hardcoreOpt", title: "Recuperar Hardcore", text: "Esta ferramenta só atua quando o marcador Hardcore existe. Faça backup e confira o resultado no jogo." },
+      { target: "#accPacks > summary", title: "Addons em seu lugar", text: "Coloque ou remova pacotes aqui. Behavior packs podem impedir conquistas; o diagnóstico avisa quando encontrar um." },
+      { target: "#accPlayer > summary", title: "Inventário do jogador", text: "Edite itens, equipamento e experiência nesta seção, separada das regras do mundo." },
+      { target: "#accExplore > summary", title: "Mapa e proteção", text: "Depois do upload, use mapa 2D, comparação e backups locais para conhecer e proteger o mundo." },
+      { target: "#operationActions", title: "Conquistas e download", text: "Revise os ajustes, aceite os termos e gere uma nova cópia. Esta etapa também prepara as flags de conquistas." },
+      { target: "#toolChunks", title: "Restaurar chunks", text: "Se uma região estiver corrompida, abra a ferramenta própria para selecionar e revisar as chunks antes de regenerar." },
+      { target: "#toolBuilder", title: "Construtor 3D", text: "Abra o Builder para posicionar uma .mcstructure no terreno e exportar outra cópia do mundo." },
+      { target: "#planos h2", title: "Limites e planos", text: "Veja o custo e o limite de cada opção antes de comprar. O botão Guia do site reabre este tour quando precisar." }
     ],
     "chunks.html": [
-      general[0],
-      { title: "Abra uma cópia do mundo", text: "Escolha o arquivo .mcworld ou .zip. A página lê o mapa e mostra as chunks já salvas no mundo." },
-      { title: "Marque e analise a área", text: "Selecione no mapa somente as chunks problemáticas e toque em Analisar seleção. Confira a lista de dados que serão removidos antes de continuar." },
-      { title: "Restaure com cuidado", text: "A restauração remove os dados gravados nas chunks selecionadas para o Minecraft gerar o terreno novamente pela seed. Construções e itens dentro delas não voltam." },
-      { title: "Importe o novo arquivo", text: "Depois de baixar, importe o .mcworld no Minecraft e visite a área marcada. O arquivo original permanece separado. Use Início para outros ajustes e Construtor 3D para construções." }
+      { target: "#drop", title: "Abra uma cópia", text: "Escolha o .mcworld ou .zip. A página vai carregar o mapa do mundo." },
+      { target: "#selModeBtn", title: "Marque a área", text: "Selecione apenas as chunks problemáticas. O mapa aparece depois da análise do arquivo." },
+      { target: "#analyzeBtn", title: "Confira antes de restaurar", text: "Analise a seleção e veja o que pode ser removido daquela área." },
+      { target: "#resetBtn", title: "Baixe um novo mundo", text: "A restauração gera uma cópia. Construções e itens nas chunks selecionadas podem desaparecer." }
     ],
     "minha-conta.html": [
-      general[0],
-      { title: "Entre com sua conta", text: "Use o botão de entrada do Google para ver os créditos e o acesso associados à sua conta. Para compras, confira se está usando o mesmo e-mail do pagamento." },
-      { title: "Volte às ferramentas", text: "Depois de conferir sua conta, use Converter para editar um mundo, Restaurar chunks para reparar uma área ou Construtor 3D para planejar uma construção." }
+      { target: "#box", title: "Sua conta", text: "Entre com Google para ver créditos e acessos vinculados a esta conta." },
+      { target: "#actions", title: "Volte à operação", text: "Depois do pagamento, retorne à ferramenta que estava usando e confira se o benefício apareceu." }
     ],
     "sucesso.html": [
-      general[0],
-      { title: "Confira seu acesso", text: "Esta página confirma e consulta o acesso da compra. Se não aparecer de imediato, aguarde a confirmação e use Verificar novamente." },
-      { title: "Continue no site", text: "Volte para Início para escolher uma ferramenta. O arquivo do mundo é processado no navegador e você baixa uma nova cópia quando terminar." }
+      { target: "main", title: "Confira seu acesso", text: "A confirmação da compra aparece aqui. Use Verificar novamente se o pagamento ainda estiver em processamento." }
     ],
     "objetivos.html": [
-      general[0],
-      { title: "Monte seu desafio", text: "Escolha um tema e gere um desafio da semana ou escreva seus próprios objetivos. Marque as etapas manualmente depois de jogar." },
-      { title: "Guarde ou imprima", text: "O livro fica neste navegador. Você pode imprimir ou exportar/importar um JSON para transportar uma cópia; a página não acompanha o jogo." }
+      { target: "#makeChallenge", title: "Crie um desafio", text: "Escolha um tema e gere uma lista de objetivos para jogar." },
+      { target: "#goalForm", title: "Adicione suas metas", text: "Escreva objetivos próprios e marque as tarefas manualmente conforme jogar." },
+      { target: "#exportGoals", title: "Guarde o livro", text: "Exporte JSON ou imprima. Esta página não acompanha ações dentro do Minecraft." }
     ]
   };
   var steps = guides[file] || [
-    general[0],
-    { title: "Encontre a ferramenta certa", text: "Use Início para editar configurações do mundo, Restaurar chunks para regenerar uma área ou Construtor 3D para posicionar uma estrutura." },
-    { title: "Volte quando quiser", text: "Esta página contém informações e políticas do serviço. O botão Guia do site no canto da tela reabre esta explicação." }
+    { target: "main", title: "Encontre o que precisa", text: "Esta página reúne informações do serviço. Volte ao Início para escolher uma ferramenta." },
+    { target: ".topbar", title: "Volte quando quiser", text: "Use o menu para voltar ao site. O botão Guia do site reabre esta explicação." }
   ];
 
   var stylesheet = document.createElement("link");
   stylesheet.rel = "stylesheet";
-  stylesheet.href = "guia-site.css?v=1";
+  stylesheet.href = "guia-site.css?v=2";
   document.head.appendChild(stylesheet);
 
   var launcher = document.createElement("button");
@@ -76,6 +73,9 @@
   overlay.setAttribute("aria-label", "Explicação do site pelo Null");
   var shade = document.createElement("div");
   shade.className = "rc-guide-shade";
+  var spotlight = document.createElement("div");
+  spotlight.className = "rc-guide-spotlight";
+  spotlight.hidden = true;
   var card = document.createElement("div");
   card.className = "rc-guide-card";
   var mascot = document.createElement("img");
@@ -121,13 +121,46 @@
   card.appendChild(mascot);
   card.appendChild(balloon);
   overlay.appendChild(shade);
+  overlay.appendChild(spotlight);
   overlay.appendChild(card);
   document.body.appendChild(launcher);
   document.body.appendChild(overlay);
 
   var index = -1;
+  var activeTarget = null;
+  var originalScroll = 0;
+  var updateFrame = 0;
+
+  function positionSpotlight() {
+    updateFrame = 0;
+    if (index < 0 || !activeTarget || overlay.hidden) return;
+    var rect = activeTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var left = Math.max(6, rect.left - 6);
+    var top = Math.max(6, rect.top - 6);
+    spotlight.style.left = left + "px";
+    spotlight.style.top = top + "px";
+    spotlight.style.width = Math.max(18, Math.min(window.innerWidth - left - 6, rect.width + 12)) + "px";
+    spotlight.style.height = Math.max(18, Math.min(window.innerHeight - top - 6, rect.height + 12)) + "px";
+    card.classList.toggle("rc-guide-card-top", rect.top + rect.height / 2 > window.innerHeight * 0.53);
+  }
+  function schedulePosition() {
+    if (updateFrame) return;
+    updateFrame = window.requestAnimationFrame(positionSpotlight);
+  }
+  function targetFor(step) {
+    if (!step.target) return null;
+    var target = document.querySelector(step.target);
+    if (!target) return null;
+    var section = target.closest && target.closest("details.acc");
+    if (section) section.open = true;
+    if (target.hidden || target.closest("[hidden]")) return null;
+    return target.getClientRects().length ? target : null;
+  }
   function render(i) {
-    if (i < 0) { finish(); return; }
+    if (i >= steps.length) { finish(); return; }
+    if (i < 0) return;
+    if (index < 0) originalScroll = window.scrollY;
     index = i;
     var step = steps[index];
     overlay.hidden = false;
@@ -138,25 +171,47 @@
     progress.textContent = "PASSO " + (index + 1) + " DE " + steps.length;
     back.disabled = index === 0;
     next.textContent = index === steps.length - 1 ? "Concluir" : "Próximo →";
+    activeTarget = targetFor(step);
+    shade.hidden = !!activeTarget;
+    spotlight.hidden = !activeTarget;
+    card.classList.remove("rc-guide-card-top");
+    if (activeTarget) {
+      activeTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+      schedulePosition();
+      window.setTimeout(schedulePosition, 360);
+    }
     next.focus();
   }
   function finish() {
+    if (index < 0) return;
     index = -1;
+    activeTarget = null;
     overlay.hidden = true;
     overlay.setAttribute("aria-hidden", "true");
+    spotlight.hidden = true;
     try { localStorage.setItem(KEY, "1"); } catch (e) {}
+    window.scrollTo({ top: originalScroll, behavior: "smooth" });
     launcher.focus();
   }
   launcher.addEventListener("click", function () { render(0); });
   close.addEventListener("click", finish);
   skip.addEventListener("click", finish);
+  shade.addEventListener("click", finish);
   back.addEventListener("click", function () { if (index > 0) render(index - 1); });
   next.addEventListener("click", function () { render(index + 1); });
+  window.addEventListener("scroll", schedulePosition, { passive: true });
+  window.addEventListener("resize", schedulePosition);
   document.addEventListener("keydown", function (event) {
     if (index < 0) return;
     if (event.key === "Escape") { event.preventDefault(); finish(); }
     else if (event.key === "ArrowLeft" && index > 0) { event.preventDefault(); render(index - 1); }
     else if (event.key === "ArrowRight") { event.preventDefault(); render(index + 1); }
+    else if (event.key === "Tab") {
+      var controls = Array.prototype.slice.call(card.querySelectorAll("button:not([disabled])"));
+      var first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
   }, true);
   try {
     if (file !== "builder-lab.html" && !localStorage.getItem(KEY)) setTimeout(function () { if (index < 0) render(0); }, 900);

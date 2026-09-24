@@ -230,10 +230,13 @@
       (+entitlement.active_world_projects || 0) > baseline.active_world_projects;
   }
 
-  var toolNavTargets = { worldInfo: "mundo", operationActions: "conquistas", accFree: "mundo", accPacks: "addons", accPlayer: "jogador", accChunks: "chunks", advancedTools: "mundo" };
+  var toolNavTargets = { accFile: "upload", operationActions: "conquistas", accFree: "mundo", accPrem: "mundo", accPacks: "addons", accPlayer: "jogador" };
   Array.prototype.forEach.call(document.querySelectorAll(".editor-categories a"), function (link) {
     link.addEventListener("click", function () {
-      var slug = link.href.indexOf("builder-lab.html") >= 0 ? "builder" : toolNavTargets[String(link.hash || "").slice(1)];
+      var target = link.hash && document.getElementById(link.hash.slice(1));
+      var section = target && target.closest && target.closest("details.acc");
+      if (section) section.open = true;
+      var slug = link.href.indexOf("builder-lab.html") >= 0 ? "builder" : link.href.indexOf("chunks.html") >= 0 ? "chunks" : toolNavTargets[String(link.hash || "").slice(1)];
       var intent = toolIntentApi && toolIntentApi.resolve(slug);
       if (intent) {
         rememberToolIntent(intent);
