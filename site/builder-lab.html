@@ -76,6 +76,7 @@
         <button type="button" data-placement-mode="coords" aria-pressed="false">Coordenadas</button>
       </nav>
       <div class="placement-summary" id="placementSummary" role="status">Escolha uma construção e toque na área visitada do mapa.</div>
+      <div id="webglFallback" class="warning" role="status" hidden>O modo 3D não está disponível neste dispositivo. Use o mapa ou informe coordenadas.</div>
       <div class="placement-quick-actions" aria-label="Ajustar construção">
         <button type="button" id="rotateLeft">↶ Girar 90°</button><button type="button" id="rotateRight">Girar 90° ↷</button>
         <button type="button" data-height="-10">−10 Y</button><button type="button" data-height="-1">−1 Y</button>
@@ -113,7 +114,6 @@
           </div>
           <p id="placementHint" class="canvas-help" role="status">Toque numa área visitada do mapa para posicionar a construção.</p>
           <div id="preview" aria-label="Visualização 3D beta do mundo e estrutura"></div>
-          <div id="webglFallback" class="warning" hidden>O modo 3D não está disponível neste dispositivo. Use o mapa ou informe coordenadas.</div>
           <div class="viewport-info"><output id="positionReadout">X 0 · Y 64 · Z 0</output><span id="terrainStats" role="status">Aguardando mundo</span></div>
           <p class="canvas-help">3D beta: botão direito gira a câmera; scroll aproxima. Toque no terreno para fixar a posição. No celular: um dedo gira, dois aproximam.</p>
         </div>
