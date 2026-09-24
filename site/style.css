@@ -1579,3 +1579,20 @@ body {
 .plan-credit{border-color:#d8c7a8}.plan-diamond{border-color:#5ac7d5;box-shadow:0 8px 26px #1da5b31a}
 .plan-credit .mc-ic{width:24px;height:24px;vertical-align:-5px;margin-right:7px;image-rendering:pixelated}
 @media(max-width:860px){.credit-plans,.plan-group .plans-3{grid-template-columns:1fr;max-width:520px;margin-left:auto;margin-right:auto;width:100%}}
+
+
+/* Ações complementares do mapa: cartões com área de toque confortável no celular. */
+.map-secondary-tools{display:block;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.map-secondary-label{display:block;margin:0 0 10px;color:var(--muted);font-size:12px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}
+.map-secondary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.map-secondary-link{display:flex;align-items:center;gap:12px;min-width:0;min-height:86px;padding:13px 14px;border:1px solid var(--line-strong);border-radius:16px;background:var(--card);color:var(--ink);text-decoration:none;box-shadow:var(--shadow-sm);transition:border-color .18s,transform .18s,box-shadow .18s}
+.map-secondary-link:hover{border-color:var(--orange);box-shadow:var(--shadow);transform:translateY(-2px)}
+.map-secondary-link:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.map-secondary-icon{flex:0 0 50px;display:grid;place-items:center;width:50px;height:50px;border-radius:12px;background:#eaf6f0}
+.map-secondary-icon img{display:block;width:34px;height:34px;object-fit:contain;image-rendering:pixelated}
+.map-secondary-chunks .map-secondary-icon{background:#eaf6ff}
+.map-secondary-copy{display:grid;gap:3px;min-width:0;line-height:1.25}
+.map-secondary-copy b{font-size:16px;color:var(--ink)}
+.map-secondary-copy small{font-size:12px;color:var(--muted);line-height:1.35}
+.map-secondary-arrow{margin-left:auto;align-self:center;flex:none;color:var(--orange-dark);font-size:22px;font-weight:700;line-height:1}
+@media(max-width:640px){.map-secondary-grid{grid-template-columns:1fr}.map-secondary-link{min-height:76px}}

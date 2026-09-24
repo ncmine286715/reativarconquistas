@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -170,18 +170,20 @@
           <button type="button" class="btn-ghost btn-mini" id="mapExportPins" aria-label="Exportar marcadores JSON" title="Exportar marcadores JSON"><img src="mc/item/name_tag.png" alt=""></button>
         </div>
         <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
-      <nav class="map-secondary-tools" id="mapSecondaryTools" aria-label="Outras ferramentas do mundo">
-        <span class="map-secondary-label">Outras ferramentas</span>
-        <a class="map-secondary-link" href="chunks.html">
-          <img src="mc/item/map.png" alt="" aria-hidden="true">
-          <span><b>Restaurar chunks</b><small>Recupere uma área do mundo</small></span>
-          <span class="map-secondary-arrow" aria-hidden="true">↗</span>
-        </a>
-        <a class="map-secondary-link" href="builder-lab.html">
-          <img src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">
-          <span><b>Construtor 3D</b><small>Posicione uma estrutura no mundo</small></span>
-          <span class="map-secondary-arrow" aria-hidden="true">↗</span>
-        </a>
+      <nav class="map-secondary-tools" id="mapSecondaryTools" aria-label="Ferramentas do mapa">
+        <span class="map-secondary-label">Explore seu mundo</span>
+        <div class="map-secondary-grid">
+          <a class="map-secondary-link map-secondary-builder" href="builder-lab.html">
+            <span class="map-secondary-icon"><img src="mc/block/structure_block.png" alt="" aria-hidden="true"></span>
+            <span class="map-secondary-copy"><b>Construtor 3D</b><small>Coloque sua .mcstructure no mundo</small></span>
+            <span class="map-secondary-arrow" aria-hidden="true">↗</span>
+          </a>
+          <a class="map-secondary-link map-secondary-chunks" href="chunks.html">
+            <span class="map-secondary-icon"><img src="mc/item/diamond_pickaxe.png" alt="" aria-hidden="true"></span>
+            <span class="map-secondary-copy"><b>Restaurar chunks</b><small>Recupere uma área do mapa</small></span>
+            <span class="map-secondary-arrow" aria-hidden="true">↗</span>
+          </a>
+        </div>
       </nav>
 
       </section>
