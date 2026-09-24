@@ -1,7 +1,7 @@
-/* ReativaConquistas — Service Worker mínimo do Construtor 3D (beta).
-   Deixa o app instalável e acelera a segunda visita com cache local.
-   Versões com ?v= são chaves distintas: atualizar o ?v= atualiza o app. */
-var CACHE = 'rc-builder-v13';
+/* ReativaConquistas — Service Worker do site e do Construtor 3D.
+   Páginas HTML sempre revalidam online para evitar servir conteúdo antigo.
+   Recursos com ?v= podem usar cache-first; sem rede, usamos o cache local. */
+var CACHE = 'rc-builder-v14';
 var CORE = [
   'index.html',
   'importar.html',
@@ -51,11 +51,38 @@ self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
   var url = new URL(event.request.url);
   if (url.origin !== location.origin) return;
-  event.respondWith(caches.match(event.request, { ignoreSearch: false }).then(function (hit) {
-    return hit || fetch(event.request).then(function (res) {
-      var copy = res.clone();
-      caches.open(CACHE).then(function (c) { c.put(event.request, copy); });
-      return res;
+
+  var acceptsHtml = (event.request.headers.get('Accept') || '').indexOf('text/html') !== -1;
+  var isDocument = event.request.mode === 'navigate' || acceptsHtml;
+  var isVersioned = url.searchParams.has('v');
+
+  function save(response) {
+    if (response && response.ok) {
+      var copy = response.clone();
+      event.waitUntil(caches.open(CACHE).then(function (cache) {
+        return cache.put(event.request, copy);
+      }));
+    }
+    return response;
+  }
+
+  function offlineFallback(error) {
+    return caches.match(event.request, { ignoreSearch: false }).then(function (hit) {
+      if (hit) return hit;
+      if (isDocument && (url.pathname === '/' || url.pathname.endsWith('.html'))) {
+        return caches.match(new URL('index.html', self.registration.scope).href);
+      }
+      throw error;
     });
+  }
+
+  if (isDocument || !isVersioned) {
+    event.respondWith(fetch(event.request).then(save).catch(offlineFallback));
+    return;
+  }
+
+  event.respondWith(caches.match(event.request, { ignoreSearch: false }).then(function (hit) {
+    if (hit) return hit;
+    return fetch(event.request).then(save).catch(offlineFallback);
   }));
 });
