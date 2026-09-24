@@ -22,7 +22,7 @@
   var state = {
     chunksByDim: null, boundsByDim: null, counts: null,
     activeDim: 0, cell: 6, spawnChunk: null, spawn: null, totalKeys: 0, fileName: "",
-    mode: "pan", view: null, fileKey: "", pins: [] // view = {cx, cy (blocos), zoom (px por bloco)}
+    mode: "pan", view: null // view = {cx, cy (blocos), zoom (px por bloco)}
   };
   window.RC_map = state;
 
@@ -284,21 +284,6 @@
         });
       }
     } catch (e4) {}
-    (state.pins || []).forEach(function (pin) {
-      if (pin.dim !== state.activeDim) return;
-      var px = X(pin.x), py = Y(pin.z);
-      if (px < -40 || py < -40 || px > W + 40 || py > H + 40) return;
-      var pr = Math.max(6, Math.min(12, 2.8 * z));
-      ctx.fillStyle = "#fbbf24"; ctx.strokeStyle = "#422006"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#422006"; ctx.font = "bold 10px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("P", px, py + .5);
-      if (z > .6) {
-        ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.font = "bold 11px system-ui, sans-serif";
-        ctx.lineWidth = 3; ctx.strokeStyle = "rgba(15,23,42,.9)"; ctx.strokeText(pin.name, px + pr + 5, py + 4);
-        ctx.fillStyle = "#fff7cc"; ctx.fillText(pin.name, px + pr + 5, py + 4);
-      }
-    });
     state._vw = W; state._vh = H;
   }
 
@@ -314,122 +299,9 @@
       b.type = "button";
       b.className = "map-dim" + (d === state.activeDim ? " on" : "");
       b.textContent = (DIM_NAMES[d] || ("Dim " + d)) + " (" + state.counts[d] + ")";
-      b.addEventListener("click", function () { state.activeDim = d; state.view = null; paintDims(); paintModes(); paintPins(); paintStats(); draw(); });
+      b.addEventListener("click", function () { state.activeDim = d; state.view = null; paintDims(); paintModes(); paintStats(); draw(); });
       wrap.appendChild(b);
     });
-  }
-
-  function pinsStorageKey() { return "rc_map_pins_v1:" + (state.fileKey || "unknown-world"); }
-  function savePins() {
-    try { localStorage.setItem(pinsStorageKey(), JSON.stringify(state.pins || [])); } catch (e) {}
-  }
-  function paintPins() {
-    var box = $("mapPinsList");
-    if (!box) return;
-    box.textContent = "";
-    var pins = (state.pins || []).filter(function (pin) { return pin.dim === state.activeDim; });
-    if (!pins.length) {
-      var empty = document.createElement("span"); empty.className = "map-pins-empty"; empty.textContent = "Nenhum pin nesta dimensão."; box.appendChild(empty); return;
-    }
-    pins.forEach(function (pin) {
-      var row = document.createElement("span"); row.className = "map-pin-row";
-      var label = document.createElement("span"); label.textContent = pin.name + " · " + pin.x + ", " + pin.z;
-      var remove = document.createElement("button"); remove.type = "button"; remove.className = "btn-ghost btn-mini"; remove.textContent = "Excluir"; remove.setAttribute("aria-label", "Excluir pin " + pin.name);
-      remove.addEventListener("click", function () {
-        state.pins = state.pins.filter(function (candidate) { return candidate !== pin; });
-        savePins(); paintPins(); draw();
-      });
-      row.appendChild(label); row.appendChild(remove); box.appendChild(row);
-    });
-  }
-  function addPinAt(c) {
-    if (!c) return;
-    var name = window.prompt("Nome do local (ex.: casa, vila, portal):", "Meu local");
-    if (name === null) return;
-    name = String(name).trim().slice(0, 40);
-    if (!name) name = "Meu local";
-    if (!state.pins) state.pins = [];
-    if (state.pins.length >= 200) { window.alert("Limite de 200 pins neste mundo."); return; }
-    state.pins.push({ name: name, x: c.bx, z: c.bz, dim: state.activeDim });
-    savePins(); paintPins(); draw();
-  }
-  function downloadMap(kind) {
-    var cv = $("mapCanvas");
-    if (!cv) return;
-    var base = (state.fileName || "mundo").replace(/\.(mcworld|zip)$/i, "").replace(/[\\/:*?"<>|]+/g, "-");
-    var a = document.createElement("a");
-    if (kind === "json") {
-      var data = { format: "reativaconquistas-map-pins-v1", world: state.fileName, active_dimension: state.activeDim, pins: state.pins || [] };
-      var url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" }));
-      a.href = url; a.download = base + "-pins.json"; a.click(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-      return;
-    }
-    try { a.href = cv.toDataURL("image/png"); a.download = base + "-mapa.png"; a.click(); }
-    catch (e) { window.alert("Não foi possível exportar a imagem do mapa neste navegador."); }
-  }
-
-  function downloadWorldPoster() {
-    var map = $("mapCanvas");
-    if (!map || !map.width || !map.height) { window.alert("Carregue um mundo e espere o mapa ficar pronto."); return; }
-    var poster = document.createElement("canvas");
-    poster.width = 1080; poster.height = 1440;
-    var ctx = poster.getContext("2d");
-    if (!ctx) { window.alert("Este navegador não oferece suporte para criar o pôster."); return; }
-    var base = (state.fileName || "mundo").replace(/\.(mcworld|zip|dat)$/i, "").replace(/[\\/:*?"<>|]+/g, "-");
-    var nameNode = $("wiName"), seedNode = $("wiSeed"), spawnNode = $("wiSpawn"), statusNode = $("wiStatus");
-    var worldName = nameNode && nameNode.textContent && nameNode.textContent !== "—" ? nameNode.textContent : base;
-    var seed = seedNode && seedNode.textContent && seedNode.textContent !== "—" ? seedNode.textContent : "não detectada";
-    var spawn = spawnNode && spawnNode.textContent && spawnNode.textContent !== "—" ? spawnNode.textContent : "não detectado";
-    var dimTitle = DIM_NAMES[state.activeDim] || ("Dimensão " + state.activeDim);
-    var pinCount = (state.pins || []).filter(function (pin) { return String(pin.dim) === String(state.activeDim); }).length;
-    var chunkCount = state.counts && state.counts[state.activeDim] || 0;
-    var bg = ctx.createLinearGradient(0, 0, 1080, 1440);
-    bg.addColorStop(0, "#101827"); bg.addColorStop(1, "#24384a");
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, poster.width, poster.height);
-    ctx.fillStyle = "#f97316"; ctx.fillRect(0, 0, 1080, 18);
-    ctx.fillStyle = "#fdba74"; ctx.font = "700 22px system-ui, sans-serif"; ctx.fillText("REATIVACONQUISTAS · ATLAS LOCAL", 64, 80);
-    ctx.fillStyle = "#ffffff"; ctx.font = "700 58px system-ui, sans-serif";
-    ctx.fillText(String(worldName).slice(0, 30), 64, 158, 950);
-    ctx.fillStyle = "#cbd5e1"; ctx.font = "24px system-ui, sans-serif";
-    ctx.fillText(dimTitle + " · " + chunkCount + " chunks registradas · " + pinCount + " pin(s)", 66, 205, 940);
-    ctx.fillStyle = "#0b1220"; ctx.fillRect(52, 248, 976, 784);
-    var scale = Math.min(920 / map.width, 720 / map.height);
-    var mw = Math.max(1, Math.round(map.width * scale)), mh = Math.max(1, Math.round(map.height * scale));
-    var mx = Math.round((1080 - mw) / 2), my = 280 + Math.round((720 - mh) / 2);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(map, mx, my, mw, mh);
-    ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 2; ctx.strokeRect(52, 248, 976, 784);
-    ctx.fillStyle = "#ffffff"; ctx.font = "700 30px system-ui, sans-serif"; ctx.fillText("SEED", 64, 1100);
-    ctx.fillStyle = "#cbd5e1"; ctx.font = "24px ui-monospace, monospace"; ctx.fillText(String(seed).slice(0, 48), 64, 1140, 950);
-    ctx.fillStyle = "#ffffff"; ctx.font = "700 25px system-ui, sans-serif"; ctx.fillText("SPAWN", 64, 1200);
-    ctx.fillStyle = "#cbd5e1"; ctx.font = "22px system-ui, sans-serif"; ctx.fillText(String(spawn).slice(0, 90), 64, 1236, 940);
-    ctx.fillStyle = "#94a3b8"; ctx.font = "18px system-ui, sans-serif";
-    ctx.fillText("Dados lidos do arquivo local · biomas e blocos não são inferidos por este pôster.", 64, 1322, 950);
-    ctx.fillStyle = "#fb923c"; ctx.font = "600 18px system-ui, sans-serif";
-    ctx.fillText("Estado: " + String(statusNode && statusNode.textContent || "mapa explorado").slice(0, 76), 64, 1368, 950);
-    var a = document.createElement("a");
-    try { a.href = poster.toDataURL("image/png"); a.download = base + "-poster-mundo.png"; document.body.appendChild(a); a.click(); a.remove(); }
-    catch (e) { window.alert("Não foi possível criar a imagem neste navegador."); }
-  }
-
-  function downloadWorldCard() {
-    var map = $("mapCanvas");
-    if (!map || !map.width || !map.height) { window.alert("Carregue um mundo e espere o mapa ficar pronto."); return; }
-    var description = window.prompt("Escreva uma descrição para o cartão. Ela fica no arquivo baixado, não é enviada pelo site:", "Meu mundo Bedrock");
-    if (description === null) return;
-    var nameNode = $("wiName"), seedNode = $("wiSeed"), spawnNode = $("wiSpawn");
-    var base = (state.fileName || "mundo").replace(/\.(mcworld|zip|dat)$/i, "").replace(/[\\/:*?"<>|]+/g, "-");
-    var title = nameNode && nameNode.textContent && nameNode.textContent !== "—" ? nameNode.textContent : base;
-    var seed = seedNode && seedNode.textContent && seedNode.textContent !== "—" ? seedNode.textContent : "não detectada";
-    var spawn = spawnNode && spawnNode.textContent && spawnNode.textContent !== "—" ? spawnNode.textContent : "não detectado";
-    var dim = DIM_NAMES[state.activeDim] || ("Dimensão " + state.activeDim);
-    var image = map.toDataURL("image/png");
-    var page = "<!doctype html><html lang=\"pt-BR\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>" + esc(title) + " · Cartão do mundo</title>" +
-      "<style>body{margin:0;padding:28px;background:#101827;color:#f8fafc;font:16px system-ui,sans-serif}.card{max-width:850px;margin:auto;padding:24px;border:1px solid #475569;border-radius:22px;background:#1e293b}h1{margin:0 0 8px;color:#fdba74;font-size:clamp(28px,7vw,48px)}p{line-height:1.55;color:#cbd5e1}.map{display:block;width:100%;max-height:65vh;object-fit:contain;border-radius:14px;background:#0b1220}.facts{display:flex;flex-wrap:wrap;gap:12px}.fact{padding:10px 13px;border-radius:12px;background:#0f172a}.label{display:block;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em}.notice{font-size:12px;color:#94a3b8}</style>" +
-      "<main class=\"card\"><p class=\"label\">Cartão de visita do mundo · criado localmente</p><h1>" + esc(title) + "</h1><p>" + esc(String(description).slice(0, 500)) + "</p><img class=\"map\" alt=\"Vista atual do mapa de chunks salvas\" src=\"" + image + "\"><section class=\"facts\"><p class=\"fact\"><span class=\"label\">Seed</span>" + esc(seed) + "</p><p class=\"fact\"><span class=\"label\">Spawn</span>" + esc(spawn) + "</p><p class=\"fact\"><span class=\"label\">Dimensão exibida</span>" + esc(dim) + "</p><p class=\"fact\"><span class=\"label\">Chunks registradas</span>" + esc(state.counts && state.counts[state.activeDim] || 0) + "</p></section><p class=\"notice\">A imagem mostra a vista atual do mapa. Este cartão não publica nem envia o arquivo do mundo. Biomas e blocos não são inferidos.</p></main></html>";
-    var a = document.createElement("a"), url = URL.createObjectURL(new Blob([page], { type: "text/html;charset=utf-8" }));
-    a.href = url; a.download = base + "-cartao-mundo.html"; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
   }
 
   function paintStats() {
@@ -452,7 +324,7 @@
   function resetState() {
     state.chunksByDim = null; state.boundsByDim = null; state.counts = null;
     state.activeDim = 0; state.spawnChunk = null; state.spawn = null; state.playerPos = null;
-    state.totalKeys = 0; state.fileName = ""; state.fileKey = ""; state.pins = []; state.view = null;
+    state.totalKeys = 0; state.fileName = ""; state.view = null;
     try { window.RC_modified = new Set(); window.RC_terrainLayer = null; } catch (e) {}
   }
 
@@ -472,11 +344,6 @@
       return;
     }
     state.fileName = file.name || "mundo";
-    state.fileKey = [state.fileName, file.size || 0, file.lastModified || 0].join("|");
-    try {
-      var storedPins = JSON.parse(localStorage.getItem(pinsStorageKey()) || "[]");
-      state.pins = Array.isArray(storedPins) ? storedPins.filter(function (pin) { return pin && typeof pin.name === "string" && isFinite(+pin.x) && isFinite(+pin.z) && isFinite(+pin.dim); }).slice(0, 200).map(function (pin) { return { name: pin.name.slice(0, 40), x: +pin.x, z: +pin.z, dim: +pin.dim }; }) : [];
-    } catch (e2) { state.pins = []; }
     box.hidden = false;
     var dm = $("mapDims"); if (dm) { dm.hidden = true; dm.innerHTML = ""; }
     setStats('<span class="spin"></span> Lendo mapa 2D <b>no seu navegador</b>… (mundos grandes levam alguns segundos)');
@@ -573,7 +440,7 @@
         state.view = null; // fitView() calcula no draw
         if (window.RC_sel) window.RC_sel.clear();
         try { if (window.RC_selChanged) window.RC_selChanged(); } catch (e) {}
-        paintDims(); paintModes(); paintPins(); paintStats(); requestAnimationFrame(function () { draw(); });
+        paintDims(); paintModes(); paintStats(); requestAnimationFrame(function () { draw(); });
       });
     }).catch(function (err) {
       if (my !== seq) return;
@@ -591,14 +458,13 @@
   }
 
   function setMode(m) {
-    state.mode = (m === "select" || m === "pin") ? m : "pan";
+    state.mode = (m === "select") ? "select" : "pan";
     window.RC_mapMode = state.mode;
-    var bp = $("mapModePan"), bs = $("mapModeSel"), bpin = $("mapModePin");
+    var bp = $("mapModePan"), bs = $("mapModeSel");
     if (bp) bp.classList.toggle("on", state.mode === "pan");
     if (bs) bs.classList.toggle("on", state.mode === "select");
-    if (bpin) bpin.classList.toggle("on", state.mode === "pin");
     var cv = $("mapCanvas");
-    if (cv) cv.style.cursor = state.mode === "pan" ? "grab" : "crosshair";
+    if (cv) cv.style.cursor = state.mode === "select" ? "crosshair" : "grab";
     paintHint();
     draw();
   }
@@ -608,8 +474,7 @@
     if (!h) return;
     h.textContent = state.mode === "select"
       ? "Toque num chunk p/ alternar · arraste p/ área · arraste com 2 dedos move o mapa"
-      : state.mode === "pin" ? "Toque ou clique no mapa para colocar um pin; arraste para cancelar"
-        : "Arraste p/ mover · roda/pinça = zoom · passe o mouse p/ ver coordenadas";
+      : "Arraste p/ mover · roda/pinça = zoom · passe o mouse p/ ver coordenadas";
   }
   function paintModes() {
     var sb = $("mapSpawnBtn");
@@ -645,7 +510,7 @@
     t.style.top = Math.max(4, y - 10) + "px";
   }
 
-  var ptrs = {}, dragPan = null, dragSel = null, pinch0 = null, pinTap = null;
+  var ptrs = {}, dragPan = null, dragSel = null, pinch0 = null;
 
   function bindCanvas() {
     var cv = $("mapCanvas");
@@ -661,7 +526,6 @@
       ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
       var ids = Object.keys(ptrs);
       if (ids.length === 2) {
-        pinTap = null;
         var a = ptrs[ids[0]], b = ptrs[ids[1]];
         pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: state.view.cx, cy: state.view.cy, zoom: state.view.zoom };
         dragPan = null; dragSel = null;
@@ -671,8 +535,6 @@
       if (state.mode === "select") {
         var p = pos(e), c = screenToChunk(p.x, p.y);
         if (c) dragSel = { fx: c.cx, fz: c.cz, tx: c.cx, tz: c.cz, moved: false };
-      } else if (state.mode === "pin") {
-        pinTap = { x: e.clientX, y: e.clientY, moved: false };
       } else {
         dragPan = { x: e.clientX, y: e.clientY, cx: state.view.cx, cy: state.view.cy };
         cv.style.cursor = "grabbing";
@@ -704,7 +566,6 @@
           return;
         }
       }
-      if (pinTap && Math.hypot(e.clientX - pinTap.x, e.clientY - pinTap.y) > 8) pinTap.moved = true;
       if (dragPan) {
         var dx = (e.clientX - dragPan.x) / state.view.zoom;
         var dy = (e.clientY - dragPan.y) / state.view.zoom;
@@ -723,11 +584,6 @@
     function endPointer(e) {
       delete ptrs[e.pointerId];
       if (Object.keys(ptrs).length < 2) pinch0 = null;
-      if (pinTap) {
-        var wasPinTap = pinTap; pinTap = null;
-        if (!wasPinTap.moved) { var pp = pos(e); addPinAt(screenToChunk(pp.x, pp.y)); }
-        setMode("pan"); tip(null); return;
-      }
       if (dragPan) { dragPan = null; cv.style.cursor = state.mode === "select" ? "crosshair" : "grab"; }
       if (dragSel) {
         var d = dragSel; dragSel = null;
@@ -802,12 +658,6 @@
     var bp = $("mapModePan"), bs = $("mapModeSel");
     if (bp) bp.addEventListener("click", function () { setMode("pan"); });
     if (bs) bs.addEventListener("click", function () { setMode("select"); });
-    var bpin = $("mapModePin"), png = $("mapExportPng"), poster = $("mapExportPoster"), card = $("mapExportCard"), json = $("mapExportPins");
-    if (bpin) bpin.addEventListener("click", function () { setMode(state.mode === "pin" ? "pan" : "pin"); });
-    if (png) png.addEventListener("click", function () { downloadMap("png"); });
-    if (poster) poster.addEventListener("click", downloadWorldPoster);
-    if (card) card.addEventListener("click", downloadWorldCard);
-    if (json) json.addEventListener("click", function () { downloadMap("json"); });
     var zi = $("mapZoomIn"), zo = $("mapZoomOut");
     if (zi) zi.addEventListener("click", function () {
       var cv = $("mapCanvas"), r = cv ? cv.getBoundingClientRect() : { width: 260, height: 210 };

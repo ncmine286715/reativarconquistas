@@ -22,15 +22,6 @@
 .summary-grid article{padding:14px 16px}
 .summary-grid span{display:block;color:var(--muted);font-size:12px}
 .summary-grid strong{display:block;margin-top:4px;color:var(--ink);font-size:21px}
-.materials-panel{display:grid;gap:10px;margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow-sm)}
-.materials-panel[hidden]{display:none!important}
-.materials-panel h2{margin:0 0 3px;font-size:16px}
-.materials-panel .canvas-help{margin:0}
-.materials-table-wrap{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:9px}
-.materials-table{width:100%;border-collapse:collapse;font-size:12px}
-.materials-table th,.materials-table td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
-.materials-table th{position:sticky;top:0;background:var(--bg);color:var(--muted);font-size:11px}
-.materials-table td:nth-child(n+2),.materials-table th:nth-child(n+2){text-align:right}
 .world-map-card{position:relative;margin:0 0 16px;padding:16px}
 .world-map-card h2{margin:0 0 5px;font-size:17px}
 .world-map-card>div:first-child p{max-width:700px;margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.5}

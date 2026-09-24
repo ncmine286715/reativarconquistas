@@ -1,8 +1,8 @@
 {
-  "name": "ReativaConquistas",
-  "short_name": "Reativa",
-  "description": "Ferramentas para analisar, ajustar e construir em mundos Minecraft Bedrock.",
-  "start_url": "index.html",
+  "name": "ReativaConquistas — Construtor 3D (beta)",
+  "short_name": "Construtor 3D",
+  "description": "Cole casas .mcstructure no seu mundo Minecraft Bedrock vendo o terreno em 3D. Grátis durante o beta.",
+  "start_url": "builder-lab.html",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",

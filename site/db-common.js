@@ -257,8 +257,8 @@
     var kw = "";
     try { if (window.RC_pay && window.RC_pay.kiwifyUrl) kw = window.RC_pay.kiwifyUrl() || ""; } catch (e) {}
     var html = esc(msg) + " ";
-    html += kw ? '<a href="' + kw + '"><b>Liberar agora</b></a> · <a href="planos.html">Ver planos</a>'
-      : '<a href="planos.html"><b>Ver planos</b></a>';
+    html += kw ? '<a href="' + kw + '"><b>Liberar agora</b></a> · <a href="#planos">Ver planos</a>'
+      : '<a href="#planos"><b>Ver planos VIP</b></a>';
     try {
       // Upgrade links are explicit; do not open a disabled payment provider.
     } catch (e) {}

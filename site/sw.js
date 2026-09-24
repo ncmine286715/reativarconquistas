@@ -1,13 +1,9 @@
 /* ReativaConquistas — Service Worker mínimo do Construtor 3D (beta).
    Deixa o app instalável e acelera a segunda visita com cache local.
    Versões com ?v= são chaves distintas: atualizar o ?v= atualiza o app. */
-var CACHE = 'rc-builder-v13';
+var CACHE = 'rc-builder-v12';
 var CORE = [
   'index.html',
-  'ferramentas.html',
-  'planos.html',
-  'design-system.css?v=1',
-  'workspace-ui.js?v=1',
   'builder-lab.html',
   'importar.html',
   'objetivos.html',
