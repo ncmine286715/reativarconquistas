@@ -166,7 +166,7 @@
     if (p.kind === "world_credit") return (p.credit_count || 1) + " mundo(s), " + limit + " cada. Créditos sem validade antes do uso; cada mundo fica liberado por " + (p.project_window_days || 30) + " dias.";
     return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
   }
-  var PLAN_ACTIONS = { world1: "Editar 1 mundo", ouro: "Comprar 3 mundos", diamante: "Comprar 5 mundos", vip7: "Liberar por 7 dias", vip30: "Usar por 30 dias", creator: "Escolher Criador" };
+  var PLAN_ACTIONS = { world1: "Comprar Ferro", ouro: "Escolher Ouro", diamante: "Escolher Diamante", vip7: "Liberar 7 dias", vip30: "Liberar 30 dias", creator: "Ativar Criador" };
   function applyPlanCatalog(config) {
     PUBLIC_PLANS = config && config.plans || {};
     PLAN_IDS.forEach(function (id) {
@@ -188,6 +188,7 @@
       var priceBox = card && card.querySelector(".price");
       var quantityBox = card && card.querySelector(".plan-quantity");
       var unitBox = card && card.querySelector(".plan-unit");
+      var savingBox = card && card.querySelector(".plan-saving");
       var list = card && card.querySelector("ul");
       var creditPlan = p.kind === "world_credit";
       if (priceBox) priceBox.textContent = planPrice(id);
@@ -196,18 +197,22 @@
         if (creditPlan) {
           var countForUnit = p.credit_count || 1;
           var saving = (+PUBLIC_PLANS.world1.price_cents * countForUnit) - (+p.price_cents || 0);
-          unitBox.textContent = priceText(Math.round((+p.price_cents || 0) / countForUnit)) + " por mundo" + (saving > 0 ? " · economize " + priceText(saving) : "");
+          unitBox.textContent = priceText(Math.round((+p.price_cents || 0) / countForUnit)) + " por mundo";
+          if (savingBox) {
+            savingBox.textContent = saving > 0 ? "Economize " + priceText(saving) + " comparado ao Ferro" : "";
+            savingBox.hidden = saving <= 0;
+          }
         } else unitBox.textContent = "Até " + (p.max_batch || 1) + " mundos por lote";
       }
       if (list) {
         var count = p.credit_count || 1;
         var bullets = creditPlan
-          ? [size, "Um mundo por vez", "Sem validade antes do uso; o mundo fica liberado por " + (p.project_window_days || 30) + " dias"]
+          ? [size, "Ferramentas avançadas incluídas", "Créditos sem prazo para usar", "Mundo liberado por " + (p.project_window_days || 30) + " dias após o primeiro uso"]
           : [size, batch, "Ferramentas avançadas durante o período"];
         list.innerHTML = bullets.map(function (item) { return "<li class='yes'>" + escH(item) + "</li>"; }).join("");
       }
-      button.textContent = PLAN_ACTIONS[id] || "Comprar";
-      button.setAttribute("aria-label", button.textContent + " por " + planPrice(id));
+      button.innerHTML = escH(PLAN_ACTIONS[id] || "Comprar") + " <span aria-hidden='true'>→</span>";
+      button.setAttribute("aria-label", (PLAN_ACTIONS[id] || "Comprar") + " por " + planPrice(id));
     });
     var diamondBadge = document.querySelector(".plan-diamond .vip-flag");
     if (diamondBadge && PUBLIC_PLANS.world1 && PUBLIC_PLANS.ouro && PUBLIC_PLANS.diamante) {
