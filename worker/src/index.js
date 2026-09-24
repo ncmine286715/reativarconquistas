@@ -1124,7 +1124,7 @@ export default {
             return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
           }
           const info = await depixStatus(env, id);
-          const out = { status: info.status, paid: info.paid, email: info.email, plan: info.plan };
+          const out = { id, status: info.status, paid: info.paid, email: info.email, plan: info.plan };
           let email = info.email;
           let uid = info.uid || "";
           let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
@@ -1140,6 +1140,7 @@ export default {
           const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
           if (info.paid && !plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           out.plan = plan;
+          out.source = String((pend && pend.source) || "").slice(0, 80);
           if (email) out.email = email;
           if (info.paid && email) {
             const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pend && pend.source, paid_at: info.paid_at });
@@ -1148,6 +1149,7 @@ export default {
             await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
             out.premium_until_ms = grant.premium_until_ms;
             out.world_credits = grant.world_credits;
+            out.amount_cents = PLAN_PRICES[plan] || 0;
             await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
           }
           return json(out, 200, cors);
@@ -1328,7 +1330,7 @@ export default {
           return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
         }
         const info = await abacateStatus(env, id);
-        const out = { status: info.status, paid: info.paid, email: info.email };
+        const out = { id, status: info.status, paid: info.paid, email: info.email };
         let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
         let email = String(info.email || (pend && pend.email) || "").toLowerCase();
         if (pend && info.uid && pend.uid && String(pend.uid) !== info.uid) return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
@@ -1340,6 +1342,7 @@ export default {
         if (!ownerUid && !email) return json({ error: "Não consegui associar esta cobrança à sua conta Google." }, 409, cors);
         if (info.paid && email) {
           out.plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+          out.source = String((pend && pend.source) || "").slice(0, 80);
           if (!out.plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado não corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           const uid = String(info.uid || (pend && pend.uid) || fb.uid);
@@ -1350,6 +1353,7 @@ export default {
           await recordPaidCheckout(env, { id, email, uid, plan: out.plan, provider: "abacate" });
           out.premium_until_ms = grant.premium_until_ms;
           out.world_credits = grant.world_credits;
+          out.amount_cents = PLAN_PRICES[out.plan] || 0;
           await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
         }
         return json(out, 200, cors);

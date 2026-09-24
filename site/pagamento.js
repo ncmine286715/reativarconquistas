@@ -59,6 +59,7 @@
   } catch (e) { telemetryId = "anonymous"; }
   function track(event, data) {
     try {
+      if (window.RC_analytics && window.RC_analytics.track) window.RC_analytics.track(event, data);
       var tool = "";
       try {
         var saved = sessionStorage.getItem("rc_tool_intent") || "";
@@ -68,6 +69,11 @@
       var body = Object.assign({ event: String(event || "").slice(0, 40), session_id: telemetryId, page: location.pathname }, tool ? { tool: tool, source: "tool_" + tool.replace(/-/g, "_") } : {}, data || {});
       fetch(base() + "/api/telemetry", { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body), keepalive: true }).catch(function () {});
     } catch (e) {}
+  }
+  function trackPaymentState(r) {
+    var state = String((r && r.status) || "").toLowerCase();
+    var event = /expir/.test(state) ? "payment_expired" : /fail|cancel|refus|rejeit/.test(state) ? "payment_failed" : /pend|wait|aguard|open|created|unpaid/.test(state) ? "payment_pending" : "";
+    if (event && window.RC_analytics) window.RC_analytics.track(event, { plan: r.plan || "" });
   }
   track("page_view");
 
@@ -687,6 +693,7 @@
       var did = /^chk_/.test(depixId) ? depixId : (/^chk_/.test(id) ? id : (depixId || id));
       if (box) { box.hidden = false; box.className = "status"; box.textContent = "Confirmando Pix (Depix)…"; }
       return depixStatus(did).then(function (r) {
+        if (r.paid && window.RC_analytics) window.RC_analytics.purchase(r);
         if (box) {
           if (r.paid) {
             try {
@@ -702,6 +709,7 @@
             box.className = "status ok";
             box.innerHTML = "Pix confirmado. " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
           } else {
+            trackPaymentState(r);
             box.className = "status";
             box.textContent = "Pix ainda não confirmado (" + (r.status || "?") + "). Se já pagou, aguarde 1 min e recarregue.";
           }
@@ -716,6 +724,7 @@
     if (!id || !enabled()) return Promise.resolve(null);
     if (box) { box.hidden = false; box.className = "status"; box.textContent = "Confirmando pagamento…"; }
     return authReq("/api/abacate/status?id=" + encodeURIComponent(id)).then(function (r) {
+      if (r.paid && window.RC_analytics) window.RC_analytics.purchase(r);
       if (box) {
         if (r.paid) {
           // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
@@ -732,6 +741,7 @@
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
             ". " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
         } else {
+          trackPaymentState(r);
           box.className = "status";
           box.textContent = "Pagamento ainda não confirmado (" + (r.status || "?") + "). Se já pagou, aguarde 1 min e recarregue.";
         }

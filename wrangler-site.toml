@@ -6,3 +6,4 @@ workers_dev = true
 
 [assets]
 directory = "./site"
+not_found_handling = "404-page"

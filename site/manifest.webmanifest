@@ -2,15 +2,14 @@
   "name": "ReativaConquistas",
   "short_name": "Reativa",
   "description": "Ferramentas para analisar, ajustar e construir em mundos Minecraft Bedrock.",
-  "start_url": "index.html",
+  "start_url": "/",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0b101c",
-  "theme_color": "#0b101c",
+  "background_color": "#fff7ef",
+  "theme_color": "#fff7ef",
   "lang": "pt-BR",
   "icons": [
-    { "src": "logo.png", "sizes": "any", "type": "image/png", "purpose": "any" },
-    { "src": "hero.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+    { "src": "logo.png", "sizes": "500x500", "type": "image/png", "purpose": "any" }
   ]
 }

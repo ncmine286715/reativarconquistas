@@ -1,14 +1,29 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
+<script defer src="analytics.js?v=1"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ReativaConquistas — conquistas de volta no seu mundo Minecraft Bedrock</title>
-<meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
+<meta name="description" content="Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://reativarconquistas.pages.dev/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ReativaConquistas">
+<meta property="og:title" content="ReativaConquistas — edite mundos Minecraft Bedrock no navegador">
+<meta property="og:description" content="Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia.">
+<meta property="og:url" content="https://reativarconquistas.pages.dev/">
+<meta property="og:image" content="https://reativarconquistas.pages.dev/hero.png">
+<meta property="og:image:width" content="666">
+<meta property="og:image:height" content="375">
+<meta name="twitter:card" content="summary_large_image">
+<title>ReativaConquistas — edite mundos Minecraft Bedrock no navegador</title>
 <link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"ReativaConquistas","url":"https://reativarconquistas.pages.dev/","logo":"https://reativarconquistas.pages.dev/logo.png"},{"@type":"WebSite","name":"ReativaConquistas","url":"https://reativarconquistas.pages.dev/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"ReativaConquistas","url":"https://reativarconquistas.pages.dev/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -46,6 +61,7 @@
       <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
     </a>
     <nav class="nav">
+      <a class="hide-m" href="ferramentas.html">Ferramentas</a>
       <a class="hide-m" href="#como-funciona">Como funciona</a>
       <a class="hide-m" href="chunks.html">Restaurar chunks</a>
       <a class="hide-m" href="#planos">Planos</a>
@@ -95,7 +111,7 @@
 
   <header class="hero">
     <p class="kicker">Projeto independente · sem vínculo com Mojang/Microsoft</p>
-    <img class="hero-logo" src="hero.png" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
+    <img class="hero-logo" src="hero.png" width="666" height="375" fetchpriority="high" decoding="async" alt="Reativando as Conquistas do Minecraft Bedrock" onerror="this.style.display='none'">
     <h1>Conquistas sumiram?<br><span>Volte a desbloquear</span></h1>
     <p class="tagline">Envie seu <b>.mcworld</b>, escolha o ajuste e baixe um mundo novo. Até <b>10 MB grátis</b>, direto no navegador.</p>
     <div class="hero-cta">
@@ -620,6 +636,7 @@
 
   <footer class="foot">
     <nav>
+      <a href="ferramentas.html">Ferramentas</a>
       <a href="termos.html">Termos de Uso</a>
       <a href="privacidade.html">Privacidade (LGPD)</a>
       <a href="reembolso.html">Reembolso</a>
@@ -639,7 +656,8 @@
 <script src="vendor/jszip.min.js?v=14"></script>
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
-<script src="config.js?v=26"></script>
+<script src="config.js?v=27"></script>
+
 <script src="converter.js?v=18"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=17"></script>
@@ -651,10 +669,10 @@
 <script src="chunks.js?v=10"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 <script src="firebase-config.js?v=13"></script>
-<script src="auth.js?v=15"></script>
-<script src="pagamento.js?v=31"></script>
+<script src="auth.js?v=16"></script>
+<script src="pagamento.js?v=32"></script>
 <script src="entitlements.js?v=4"></script>
 <script src="guia-site.js?v=8"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>

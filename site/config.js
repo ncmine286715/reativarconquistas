@@ -8,6 +8,18 @@
 
 window.RC_CONFIG = {
 
+  /* Marca e integrações públicas. SITE_URL deve ser o único domínio canônico. */
+  SITE_NAME: "ReativaConquistas",
+  SITE_URL: "https://reativarconquistas.pages.dev",
+  SITE_DESCRIPTION: "Edite mundos Minecraft Bedrock no navegador e baixe uma cópia do resultado.",
+  SITE_LOGO: "/logo.png",
+  SITE_OG_IMAGE: "/hero.png",
+  GOOGLE_ANALYTICS_ID: "G-NK8ZN0XFJM",
+  GOOGLE_TAG_MANAGER_ID: "",
+  GOOGLE_SITE_VERIFICATION: "",
+  GOOGLE_ADS_ID: "",
+  ADSENSE_CLIENT_ID: "",
+
   /* =========================
      LIMITES DO SITE
      ========================= */

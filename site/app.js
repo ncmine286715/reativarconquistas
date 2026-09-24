@@ -881,6 +881,7 @@
     if (integrityBox) integrityBox.textContent = "Analisando arquivos e manifests localmente…";
     if (reportButton) reportButton.disabled = true;
     clearComparison();
+    try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("world_analysis_started", { worlds: selectedList.length || 1, source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
     f.arrayBuffer().then(function (ab) { analysisBuffer = ab; return window.RC_local.diagnoseAny(ab, f.name); }).then(function (rep) {
       if (my !== raioXSeq) return;
       if (!rep.ok) { box.hidden = true; paintWorldInfo(null); return; }
