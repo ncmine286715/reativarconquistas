@@ -26,7 +26,8 @@
   function status(html) {
     var el = $("chunkStatus");
     if (!el) return;
-    if (!html) { el.hidden = true; el.innerHTML = ""; return; }
+    if (!html) { el.hidden = true; el.classList.remove("chunk-result"); el.innerHTML = ""; return; }
+    el.classList.toggle("chunk-result", html.indexOf('class="chunk-result-content"') !== -1);
     el.hidden = false; el.innerHTML = html;
   }
 
@@ -702,11 +703,16 @@
           var ar = $("analysisBox"); if (ar) { ar.hidden = true; ar.innerHTML = ""; }
           var ack2 = $("resetAck"); if (ack2) ack2.checked = false;
           var wasVip = window.RC_dbx.vipOk();
-          var tail = wasVip ? "" : "<br>Uso grátis confirmado pelo servidor.";
-          status("✅ <b>Restauração concluída!</b> Download iniciado: <b>" + esc(base) + "-chunks-restauradas.mcworld</b> — <b>" + delCount + "</b> registros restaurados pela seed em <b>" + sel.size + "</b> chunk(s)" + (vilDel ? (" + <b>" + vilDel + "</b> de vila") : "") + ". " +
-            "Chaves: " + chk.live1 + " → " + chk.live2 + " · player " + (chk.hasPlayer ? "intacto ✓" : "ausente (como no original)") + ". " +
-            "<br><b>Para regenerar sem vazio:</b> 1) importe o arquivo novo; 2) abra o <b>mundo novo</b> (mesmo nome — confira); 3) vá até a área e <b>aguarde gerar</b>; 4) se ficar descarregado, <b>feche e reabra</b> o mundo. No celular, regenere em <b>lotes pequenos</b>. Mapas antigos mostram a área velha — explore para atualizar. " +
-            "<b>Guarde o original.</b>" + tail);
+          var tail = wasVip ? "" : "<p>Uso grátis confirmado pelo servidor.</p>";
+          status('<div class="chunk-result-content">' +
+            '<h3>✅ Restauração concluída!</h3>' +
+            '<p>Download iniciado: <strong class="chunk-result-file">' + esc(base) + '-chunks-restauradas.mcworld</strong></p>' +
+            '<p><b>' + delCount + '</b> registros restaurados pela seed em <b>' + sel.size + '</b> chunk(s)' + (vilDel ? (' + <b>' + vilDel + '</b> de vila') : '') + '.</p>' +
+            '<p class="chunk-result-meta">Chaves: ' + chk.live1 + ' → ' + chk.live2 + ' · player ' + (chk.hasPlayer ? 'intacto ✓' : 'ausente (como no original)') + '.</p>' +
+            '<h4>Para regenerar sem vazio</h4>' +
+            '<ol><li>Importe o arquivo novo.</li><li>Abra o <b>mundo novo</b> (mesmo nome — confira).</li><li>Vá até a área e <b>aguarde gerar</b>.</li><li>Se ficar descarregado, <b>feche e reabra</b> o mundo.</li></ol>' +
+            '<p>No celular, regenere em <b>lotes pequenos</b>. Mapas antigos mostram a área velha — explore para atualizar.</p>' +
+            '<p><b>Guarde o original.</b></p>' + tail + '</div>');
           paintSelUI();
           });
         });

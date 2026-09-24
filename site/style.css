@@ -1615,3 +1615,28 @@ body {
 [data-theme="dark"] .plan-group .plan-diamond{background:linear-gradient(160deg,#19313a,var(--card) 48%)}
 [data-theme="dark"] .plan-group .plan-weekly,[data-theme="dark"] .plan-group .plan-vip{background:linear-gradient(160deg,#392719,var(--card) 54%)}
 @media(prefers-reduced-motion:reduce){.hero,.quota,.card#converter,.section#planos{animation:none}}
+
+/* Resultado da restauração: conteúdo legível mesmo com nomes longos no celular. */
+#chunkStatus.chunk-result{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;border-color:#86c79a;background:var(--green-soft)}
+.chunk-result-content{min-width:0;width:100%}
+.chunk-result-content h3{margin:0 0 12px;font-size:18px;line-height:1.3;color:var(--green)}
+.chunk-result-content h4{margin:18px 0 8px;font-size:14px;line-height:1.4}
+.chunk-result-content p{margin:8px 0;line-height:1.55}
+.chunk-result-file{display:block;max-width:100%;margin-top:4px;overflow-wrap:anywhere;word-break:break-word}
+.chunk-result-meta{color:var(--muted)}
+.chunk-result-content ol{margin:6px 0 14px;padding-left:1.35em}
+.chunk-result-content li{padding-left:3px;margin:5px 0;line-height:1.5}
+
+/* Entradas em camadas e movimentos curtos, sem deslocar o layout. */
+.hero{animation:cinema-reveal .75s cubic-bezier(.16,1,.3,1) backwards}
+.hero .hero-logo{animation:cinema-focus .9s cubic-bezier(.16,1,.3,1) .08s backwards}
+.hero h1,.hero .tagline,.hero .hero-cta{animation:cinema-reveal .7s cubic-bezier(.16,1,.3,1) backwards}
+.hero h1{animation-delay:.14s}.hero .tagline{animation-delay:.24s}.hero .hero-cta{animation-delay:.34s}
+.quota{animation:cinema-reveal .75s cubic-bezier(.16,1,.3,1) .38s backwards}
+.card#converter{animation:cinema-reveal .8s cubic-bezier(.16,1,.3,1) .46s backwards}
+.chunk-hero{animation:cinema-reveal .8s cubic-bezier(.16,1,.3,1) backwards}
+.chunk-page>.chunk-card:first-of-type{animation:cinema-reveal .8s cubic-bezier(.16,1,.3,1) .18s backwards}
+#chunkStatus.chunk-result:not([hidden]){animation:cinema-reveal .65s cubic-bezier(.16,1,.3,1) backwards}
+@keyframes cinema-reveal{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes cinema-focus{from{opacity:0;transform:scale(.96);filter:blur(7px)}to{opacity:1;transform:scale(1);filter:blur(0)}}
+@media(prefers-reduced-motion:reduce){.hero,.hero .hero-logo,.hero h1,.hero .tagline,.hero .hero-cta,.quota,.card#converter,.chunk-hero,.chunk-page>.chunk-card:first-of-type,#chunkStatus.chunk-result:not([hidden]){animation:none}}
