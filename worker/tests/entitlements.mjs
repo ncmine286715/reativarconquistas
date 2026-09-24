@@ -155,9 +155,11 @@ completed = await json(await dobj.fetch(doReq("/complete", { operation_id: "op-w
 assert.equal(completed.duplicate, true);
 assert.equal(completed.world_credits, 0, "repeating completion cannot decrement twice");
 const projectId = reserveOne.world_project_id;
+const firstProjectExpiry = (await json(await dobj.fetch(doReq("/state")))).world_projects.find((item) => item.id === projectId).expires_at;
 const repeatEdit = await json(await dobj.fetch(doReq("/reserve-world", { operation_id: "op-world-second", world_project_id: projectId, world_fingerprint: fp, candidate_project_id: "unused" })));
 assert.equal(repeatEdit.allowed, true, "the same project supports more than one edit");
 assert.equal((await json(await dobj.fetch(doReq("/complete", { operation_id: "op-world-second" })))).credit_consumed, false);
+assert.equal((await json(await dobj.fetch(doReq("/state")))).world_projects.find((item) => item.id === projectId).expires_at, firstProjectExpiry, "reediting does not extend the 30-day window after first use");
 const fingerprintEdit = await json(await dobj.fetch(doReq("/reserve-world", { operation_id: "op-world-third", world_fingerprint: fp, candidate_project_id: "unused-2" })));
 assert.equal(fingerprintEdit.world_project_id, projectId, "the same original world fingerprint reconnects to its project");
 await dobj.fetch(doReq("/complete", { operation_id: "op-world-third" }));
