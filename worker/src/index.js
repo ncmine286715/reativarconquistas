@@ -157,7 +157,7 @@ const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
 const PURCHASABLE_PLAN_IDS = new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
-const ANALYTICS_EVENTS = new Set(["page_view", "pricing_view", "plan_card_view", "plan_click", "checkout_open", "pix_requested", "pix_created", "benefit_activated", "download_completed", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
+const ANALYTICS_EVENTS = new Set(["page_view", "pricing_view", "plan_card_view", "plan_click", "checkout_open", "pix_requested", "pix_created", "payment_confirmed", "benefit_activated", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
 const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall", "tool_conquistas", "tool_hardcore", "tool_criativo", "tool_keep_inventory", "tool_jogador", "tool_addons", "tool_chunks", "tool_mundo", "tool_upload", "tool_builder"]);
 const TELEMETRY_REASONS = new Set(["terms", "email", "document", "session_expired", "unavailable"]);
 const TELEMETRY_ERRORS = new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
@@ -704,7 +704,9 @@ async function grantPurchase(env, email, billingId, plan, uid = "", provider = "
     const requestedSource = TELEMETRY_SOURCES.has(String(source || "")) ? String(source) : await checkoutTelemetrySource(env, billingId);
     const attribution = requestedSource || provider;
     await metric(env, "payment_paid", { plan, source: attribution });
+    await metric(env, "payment_confirmed", { plan, source: attribution });
     await metric(env, "plan_granted", { plan, source: provider });
+    await metric(env, "benefit_activated", { plan, source: attribution });
   }
   return grant;
 }
@@ -998,7 +1000,7 @@ export default {
           funnel: { page_views: funnelEvents.page_view || 0, pricing_views: funnelEvents.pricing_view || 0,
             plan_clicks: funnelEvents.plan_click || 0, checkout_opens: funnelEvents.checkout_open || 0,
             pix_requests: funnelEvents.pix_requested || 0, pix_created: checkouts.length, paid: purchases.length,
-            benefit_activated: funnelEvents.plan_granted || 0, operation_completed: funnelEvents.operation_completed || 0,
+            benefit_activated: funnelEvents.benefit_activated || funnelEvents.plan_granted || 0, operation_completed: funnelEvents.operation_completed || 0,
             download_started: funnelEvents.download_started || 0, period_days: daysToRead },
           plan_funnel: planFunnel,
           tool_sales: Object.values(toolSales).sort((a, b) => b.paid - a.paid),
@@ -1294,6 +1296,9 @@ export default {
         try { body = await req.json(); } catch { body = {}; }
         const event = String(body.event || "").trim().slice(0, 40);
         if (!ANALYTICS_EVENTS.has(event)) return json({ ok: false }, 400, cors);
+        if (["payment_paid", "payment_confirmed", "plan_granted", "benefit_activated", "credit_consumed", "webhook_verified"].includes(event)) {
+          return json({ ok: false }, 400, cors);
+        }
         const plan = PLAN_LIMITS[String(body.plan || "")] ? String(body.plan) : "";
         const source = TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "";
         const reason = TELEMETRY_REASONS.has(String(body.reason || "")) ? String(body.reason) : "";
