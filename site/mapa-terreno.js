@@ -194,7 +194,10 @@
     var c = cache[key()];
     if (!c || !c.terrain) { b.hidden = true; return; }
     b.hidden = false;
-    b.textContent = mode === "blocks" ? "Vista: blocos ✓" : "Vista: simples";
+    var label = mode === "blocks" ? "Vista de blocos" : "Vista simples";
+    b.setAttribute("aria-label", label);
+    b.title = label;
+    b.setAttribute("aria-pressed", mode === "blocks" ? "true" : "false");
   }
 
   // Constrói o canvas de terreno de UMA dimensão. Cb de progresso opcional.
@@ -328,7 +331,7 @@
     var st = $("mapStats");
     var oldMsg = st ? st.innerHTML : "";
     var b0 = $("mapTerrainBtn");
-    if (b0) b0.textContent = "Pintando…";
+    if (b0) { b0.setAttribute("aria-label", "Pintando terreno"); b0.title = "Pintando terreno"; }
     window.RC_dbx.openWorld(curFile).then(function (data) {
       var dims = Object.keys(window.RC_mapState.boundsByDim || {}).map(Number);
       var chain = Promise.resolve();
@@ -415,7 +418,7 @@
     var c = cache[k] || (cache[k] = { total: 0, terrain: null, building: false });
     c.building = true;
     var b = $("mapTerrainBtn");
-    if (b) b.textContent = "Pintando…";
+    if (b) { b.setAttribute("aria-label", "Pintando terreno"); b.title = "Pintando terreno"; }
     window.RC_dbx.openWorld(curFile).then(function (data) {
       var dims = Object.keys(window.RC_mapState.boundsByDim || {}).map(Number);
       var chain = Promise.resolve();

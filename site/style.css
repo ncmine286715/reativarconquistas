@@ -1548,3 +1548,22 @@ body {
 .plan-section-label{margin-top:20px;letter-spacing:0;text-transform:none;font-size:14px;color:var(--ink)}
 
 @media (min-width:701px){.plans.plans-4{grid-template-columns:repeat(2,minmax(0,1fr));max-width:900px;margin-left:auto;margin-right:auto}}
+
+/* Mapa em destaque logo após a escolha do mundo. */
+#drop.drop-loaded{flex-direction:row;justify-content:center;gap:8px;padding:10px 14px;margin-top:3px;background:var(--card);border-style:solid}
+#drop.drop-loaded .drop-icon,#drop.drop-loaded .drop-title,#drop.drop-loaded .drop-sub,#drop.drop-loaded .file-name,#drop.drop-loaded .file-x{display:none!important}
+#drop .drop-replace{display:none}
+#drop.drop-loaded .drop-replace{display:inline;font-weight:700;color:var(--orange-dark)}
+.world-map-hero{margin:12px 0 20px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.world-map-hero .map-canvas-wrap{height:clamp(340px,58vh,640px);border-radius:12px}
+.world-map-hero .map-icon-tools{position:absolute;z-index:2;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;max-height:calc(100% - 20px);overflow:auto;padding:6px;border-radius:12px;background:rgba(19,26,33,.82);box-shadow:0 6px 20px #0005}
+.world-map-hero .map-icon-tools button,.world-map-hero .map-export-tools button{display:grid;place-items:center;width:40px;height:40px;min-height:40px;padding:5px;border-radius:9px;flex:0 0 auto}
+.world-map-hero .map-icon-tools button{background:#fff;color:#18202a}
+.world-map-hero .map-icon-tools button.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.world-map-hero .map-icon-tools button[hidden]{display:none!important}
+.world-map-hero .map-icon-tools img,.world-map-hero .map-export-tools img{width:25px;height:25px;object-fit:contain;image-rendering:pixelated}
+.world-map-hero .map-icon-tools span{font-size:24px;line-height:1;font-weight:800}
+.world-map-hero .map-hint{display:block;margin:8px 2px 0;min-width:0}
+.world-map-hero .map-export-tools{justify-content:flex-end;margin-top:8px}
+@media(max-width:600px){.world-map-hero{padding:8px}.world-map-hero .map-canvas-wrap{height:clamp(360px,65vh,600px)}.world-map-hero .map-icon-tools{right:6px;top:6px;gap:4px;padding:4px}.world-map-hero .map-icon-tools button{width:38px;height:38px;min-height:38px}}
+#mapPreview{scroll-margin-top:76px}

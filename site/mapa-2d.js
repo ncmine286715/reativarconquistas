@@ -97,7 +97,7 @@
     if (!bd) return;
     var cv = $("mapCanvas");
     var W = (cv && cv.clientWidth) || 520, H = (cv && cv.parentElement && cv.parentElement.clientHeight) || (W > 700 ? 480 : 420);
-    H = Math.max(240, Math.min(480, H));
+    H = Math.max(240, Math.min(680, H));
     var bw = (bd.maxCx - bd.minCx + 1) * 16, bh = (bd.maxCz - bd.minCz + 1) * 16;
     var z = Math.min(W / bw, H / bh) * 0.98;
     z = Math.max(0.05, Math.min(24, z));
@@ -133,7 +133,7 @@
     var box = $("mapPreview");
     if (box && box.hidden) return;
     var W = cv.clientWidth || 520, H = (cv.parentElement && cv.parentElement.clientHeight) || (W > 700 ? 480 : 420);
-    H = Math.max(240, Math.min(480, H));
+    H = Math.max(240, Math.min(680, H));
     if (W < 50) return;
     var set = state.chunksByDim[state.activeDim];
     var bd = state.boundsByDim[state.activeDim];
@@ -463,6 +463,10 @@
     var box = $("mapPreview");
     if (!box) return;
     resetState();
+    var drop = $("drop");
+    if (drop) drop.classList.toggle("drop-loaded", !!file);
+    var fileGroup = $("accFile");
+    if (fileGroup && file) fileGroup.open = true;
     if (!file || /\.dat$/i.test(file.name || "")) {
       box.hidden = false;
       setStats("Mapa 2D indisponível para <b>level.dat avulso</b> (o mapa mora na pasta <code>db/</code> do .mcworld). Converta o <b>.mcworld/.zip</b> para ver o mapa.");
@@ -792,7 +796,7 @@
     if (input) input.addEventListener("change", function () {
       var f = (input.files && input.files[0]) || null;
       if (f) renderMap(f);
-      else { var b = $("mapPreview"); if (b) b.hidden = true; seq++; }
+      else { var b = $("mapPreview"); if (b) b.hidden = true; if (drop) drop.classList.remove("drop-loaded"); seq++; }
     });
     if (drop) drop.addEventListener("drop", function (e) {
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];

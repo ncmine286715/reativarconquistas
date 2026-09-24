@@ -7,7 +7,7 @@
 <meta name="description" content="Editor de mundos Minecraft Bedrock no navegador: reative conquistas, renomeie, mude dificuldade e regras. O limite grátis atual aparece no conversor. Arquivo nunca sai do seu PC.">
 <link rel="icon" type="image/png" href="logo.png">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 </head>
 <body>
@@ -130,7 +130,7 @@
       <a id="toolWorld" href="#accFree"><img src="mc/item/experience_bottle.png" alt=""><b>Mundo</b><small>Nome, regras e clima</small></a>
       <a id="toolPlayer" href="#accPlayer"><img src="mc/item/netherite_sword.png" alt=""><b>Jogador</b><small>Itens, equipamento e XP</small></a>
       <a id="toolAddons" href="#accPacks"><img src="mc/item/book.png" alt=""><b>Addons</b><small>Adicionar e remover</small></a>
-      <a id="toolExplore" href="#accExplore"><img src="mc/item/filled_map.png" alt=""><b>Mapa e backup</b><small>Explorar e comparar</small></a>
+      <a id="toolExplore" href="#mapPreview"><img src="mc/item/filled_map.png" alt=""><b>Mapa e backup</b><small>Ver mapa e proteger</small></a>
       <a id="toolAchievements" href="#operationActions"><img src="mc/item/lantern.png" alt=""><b>Conquistas</b><small>Gerar e baixar</small></a>
       <a id="toolChunks" href="chunks.html"><img src="mc/item/map.png" alt=""><b>Chunks</b><small>Restaurar uma área</small></a>
       <a id="toolBuilder" href="builder-lab.html"><img src="mc/item/diamond_chestplate.png" alt=""><b>Construtor 3D</b><small>Posicionar estruturas</small></a>
@@ -149,9 +149,39 @@
         <span class="drop-sub">Formatos aceitos: .mcworld, .zip ou .dat · o limite depende do seu plano</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
+        <span class="drop-replace" aria-hidden="true">Trocar mundo</span>
       </label>
 
       <p id="toolIntent" class="tool-intent" hidden></p>
+
+      <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
+        <div class="wi-title">Seu mundo no mapa <span class="wi-sub">terreno salvo no arquivo · leitura local</span></div>
+        <div id="mapStats" class="map-stats" role="status" aria-live="polite">Lendo o mundo…</div>
+        <div id="mapDims" class="map-dims" aria-label="Dimensão" hidden></div>
+        <div class="map-canvas-wrap" id="mapWrap">
+          <canvas id="mapCanvas" aria-label="Mapa do mundo; arraste para mover e use os botões para ampliar"></canvas>
+          <div class="map-icon-tools" role="toolbar" aria-label="Ferramentas do mapa">
+            <button type="button" class="map-dim on" id="mapModePan" aria-label="Mover mapa" title="Mover mapa"><img src="mc/item/filled_map.png" alt=""></button>
+            <button type="button" class="map-dim" id="mapModeSel" aria-label="Selecionar área" title="Selecionar área"><img src="mc/item/map.png" alt=""></button>
+            <button type="button" class="map-dim" id="mapModePin" aria-label="Colocar marcador" title="Colocar marcador"><img src="mc/item/name_tag.png" alt=""></button>
+            <button type="button" class="map-dim" id="mapSpawnBtn" aria-label="Ir para o spawn" title="Ir para o spawn" hidden><img src="mc/item/ender_eye.png" alt=""></button>
+            <button type="button" class="map-dim" id="mapZoomIn" aria-label="Aproximar mapa" title="Aproximar mapa"><span aria-hidden="true">+</span></button>
+            <button type="button" class="map-dim" id="mapZoomOut" aria-label="Afastar mapa" title="Afastar mapa"><span aria-hidden="true">−</span></button>
+            <button type="button" class="map-dim" id="mapTerrainBtn" aria-label="Alternar vista do terreno" title="Alternar vista do terreno" hidden><img src="mc/item/grass_block.png" alt=""></button>
+          </div>
+          <div id="mapTip" class="map-tip" hidden></div>
+        </div>
+        <span id="mapHint" class="map-hint"></span>
+        <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>área explorada</span><span><i class="sq" style="background:#b91c1c"></i>spawn</span><span><i class="sq" style="background:#22c55e"></i>jogador</span></div>
+        <div class="map-actions map-export-tools" role="group" aria-label="Exportar mapa">
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPng" aria-label="Baixar mapa PNG" title="Baixar mapa PNG"><img src="mc/item/filled_map.png" alt=""></button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPoster" aria-label="Criar pôster do mundo" title="Criar pôster do mundo"><img src="mc/item/painting.png" alt=""></button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportCard" aria-label="Criar cartão HTML" title="Criar cartão HTML"><img src="mc/item/paper.png" alt=""></button>
+          <button type="button" class="btn-ghost btn-mini" id="mapExportPins" aria-label="Exportar marcadores JSON" title="Exportar marcadores JSON"><img src="mc/item/name_tag.png" alt=""></button>
+        </div>
+        <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
+      </section>
+
 
       <div id="worldInfo" class="worldinfo" hidden>
         <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — <span id="wiSize">tamanho indisponível</span> — nada foi alterado</span></div>
@@ -452,9 +482,9 @@
 
 
 
-      <h3 class="editor-group-heading">Mapa e proteção</h3>
+      <h3 class="editor-group-heading">Backups e comparação</h3>
       <details class="acc" id="accExplore" open>
-        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Explorar e proteger · mapa e backups</summary>
+        <summary><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true"> Proteger · backups locais</summary>
         <div class="acc-body">
       <section class="local-backups" id="backupPanel" aria-labelledby="backupTitle">
         <div class="wi-title" id="backupTitle">Backups locais</div>
@@ -467,40 +497,7 @@
         <div id="backupList" class="backup-list"></div>
       </section>
 
-      <div id="mapPreview" class="mappreview" hidden>
-        <div class="wi-title">Mapa 2D <span class="wi-sub">visualização da pasta db/ — nada é alterado · grátis</span></div>
-        <div id="mapStats" class="map-stats">Lendo…</div>
-        <div id="mapDims" class="map-dims" hidden></div>
-        <div class="map-modes">
-          <button type="button" class="map-dim on" id="mapModePan">✋ Mover</button>
-          <button type="button" class="map-dim" id="mapModeSel">▦ Selecionar</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapSpawnBtn" hidden>Ir para spawn</button>
-          <button type="button" class="map-dim" id="mapModePin">Colocar pin</button>
-          <span id="mapHint" class="map-hint"></span>
-        </div>
-        <div class="map-canvas-wrap" id="mapWrap"><canvas id="mapCanvas"></canvas><div id="mapTip" class="map-tip" hidden></div></div>
-        <div class="map-legend"><span><i class="sq" style="background:#5EBB2B"></i>visitado</span><span><i class="sq" style="background:#b91c1c"></i>● spawn</span><span><i class="sq" style="background:#22c55e"></i>● jogador</span></div>
-      <div class="map-actions">
-          <button type="button" class="btn-ghost btn-mini" id="mapZoomIn" aria-label="Aproximar mapa">+ zoom</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapZoomOut" aria-label="Afastar mapa">− zoom</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapTerrainBtn" hidden>Vista: blocos ✓</button>
-        </div>
-        <div class="map-actions">
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPng">Baixar mapa PNG</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPoster">Criar pôster do mundo</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportCard">Criar cartão HTML</button>
-          <button type="button" class="btn-ghost btn-mini" id="mapExportPins">Exportar pins JSON</button>
-        </div>
-        <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
-        <a class="chunk-tool-link chunk-tool-repair" href="chunks.html">
-          <span class="chunk-tool-pixel" aria-hidden="true"><img class="repair-pick" src="mc/item/iron_pickaxe.png" alt=""><img class="repair-rock" src="mc/block/bedrock.png" alt=""></span>
-          <span class="chunk-tool-copy"><b>Seu mundo está com lag ou uma área corrompida?</b> Abra a ferramenta de restaurar chunks →</span>
-        </a>
-        <a class="chunk-tool-link chunk-tool-builder" href="builder-lab.html">
-          <span class="chunk-tool-pixel" aria-hidden="true"><img class="builder-door" src="mc/item/oak_door.png" alt=""><img class="builder-grass" src="mc/item/grass_block.png" alt=""></span>
-          <span class="chunk-tool-copy"><b>NOVO · beta grátis: cole casas .mcstructure no seu mundo em 3D →</b> Veja o terreno de verdade, posicione, gire e exporte. Grátis enquanto for beta.</span>
-        </a>
-      </div>
+
         </div>
       </details>
 
@@ -668,8 +665,8 @@
 <script src="converter.js?v=16"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=15"></script>
-<script src="mapa-2d.js?v=9"></script>
-<script src="mapa-terreno.js?v=3"></script>
+<script src="mapa-2d.js?v=10"></script>
+<script src="mapa-terreno.js?v=4"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=8"></script>
