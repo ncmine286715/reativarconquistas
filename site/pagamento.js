@@ -163,7 +163,7 @@
     var p = PUBLIC_PLANS[id] || {};
     var limit = p.max_file_mb === null ? "sem limite comercial de tamanho" : "até " + p.max_file_mb + " MB por mundo";
     var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
-    if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + " cada. Não expiram até o uso; reedite cada mundo por " + (p.project_window_days || 30) + " dias após começar.";
+    if (p.kind === "world_credit") return (p.credit_count || 1) + " mundo(s), " + limit + " cada. Créditos sem validade antes do uso; cada mundo fica liberado por " + (p.project_window_days || 30) + " dias.";
     return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
   }
   var PLAN_ACTIONS = { world1: "Editar 1 mundo", ouro: "Comprar 3 mundos", diamante: "Comprar 5 mundos", vip7: "Liberar por 7 dias", vip30: "Usar por 30 dias", creator: "Escolher Criador" };
@@ -172,7 +172,7 @@
     PLAN_IDS.forEach(function (id) {
       var p = PUBLIC_PLANS[id];
       if (!p) return;
-      var title = String(p.label || id);
+      var title = p.kind === "world_credit" ? String(p.label || id).split(" · ")[0] + " · " + (p.credit_count || 1) + " mundo(s)" : String(p.label || id);
       var price = priceText(p.price_cents);
       PLANS[id] = { title: title, price: price, cta: "Comprar " + title + " · " + price, sub: planSummary(id) };
     });
@@ -248,8 +248,8 @@
     return eligible.map(function (id) {
       var p = PUBLIC_PLANS[id];
       var size = p.max_file_mb === null ? "sem limite comercial" : (p.max_file_mb + " MB");
-      var batch = p.kind === "world_credit" ? (p.credit_count || 1) + " crédito(s), sem validade" : (p.max_batch || 1) + " por lote";
-      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
+      var batch = p.kind === "world_credit" ? (p.credit_count || 1) + " mundo(s), sem prazo para começar" : (p.max_batch || 1) + " por lote";
+      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(PLANS[id].title) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
     }).join("");
   }
   function normalizePlan(plan) { return PLANS[plan] ? plan : ""; }  /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
