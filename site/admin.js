@@ -88,6 +88,8 @@
     document.getElementById("statConversion").textContent = (summary.conversion_percent || 0) + "%";
     document.getElementById("statAbandoned").textContent = summary.abandoned_count || 0;
     document.getElementById("statPending").textContent = summary.pending_count || 0;
+    document.getElementById("averageTicket").textContent = money(summary.average_ticket_cents);
+    document.getElementById("revenuePerView").textContent = money(summary.revenue_per_page_view_cents);
     var funnel = data.funnel || {};
     document.getElementById("funnelSummary").innerHTML = [
       ["Visitas*", funnel.page_views], ["Viram preços*", funnel.pricing_views],
