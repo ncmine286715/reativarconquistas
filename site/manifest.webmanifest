@@ -1,6 +1,6 @@
 {
-  "name": "ReativaConquistas",
-  "short_name": "Reativa",
+  "name": "Worldify",
+  "short_name": "Worldify",
   "description": "Ferramentas para analisar, ajustar e construir em mundos Minecraft Bedrock.",
   "start_url": "/",
   "scope": ".",

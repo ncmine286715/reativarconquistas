@@ -343,6 +343,22 @@
       return PLAN_IDS.indexOf(plan) >= 0 ? { plan: plan, context: saved.context || {} } : null;
     } catch (e) { return null; }
   }
+  function returnToToolLink() {
+    var tool = "";
+    try {
+      var record = JSON.parse(sessionStorage.getItem("rc_checkout_resume") || "null");
+      if (record && record.version === 1 && Date.now() - +record.created_at < 2 * 60 * 60 * 1000) tool = String(record.tool || "");
+    } catch (e) {}
+    if (!tool) {
+      var pendingContext = readCheckoutContext();
+      tool = pendingContext && String(pendingContext.context.tool || "");
+    }
+    var intent = window.RC_toolIntents && window.RC_toolIntents.resolve(tool);
+    var href = intent && window.RC_toolIntents.returnHref(intent, true);
+    if (!/^(?:index|builder-lab)\.html(?:[?#]|$)/.test(href || "")) href = "index.html#converter";
+    var label = intent ? "Retomar " + intent.label : "Ir converter";
+    return "<a href='" + escH(href) + "'><b>" + escH(label) + "</b></a>";
+  }
   function openContextCheckoutWindow(context) {
     if (!context || context.preserve_context !== true) return null;
     try {
@@ -706,6 +722,7 @@
         if (r.paid && window.RC_analytics) window.RC_analytics.purchase(r);
         if (box) {
           if (r.paid) {
+            var returnLink = returnToToolLink();
             try {
               localStorage.removeItem("rc_pending_depix");
               localStorage.removeItem("rc_pending_billing");
@@ -717,7 +734,7 @@
               ? "VIP liberado até <b>" + new Date(+r.premium_until_ms).toLocaleDateString("pt-BR") + "</b>"
               : "VIP liberado");
             box.className = "status ok";
-            box.innerHTML = "Pix confirmado. " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
+            box.innerHTML = "Pix confirmado. " + untilTxt + ". " + returnLink;
           } else {
             trackPaymentState(r);
             box.className = "status";
@@ -737,6 +754,7 @@
       if (r.paid && window.RC_analytics) window.RC_analytics.purchase(r);
       if (box) {
         if (r.paid) {
+          var returnLink = returnToToolLink();
           // libera na hora NESTE navegador (vale p/ quem pagou sem login também)
           try {
             localStorage.removeItem("rc_pending_billing");
@@ -749,7 +767,7 @@
             : "VIP liberado");
           box.className = "status ok";
           box.innerHTML = "Pagamento confirmado" + (r.email ? " em <b>" + r.email.replace(/[<>&\"']/g, "") + "</b>" : "") +
-            ". " + untilTxt + ". <a href='index.html#converter'><b>Ir converter</b></a>";
+            ". " + untilTxt + ". " + returnLink;
         } else {
           trackPaymentState(r);
           box.className = "status";

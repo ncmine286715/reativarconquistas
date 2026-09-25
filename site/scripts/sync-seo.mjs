@@ -13,7 +13,8 @@ if (!/^https:\/\/[^/]+$/.test(base)) throw new Error('Configure SITE_URL como or
 const routes = {
   'index.html': '/', 'chunks.html': '/chunks', 'builder-lab.html': '/builder-lab',
   'importar.html': '/importar', 'objetivos.html': '/objetivos', 'ferramentas.html': '/ferramentas',
-  'privacidade.html': '/privacidade', 'termos.html': '/termos', 'reembolso.html': '/reembolso'
+  'privacidade.html': '/privacidade', 'termos.html': '/termos', 'reembolso.html': '/reembolso',
+  'guia-conquistas.html': '/guia-conquistas', 'guia-backup.html': '/guia-backup'
 };
 for (const [file, route] of Object.entries(routes)) {
   const full = path.join(site, file);
