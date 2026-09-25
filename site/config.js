@@ -9,7 +9,7 @@
 window.RC_CONFIG = {
 
   /* Marca e integrações públicas. SITE_URL deve ser o único domínio canônico. */
-  SITE_NAME: "ReativaConquistas",
+  SITE_NAME: "Worldify",
   SITE_URL: "https://worldify.com.br",
   SITE_DESCRIPTION: "Edite mundos Minecraft Bedrock no navegador e baixe uma cópia do resultado.",
   SITE_LOGO: "/logo.png",
