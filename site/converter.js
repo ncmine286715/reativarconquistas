@@ -419,8 +419,11 @@
     if (!levelName) throw new Error("level.dat não encontrado no .mcworld");
     var worldPrefix = levelName.slice(0, levelName.length - "level.dat".length);
     var packInfo = await scanBehaviorPacks(zip, worldPrefix);
-    var reactivateAchievements = opts.reactivateAchievements !== false;
-    var stripPacks = !!opts.stripBehaviorPacks || reactivateAchievements;
+    var addPacks = Array.isArray(opts.addPacks) ? opts.addPacks : [];
+    // Installing packs and reactivating achievements conflict because that
+    // operation removes packs. Preserve explicitly selected packs instead.
+    var reactivateAchievements = opts.reactivateAchievements !== false && !addPacks.length;
+    var stripPacks = !addPacks.length && (!!opts.stripBehaviorPacks || reactivateAchievements);
     var stripResourcePacks = reactivateAchievements;
     var warnings = [];
     var packCount = packInfo.active || packInfo.folders.length;
@@ -488,6 +491,40 @@
       jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
     });
     await Promise.all(jobs);
+    if (addPacks.length) {
+      var usedFolders = Object.create(null);
+      var packRefNames = { behavior: worldPrefix + "world_behavior_packs.json", resource: worldPrefix + "world_resource_packs.json" };
+      var packRefs = { behavior: [], resource: [] };
+      await Promise.all(["behavior", "resource"].map(async function (kind) {
+        var entry = zip.file(packRefNames[kind]);
+        if (!entry || stripPacks || stripResourcePacks) return;
+        try {
+          var parsed = JSON.parse(await entry.async("string"));
+          if (Array.isArray(parsed)) packRefs[kind] = parsed;
+        } catch (e) { throw new Error("A lista de pacotes do mundo está inválida (" + packRefNames[kind] + ")."); }
+      }));
+      addPacks.forEach(function (p) {
+        var kind = p.kind === "resource" ? "resource" : "behavior";
+        var folderBase = String(p.folder || "pack").replace(/[^a-z0-9_-]/gi, "_").slice(0, 40) || "pack";
+        var folder = folderBase, suffix = 2;
+        var packRoot = worldPrefix + (kind === "resource" ? "resource_packs/" : "behavior_packs/");
+        while (usedFolders[kind + ":" + folder] || zip.file(packRoot + folder + "/manifest.json")) folder = folderBase + "_" + suffix++;
+        usedFolders[kind + ":" + folder] = true;
+        Object.keys(p.files || {}).forEach(function (rel) {
+          var safe = String(rel || "").replace(/\\/g, "/").split("/").filter(function (part) { return part && part !== "." && part !== ".."; }).join("/");
+          if (safe) out.file(packRoot + folder + "/" + safe, p.files[rel]);
+        });
+        var pack = p.pack || {};
+        var ref = { pack_id: String(pack.pack_id || ""), version: Array.isArray(pack.version) ? pack.version.slice(0, 3) : [1, 0, 0] };
+        packRefs[kind].push(ref);
+        changes.push("addon instalado (" + String(pack.name || folder).slice(0, 80) + ")");
+      });
+      ["behavior", "resource"].forEach(function (kind) {
+        if (addPacks.some(function (p) { return (p.kind === "resource" ? "resource" : "behavior") === kind; })) {
+          out.file(packRefNames[kind], JSON.stringify(packRefs[kind], null, 2));
+        }
+      });
+    }
     if (stripPacks && packCount > 0) {
       changes.push("addons de comportamento removidos: " + packCount);
     }

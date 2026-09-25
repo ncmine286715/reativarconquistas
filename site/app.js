@@ -1102,7 +1102,21 @@
 
   /* ---------- instalar addons (.mcpack/.zip -> behavior/resource_packs) ---------- */
   var packInput = $("packFiles"), packBtn = $("packBtn"), packListEl = $("packList");
+  var achievementsCb = $("reactivateAchievements"), stripPacksCb = $("stripPacks");
   var selectedPacks = [];
+  function syncPackOptions() {
+    var hasSelectedPacks = selectedPacks.length > 0;
+    if (hasSelectedPacks) {
+      if (achievementsCb) achievementsCb.checked = false;
+      if (stripPacksCb) stripPacksCb.checked = false;
+    }
+    if (achievementsCb) achievementsCb.disabled = hasSelectedPacks;
+    if (stripPacksCb) stripPacksCb.disabled = hasSelectedPacks;
+    var hint = $("packCompatibilityHint");
+    if (hint) hint.textContent = hasSelectedPacks
+      ? "Pacote selecionado: reativação e remoção de addons desmarcadas. Behavior packs podem bloquear conquistas no Minecraft."
+      : "Pacotes de textura e comportamento de um .mcaddon são adicionados juntos. Behavior packs podem bloquear conquistas no Minecraft.";
+  }
   function sanitizeFolder(s) {
     var t = String(s || "pack").toLowerCase();
     try { t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); } catch (e) {}
@@ -1127,6 +1141,7 @@
         try { if (selectedPacks[i] && selectedPacks[i].iconUrl) URL.revokeObjectURL(selectedPacks[i].iconUrl); } catch (e) {}
         selectedPacks.splice(i, 1);
         if (!selectedPacks.length && packInput) packInput.value = "";
+        syncPackOptions();
         paintPacks();
       });
     });
@@ -1136,6 +1151,7 @@
       revokePackIcons();
       selectedPacks = [];
       if (packInput) packInput.value = "";
+      syncPackOptions();
       paintPacks();
     });
   }
@@ -1184,11 +1200,23 @@
       if (f.size > 50 * 1024 * 1024) throw new Error("pacote maior que 50 MB");
       return JSZip.loadAsync(ab);
     }).then(function (z) {
-      var manRel = null;
+      var manifests = [];
       z.forEach(function (rel, e) {
-        if (!e.dir && !manRel && /(^|\/)manifest\.json$/i.test(rel)) manRel = rel;
+        if (!e.dir && /(^|\/)manifest\.json$/i.test(rel)) manifests.push(rel);
       });
-      if (manRel) return packFromZip(z, f, manRel).then(function (p) { return [p]; });
+      if (manifests.length) {
+        if (manifests.length > 10) throw new Error("mcaddon com pacotes demais (máx. 10)");
+        // .mcaddon pode conter behavior/resource packs em pastas irmãs.
+        var roots = manifests.filter(function (rel) {
+          var dir = rel.slice(0, rel.lastIndexOf("/") + 1);
+          return !manifests.some(function (other) {
+            if (other === rel) return false;
+            var otherDir = other.slice(0, other.lastIndexOf("/") + 1);
+            return otherDir !== dir && dir.indexOf(otherDir) === 0;
+          });
+        });
+        return Promise.all(roots.map(function (rel) { return packFromZip(z, f, rel); }));
+      }
       // sem manifest: pode ser .mcaddon (zip com .mcpack dentro)
       if (depth > 0) throw new Error("não é addon válido (sem manifest.json)");
       var inners = [];
@@ -1224,6 +1252,7 @@
       revokePackIcons();
       selectedPacks = [];
       lists.forEach(function (l) { selectedPacks = selectedPacks.concat(l); });
+      syncPackOptions();
       paintPacks();
       setStatus(null);
     }).catch(function (err) {
@@ -1506,7 +1535,7 @@
         warn += "<br><span style='font-size:13px'>Atenção: <b>" + escapeHtml(w) + "</b></span>";
       });
       if (addPacks.some(function (p) { return p.kind !== "resource"; })) {
-        warn += "<br><span style='font-size:13px'>Pacotes de comportamento instalados podem bloquear conquistas. Gere o mundo novamente com a opção Reativar conquistas marcada.</span>";
+        warn += "<br><span style='font-size:13px'>Behavior packs podem bloquear conquistas no Minecraft. Para reativá-las, remova os pacotes escolhidos e converta novamente.</span>";
       }
       var extraTxt = (extras && extras.length) ? "<br>" + extras.map(function (x) { return "· " + escapeHtml(x); }).join(" ") : "";
       setStatus("ok", "Pronto. Download iniciado: <b>" + escapeHtml(outName) +

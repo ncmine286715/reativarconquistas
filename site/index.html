@@ -149,7 +149,7 @@
       <p id="toolIntent" class="tool-intent" hidden></p>
       <label class="opt achievements-main" id="achievementsOpt">
         <input type="checkbox" id="reactivateAchievements" checked>
-        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Coloca a cópia em Sobrevivência, desliga cheats e experimentos e remove os add-ons e seus vínculos. O original fica intacto.</em></span>
+        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Coloca a cópia em Sobrevivência, desliga cheats e experimentos e remove addons existentes. Ao escolher um pacote para instalar, esta opção é desmarcada. O original fica intacto.</em></span>
       </label>
 
       <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
@@ -473,11 +473,11 @@
       <details class="acc" id="accPacks">
         <summary><img class="mc-ic" src="mc/item/book.png" alt="" aria-hidden="true"> Addons</summary>
         <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Ao reativar conquistas, todos os add-ons do mundo são removidos, inclusive pacotes visuais. Pacotes escolhidos abaixo não serão instalados nessa conversão.</p>
+          <p class="sub" id="packCompatibilityHint" style="margin:6px 0 10px">Pacotes de textura e comportamento de um .mcaddon são adicionados juntos. Behavior packs podem bloquear conquistas no Minecraft.</p>
           <label class="opt" id="packOpt">
             <span style="flex:1">
               <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
-              <em>.mcpack/.mcaddon/.zip · behavior bloqueia conquistas</em>
+              <em>.mcpack/.mcaddon/.zip · detecta pacotes de textura e comportamento</em>
               <span class="icon-row" style="margin-top:10px">
                 <input type="file" id="packFiles" accept=".mcpack,.mcaddon,.zip" multiple hidden>
                 <button type="button" class="btn-ghost" id="packBtn">Escolher pacotes</button>
