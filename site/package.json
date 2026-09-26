@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "node tests/editor-core.cjs && node tests/converter-roundtrip.cjs && node tests/builder-core.cjs && node tests/entitlements-client.cjs && node tests/inline-scripts.cjs && node tests/tool-intents.cjs && node tests/google-measurement.cjs && node tests/google-seo.cjs"
+    "test": "node tests/editor-core.cjs && node tests/converter-roundtrip.cjs && node tests/builder-core.cjs && node tests/entitlements-client.cjs && node tests/inline-scripts.cjs && node tests/tool-intents.cjs && node tests/google-measurement.cjs && node tests/google-seo.cjs && node tests/studio.cjs"
   },
   "keywords": [],
   "author": "",
