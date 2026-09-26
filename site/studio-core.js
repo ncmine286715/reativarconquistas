@@ -40,7 +40,7 @@
   var profiles={};D.biomes.forEach(function(b){profiles[b.id]=profile(b.id);});profiles[VOID]=profile(VOID);
   function create(size,preset,seed){
     size=[64,128,256].includes(+size)?+size:128;var n=size/CELL,base=preset==='void'?VOID:preset==='ocean'||preset==='island'?0:1;
-    var m={version:1,size:size,preset:preset||'island',seed:String(seed||'Worldify'),name:'Meu mundo Worldify',biomes:Array(n*n).fill(base),elevation:Array(n*n).fill(0),structures:[],spawn:{x:Math.floor(size/2),z:Math.floor(size/2)},platform:true,trees:true};
+    var m={version:1,size:size,preset:preset||'island',seed:String(seed||'Worldify'),name:'Meu mundo Worldify',underground:'simple',biomes:Array(n*n).fill(base),elevation:Array(n*n).fill(0),structures:[],spawn:{x:Math.floor(size/2),z:Math.floor(size/2)},platform:true,trees:true};
     if(preset==='island')for(var z=0;z<n;z++)for(var x=0;x<n;x++){var d=Math.hypot((x-n/2)/(n*.37),(z-n/2)/(n*.32));m.biomes[z*n+x]=d<.72?4:d<.85?1:d<1.1?16:0;}
     return m;
   }
@@ -50,6 +50,7 @@
     if(!Array.isArray(m.elevation)||m.elevation.length!==total||m.elevation.some(function(v){return !Number.isInteger(v)||v < -96||v>144;}))throw Error('Relevo inválido.');
     if(!Array.isArray(m.structures)||m.structures.length>100)throw Error('Limite de 100 estruturas.');
     if(!['void','ocean','grass','island'].includes(m.preset))throw Error('Base inválida.');
+    if(m.underground===undefined)m.underground='simple';if(m.underground!=='simple'&&m.underground!=='full')throw Error('Subsolo inválido.');
     if(typeof m.seed!=='string'||m.seed.length>80||typeof m.name!=='string'||m.name.length>80)throw Error('Nome ou seed inválido.');
     if(!m.spawn||!Number.isInteger(m.spawn.x)||!Number.isInteger(m.spawn.z)||m.spawn.x<3||m.spawn.z<3||m.spawn.x>=m.size-3||m.spawn.z>=m.size-3)throw Error('Spawn fora da área.');
     var importedBlocks=0;for(var s of m.structures){if(!s||!Number.isInteger(s.x)||!Number.isInteger(s.z)||s.x<0||s.z<0||s.x>=m.size||s.z>=m.size||!['tree','cabin','tower','well','custom'].includes(s.kind))throw Error('Estrutura inválida.');if(s.kind==='custom'){validateCustom(s.custom);importedBlocks+=s.custom.blocks.length;if(importedBlocks>300000)throw Error('Limite de 300 mil blocos importados por projeto.');}}
@@ -72,6 +73,16 @@
   function placement(s){return s.kind==='custom'?{size:s.custom.size}:structure(s.kind);}
   function positions(s,fn){if(s.kind!=='custom'){structure(s.kind).blocks.forEach(function(b){fn(b.x,b.y,b.z,b.name);});return;}var c=s.custom,sy=c.size[1],sz=c.size[2];for(var i=0;i<c.blocks.length;i++){var p=c.blocks[i];if(p<0||c.palette[p].name==='minecraft:air')continue;fn(Math.floor(i/(sy*sz)),Math.floor(i/sz)%sy,i%sz,null,c.palette[p]);}}
   function treeKind(p){var n=p.name;if(n==='desert'||n==='desert_hills'||n==='desert_mutated')return 'cactus';if(/savanna/.test(n))return 'acacia';if(/jungle/.test(n))return 'jungle';if(/mangrove/.test(n))return 'mangrove';if(/mushroom/.test(n))return null;if(p.log==='spruce_log')return 'spruce';if(p.log==='birch_log')return 'birch';if(p.log==='cherry_log')return 'cherry';if(p.log==='pale_oak_log')return 'pale';return p.tree?'oak':null;}
+  function oreAt(x,y,z,s,seed){if(s.p.base!=='stone')return null;if(y>=s.y-3||y<-62)return null;var deep=y<0,r=hash(x+y*7,z-y*13,seed^937);function pick(a,b){return deep?b:a;}
+    if(/peaks|mountain|extreme/.test(s.p.name)&&y>90&&r<0.073)return 'emerald_ore';
+    if(y<=16&&r<0.004+(y<-48?0.004:0))return pick('diamond_ore','deepslate_diamond_ore');
+    if(y<=16&&r<0.012)return pick('redstone_ore','deepslate_redstone_ore');
+    if(y<=64&&r<0.017)return pick('lapis_ore','deepslate_lapis_ore');
+    if(y<=32&&r<0.023)return pick('gold_ore','deepslate_gold_ore');
+    if(y<=96&&r<0.035)return pick('copper_ore','deepslate_copper_ore');
+    if(y>=-24&&r<0.05)return pick('iron_ore','deepslate_iron_ore');
+    if(r<0.07)return pick('coal_ore','deepslate_coal_ore');
+    return null;}
   function treeAt(m,x,z,s){if(m.trees===false||!s.p.tree||!treeKind(s.p)||s.water||s.y<=SEA+1)return false;if(x<=4||z<=4||x>=m.size-5||z>=m.size-5)return false;var seed=seedNumber(m.seed),h=hash(x,z,seed^821);if(h>=s.p.tree)return false;var kind=treeKind(s.p),lim=kind==='cactus'?2:3;for(var dz=-2;dz<=2;dz++)for(var dx=-2;dx<=2;dx++){if(!dx&&!dz)continue;var nx=x+dx,nz=z+dz;if(nx<0||nz<0||nx>=m.size||nz>=m.size)continue;var ns=sample(m,nx,nz);if(!ns.p.tree||!treeKind(ns.p)||ns.water||ns.y<=SEA+1)continue;if(Math.abs(ns.y-s.y)>lim)return false;var nh=hash(nx,nz,seed^821);if(nh<ns.p.tree&&nh<h)return false;}return true;}
   function canopy5(B,y,log,leaves,r,full){for(var x=-2;x<=2;x++)for(var z=-2;z<=2;z++){if(Math.abs(x)===2&&Math.abs(z)===2&&((x*z+r)&3)===0&&!full)continue;if(x===0&&z===0)continue;B.push({x:x,y:y,z:z,name:leaves});}}
   function canopy3(B,y,log,leaves,r){for(var x=-1;x<=1;x++)for(var z=-1;z<=1;z++){if(Math.abs(x)===1&&Math.abs(z)===1&&((x*z+r)&1)===0)continue;if(x===0&&z===0)continue;B.push({x:x,y:y,z:z,name:leaves});}}
@@ -87,6 +98,7 @@
     t=5+(r1%2);trunk(B,log,t);canopy5(B,t-2,log,leaves,r2);canopy5(B,t-1,log,leaves,r2+1);canopy3(B,t,log,leaves,r2);canopy3(B,t+1,log,leaves,r2+1);canopyPlus(B,t+2,log,leaves);return B;}
   function exportWorld(m,progress){
     validate(m);var N=root.RC_nbt2,C=root.RC_builderCore,L=root.RC_ldbw;if(!N||!C||!L||!root.JSZip)throw Error('Módulos de exportação ausentes.');
+    var seed=seedNumber(m.seed),full=m.underground==='full';
     var globalPalette=[],ids={},chunks={},heights=new Int16Array(m.size*m.size);heights.fill(-65);var size=m.size,half=size/2;
     function blockId(name,custom){var key=custom?'custom:'+JSON.stringify(custom.raw):name;if(ids[key]!==undefined)return ids[key];var raw,fullName;
       if(custom){var node=N.parse(Uint8Array.from(custom.raw)).root;if(node.t!==10||!node.v.map.name||node.v.map.name.v!==custom.name)throw Error('Paleta da estrutura inconsistente.');raw=Uint8Array.from(custom.raw);fullName=custom.name;}
@@ -100,8 +112,15 @@
       for(var x=cx*16;x<cx*16+16;x++)for(var z=cz*16;z<cz*16+16;z++){
         var s=sample(m,x,z);if(s.id===VOID)continue;var p=s.p;
         for(var y=-64;y<=s.y;y++){
-          if(p.caves&&y>0&&y<s.y-9&&noise(x+y,z-y,14,seedNumber(m.seed))>.66)continue;
-          put(x,y,z,y===-64?'bedrock':y===s.y?surfaceTop(s):y>s.y-4?(/sand|snow/.test(p.top)?p.top:'dirt'):y<0&&p.base==='stone'?'deepslate':p.base);
+          if(y===-64){put(x,y,z,'bedrock');continue;}
+          if(full&&y===-63&&hash(x,z,seed^919)<.5){put(x,y,z,'bedrock');continue;}
+          if(full&&p.base==='stone'&&y<s.y-4&&y>-60&&!s.water&&s.y>SEA+1){
+            if(y<s.y-6&&noise(x+y*2,z-y,14,seed^913)>.74){put(x,y,z,'air');continue;}
+            var ore=oreAt(x,y,z,s,seed);
+            if(ore){put(x,y,z,ore);continue;}
+          }
+          if(p.caves&&y>0&&y<s.y-9&&noise(x+y,z-y,14,seed)>.66)continue;
+          put(x,y,z,y===s.y?surfaceTop(s):y>s.y-4?(/sand|snow/.test(p.top)?p.top:'dirt'):full&&y<0&&p.base==='stone'?'deepslate':p.base);
         }
         if(s.id!==VOID)for(var y=s.y+1;y<=SEA;y++)put(x,y,z,p.frozen&&y===SEA?'ice':'water');
       }
