@@ -231,6 +231,13 @@
   }
 
   var toolNavTargets = { accFile: "upload", operationActions: "conquistas", accFree: "mundo", accPrem: "mundo", accPacks: "addons", accPlayer: "jogador" };
+  Array.prototype.forEach.call(document.querySelectorAll(".tool-choices a"), function (link) {
+    link.addEventListener("click", function () {
+      var target = link.hash && document.getElementById(link.hash.slice(1));
+      var detail = target && (target.tagName === "DETAILS" ? target : target.closest("details.acc"));
+      if (detail) detail.open = true;
+    });
+  });
   Array.prototype.forEach.call(document.querySelectorAll(".editor-categories a"), function (link) {
     link.addEventListener("click", function () {
       var target = link.hash && document.getElementById(link.hash.slice(1));
@@ -679,15 +686,15 @@
     window.RC_pay.planCatalog().then(function (catalog) {
       var oneWorld = catalog && catalog.world1;
       if (!oneWorld) throw new Error("Plan catalog unavailable.");
-      var exceedsWorldCredit = oneWorld.max_file_bytes !== null && sizeBytes > +oneWorld.max_file_bytes;
-      var exceedsWorldBatch = +worlds > +oneWorld.max_batch;
       var requirement = { worlds: worlds, world_size_mb: +(sizeBytes / 1048576).toFixed(1), world_size_bytes: sizeBytes };
       var eligible = toolIntentApi ? toolIntentApi.eligiblePlanIds(["world1", "vip7", "vip30", "creator"], catalog, requirement) : ["world1", "vip7", "vip30", "creator"];
       if (!eligible.length) {
         setStatus("err", escapeHtml(message) + " Nenhum produto atual cobre este tamanho e quantidade de mundos. Divida o lote ou exporte um arquivo menor.");
         return;
       }
-      var preferred = exceedsWorldCredit || exceedsWorldBatch ? "vip7" : "world1";
+      // The 7-day pass is the default recommendation when it covers the world;
+      // keep the single-world credit selectable in the checkout for lighter use.
+      var preferred = eligible.indexOf("vip7") >= 0 ? "vip7" : eligible[0];
       var suggested = toolIntentApi ? toolIntentApi.choosePlan(eligible, preferred, catalog) : preferred;
       lockedHint(message, suggested, Object.assign({ source: "world_size_paywall", allow_active_purchase: true }, requirement));
     }).catch(function () {

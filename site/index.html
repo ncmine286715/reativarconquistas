@@ -21,7 +21,7 @@
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#5EBB2B">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"ReativaConquistas","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"ReativaConquistas","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"ReativaConquistas","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
 </head>
@@ -61,11 +61,8 @@
       <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
     </a>
     <nav class="nav">
-      <a class="hide-m" href="ferramentas.html">Ferramentas</a>
-      <a class="hide-m" href="#como-funciona">Como funciona</a>
-      <a class="hide-m" href="chunks.html">Restaurar chunks</a>
+      <a class="hide-m" href="#ferramentas">Ferramentas</a>
       <a class="hide-m" href="#planos">Planos</a>
-      <a class="hide-m" href="#faq">Dúvidas</a>
       <button class="theme-btn" type="button" aria-pressed="false" aria-label="Alternar modo escuro">
         <svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg>
         <svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg>
@@ -89,13 +86,18 @@
     </span>
   </div>
   <a href="#converter"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Converter mundo</a>
-  <a href="chunks.html"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Restaurar chunks</a>
+  <a href="#ferramentas"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>Ferramentas</a>
+  <a href="#modificar-mundo"><svg class="ic" aria-hidden="true"><use href="#i-wand"/></svg>Modificar mundo</a>
+  <a href="#utilitarios"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>Utilitários de add-on</a>
   <a href="#planos"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>Planos</a>
   <a href="#como-funciona"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>Como funciona</a>
   <a href="#faq"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Dúvidas</a>
   <a href="minha-conta.html"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Minha conta</a>
   <a href="minha-conta.html#login"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Entrar com Google</a>
   <a href="mailto:ncmine75@gmail.com"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg>Contato</a>
+  <a href="termos.html">Termos de uso</a>
+  <a href="privacidade.html">Privacidade</a>
+  <a href="reembolso.html">Reembolso e suporte</a>
 </aside>
 
 <div class="sticky-cta" id="stickyCta" hidden>
@@ -117,7 +119,6 @@
     <div class="hero-cta">
       <a class="primary hero-btn" href="#converter">Corrigir meu mundo grátis</a>
       <a class="btn-ghost hero-btn" href="#planos">Ver o VIP</a>
-      <a class="btn-ghost hero-btn" href="world-studio.html">Pintar um mundo VIP</a>
     </div>
   </header>
 
@@ -153,6 +154,30 @@
         <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Coloca a cópia em Sobrevivência, desliga cheats e experimentos e remove addons existentes. Ao escolher um pacote para instalar, esta opção é desmarcada. O original fica intacto.</em></span>
       </label>
 
+        </div>
+      </details>
+
+      <nav class="tool-choices" id="ferramentas" aria-label="Escolha uma ferramenta">
+        <h3>O que quer fazer?</h3>
+        <div class="tool-choice-grid">
+          <a class="tool-choice featured" href="#achievementsOpt" data-open="accFile"><img src="mc/item/experience_bottle.png" alt=""><span><b>Reativar conquistas</b><small>Principal · no mundo enviado</small></span></a>
+          <a class="tool-choice" href="#accPrem"><img src="mc/item/totem_of_undying.png" alt=""><span><b>Manter inventário</b><small>Regras, modo e Hardcore</small></span></a>
+          <a class="tool-choice" href="#accPlayer"><img src="mc/item/netherite_sword.png" alt=""><span><b>Editar jogador</b><small>Itens, XP e equipamentos</small></span></a>
+          <a class="tool-choice" href="#modificar-mundo"><img src="mc/item/filled_map.png" alt=""><span><b>Modificar mundo</b><small>Mapa, Builder, chunks e pintura</small></span></a>
+          <a class="tool-choice" href="#accPacks"><img src="mc/item/book.png" alt=""><span><b>Add-ons</b><small>Instalar ou remover pacotes</small></span></a>
+          <a class="tool-choice" href="#accFree"><img src="mc/item/name_tag.png" alt=""><span><b>Ajustes rápidos</b><small>Nome, dificuldade e coordenadas</small></span></a>
+        </div>
+      </nav>
+
+      <section class="world-tools" id="modificar-mundo" aria-labelledby="worldToolsTitle">
+        <h3 id="worldToolsTitle">Modificar mundo</h3>
+        <div class="map-secondary-grid">
+          <a class="map-secondary-link map-secondary-builder" href="builder-lab.html"><span class="map-secondary-icon"><img src="mc/block/structure_block.png" alt=""></span><span class="map-secondary-copy"><b>Builder 3D</b><small>Posicione uma .mcstructure no mundo</small></span><span class="map-secondary-arrow" aria-hidden="true">↗</span></a>
+          <a class="map-secondary-link map-secondary-chunks" href="chunks.html"><span class="map-secondary-icon"><img src="mc/item/diamond_pickaxe.png" alt=""></span><span class="map-secondary-copy"><b>Restaurar chunks</b><small>Remove a área e regenera pela seed</small></span><span class="map-secondary-arrow" aria-hidden="true">↗</span></a>
+          <a class="map-secondary-link" href="world-studio.html"><span class="map-secondary-icon"><img src="mc/item/painting.png" alt=""></span><span class="map-secondary-copy"><b>Pintar mundo</b><small>Crie um terreno no World Studio</small></span><span class="map-secondary-arrow" aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+
       <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
         <div class="wi-title">Mapa do mundo</div>
         <div id="mapStats" class="map-stats" role="status" aria-live="polite">Lendo o mundo…</div>
@@ -179,22 +204,6 @@
           <button type="button" class="btn-ghost btn-mini" id="mapExportPins" aria-label="Exportar marcadores JSON" title="Exportar marcadores JSON"><img src="mc/item/name_tag.png" alt=""></button>
         </div>
         <div id="mapPinsList" class="map-pins-list" aria-live="polite"></div>
-      <nav class="map-secondary-tools" id="mapSecondaryTools" aria-label="Ferramentas do mapa">
-        <span class="map-secondary-label">Explore seu mundo</span>
-        <div class="map-secondary-grid">
-          <a class="map-secondary-link map-secondary-builder" href="builder-lab.html">
-            <span class="map-secondary-icon"><img src="mc/block/structure_block.png" alt="" aria-hidden="true"></span>
-            <span class="map-secondary-copy"><b>Construtor 3D</b><small>Coloque sua .mcstructure no mundo</small></span>
-            <span class="map-secondary-arrow" aria-hidden="true">↗</span>
-          </a>
-          <a class="map-secondary-link map-secondary-chunks" href="chunks.html">
-            <span class="map-secondary-icon"><img src="mc/item/diamond_pickaxe.png" alt="" aria-hidden="true"></span>
-            <span class="map-secondary-copy"><b>Restaurar chunks</b><small>Recupere uma área do mapa</small></span>
-            <span class="map-secondary-arrow" aria-hidden="true">↗</span>
-          </a>
-        </div>
-      </nav>
-
       </section>
 
 
@@ -234,9 +243,6 @@
           <div id="compareResults" class="compare-results"></div>
         </section>
       </div>
-        </div>
-      </details>
-
       <h3 class="editor-group-heading">Mundo <small>Configurações e regras</small></h3>
       <details class="acc" id="accFree">
         <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · nome, dificuldade e coordenadas</summary>
@@ -288,8 +294,6 @@
 
         </div>
       </details>
-
-      
 
       <details class="acc" id="accPrem">
         <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · modo, regras, clima e aparência</summary>
@@ -498,7 +502,23 @@
 
 
 
-      <details class="acc" id="accChunks" open>
+      <details class="acc addon-utility" id="utilitarios">
+        <summary><img class="mc-ic" src="mc/item/paper.png" alt="" aria-hidden="true"> Utilitários de add-on · ZIP para MCPACK e autores</summary>
+        <div class="acc-body">
+          <p class="sub">Para pacotes com manifest.json válido. O arquivo é processado neste navegador.</p>
+          <label class="addon-file-label" for="addonUtilityFile">Selecione .zip, .mcpack ou .mcaddon</label>
+          <input id="addonUtilityFile" type="file" accept=".zip,.mcpack,.mcaddon">
+          <label class="addon-author-label" for="addonAuthors">Autores (opcional, separados por vírgula)</label>
+          <input id="addonAuthors" type="text" maxlength="300" placeholder="Ex.: Ana, NCMINE">
+          <div class="map-actions"><button type="button" class="primary" id="addonUtilityRun">Preparar e baixar</button></div>
+          <p class="sub">Autores são créditos no manifest. Isso não desbloqueia conquistas nem muda a regra do jogo para behavior packs.</p>
+          <p id="addonUtilityStatus" class="sub" role="status" aria-live="polite"></p>
+        </div>
+      </details>
+
+
+
+      <details class="acc" id="accChunks">
         <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
         <div class="acc-body">
           <p class="sub" style="margin:6px 0 10px">Selecione no mapa as áreas com problema. A restauração recria o terreno pela seed e baixa um novo mundo; o original fica intacto.</p>
@@ -545,68 +565,67 @@
   <section class="section" id="planos">
     <h2>Escolha como quer usar</h2>
     <p class="plans-sub">Escolha pelo tamanho do mundo e pela frequência de uso. Pagamento único, sem renovação automática.</p>
-    <div class="plan-groups">
-      <div class="plan-group plan-free-group">
-        <h3>Comece grátis</h3>
-        <div class="plans plans-free">
-          <div class="plan plan-free">
-            <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
-            <div class="price">R$ 0<small> · para sempre</small></div>
-            <ul><li class="yes">Até <b>10 MB</b> por mundo e 3 operações/dia</li><li class="yes">Renomear, dificuldade e coordenadas</li><li class="yes">Raio-X e <b>mapa 2D</b></li><li class="yes">Processamento no navegador</li></ul>
-            <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
-          </div>
-        </div>
-      </div>
+    <div class="plan-groups compact-plans">
       <div class="plan-group">
-        <div class="plan-group-heading"><h3>Créditos por mundo</h3><p>Sem validade até usar · cada crédito cobre um mundo de até 150 MB, com reedições por 30 dias após começar.</p></div>
-        <div class="plans plans-3 credit-plans">
-          <div class="plan plan-world1 plan-credit">
-            <h3><img class="mc-ic" src="mc/item/iron_ingot.png" alt="" aria-hidden="true">Ferro</h3>
-            <div class="price">R$ 5,99<small> · 1 crédito</small></div>
-            <p class="plan-fit">Para resolver um mundo agora</p><ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
-            <a class="btn-plan btn-pay" data-pay="world1" href="#">Comprar 1 crédito · R$ 5,99</a>
+        <div class="plan-group-heading"><h3>Escolhas principais</h3><p>Pagamento único · escolha pelo número de mundos e pelo tempo de uso.</p></div>
+        <div class="plans plans-3 lead-plans">
+<div class="plan plan-weekly">
+            <span class="vip-flag">Passe em destaque</span>
+            <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true">Passe 7 dias</h3>
+            <div class="price">R$ 7,99<small> · até 500 MB</small></div>
+            <p class="plan-fit">Vários mundos e ferramentas por 7 dias</p><ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
+            <a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe · R$ 7,99</a>
           </div>
-          <div class="plan plan-credit">
+<div class="plan plan-credit">
             <span class="vip-flag">Pacote com 3</span>
             <h3><img class="mc-ic" src="mc/item/gold_ingot.png" alt="" aria-hidden="true">Ouro</h3>
             <div class="price">R$ 14,99<small> · 3 créditos</small></div>
             <p class="plan-fit">Para cuidar de alguns mundos</p><ul><li class="yes">3 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 5,00 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
             <a class="btn-plan btn-pay" data-pay="ouro" href="#">Comprar 3 créditos · R$ 14,99</a>
           </div>
-          <div class="plan plan-credit plan-diamond">
+        </div>
+      </div>
+      <details class="plan-more">
+        <summary>Ver grátis e outros planos <span>1 mundo, 5 créditos ou 30 dias</span></summary>
+        <div class="plan-group plan-free-group"><h3>Comece grátis</h3><div class="plans plans-free">
+<div class="plan plan-free">
+            <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
+            <div class="price">R$ 0<small> · para sempre</small></div>
+            <ul><li class="yes">Até <b>10 MB</b> por mundo e 3 operações/dia</li><li class="yes">Renomear, dificuldade e coordenadas</li><li class="yes">Raio-X e <b>mapa 2D</b></li><li class="yes">Processamento no navegador</li></ul>
+            <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
+          </div>
+        </div></div>
+        <div class="plan-group"><div class="plan-group-heading"><h3>Créditos por mundo</h3><p>Para um mundo avulso ou cinco mundos separados.</p></div><div class="plans plans-3 credit-plans">
+<div class="plan plan-world1 plan-credit">
+            <h3><img class="mc-ic" src="mc/item/iron_ingot.png" alt="" aria-hidden="true">Ferro</h3>
+            <div class="price">R$ 5,99<small> · 1 crédito</small></div>
+            <p class="plan-fit">Para resolver um mundo agora</p><ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
+            <a class="btn-plan btn-pay" data-pay="world1" href="#">Comprar 1 crédito · R$ 5,99</a>
+          </div>
+<div class="plan plan-credit plan-diamond">
             <span class="vip-flag">Pacote com 5</span>
             <h3><img class="mc-ic" src="mc/item/diamond.png" alt="" aria-hidden="true">Diamante</h3>
             <div class="price">R$ 22,90<small> · 5 créditos</small></div>
             <p class="plan-fit">Menor preço por mundo</p><ul><li class="yes">5 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 4,58 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
             <a class="btn-plan btn-pay" data-pay="diamante" href="#">Comprar 5 créditos · R$ 22,90</a>
           </div>
-        </div>
-      </div>
-      <div class="plan-group">
-        <div class="plan-group-heading"><h3>Passes de tempo</h3><p>Melhor para trabalhar em vários mundos durante a mesma semana ou mês.</p></div>
-        <div class="plans plans-3">
-          <div class="plan plan-weekly">
-            <span class="vip-flag">Mais liberdade por R$ 2 a mais que Ferro</span>
-            <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true">Passe 7 dias</h3>
-            <div class="price">R$ 7,99<small> · até 500 MB</small></div>
-            <p class="plan-fit">Para usar bastante nesta semana</p><ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
-            <a class="btn-plan btn-pay" data-pay="vip7" href="#">Comprar passe · R$ 7,99</a>
-          </div>
-          <div class="plan plan-vip">
+        </div></div>
+        <div class="plan-group"><div class="plan-group-heading"><h3>Passes de 30 dias</h3><p>Para uso durante o mês.</p></div><div class="plans plans-3">
+<div class="plan plan-vip">
             <span class="vip-flag">Mais tempo</span>
             <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
             <div class="price" id="price-monthly">R$ 24,90<small> · compra única</small></div>
             <p class="plan-fit">Para trabalhar o mês inteiro</p><ul><li class="yes">Até <b>10 mundos por lote</b></li><li class="yes">Sem limite comercial de tamanho*</li><li class="yes">Recursos avançados por 30 dias</li></ul>
             <a class="btn-plan btn-pay" data-pay="vip30" href="#">Comprar passe · R$ 24,90</a>
           </div>
-          <div class="plan plan-creator">
+<div class="plan plan-creator">
             <h3><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">Criador</h3>
             <div class="price">R$ 39,90<small> · 30 dias</small></div>
             <p class="plan-fit">Para lotes maiores</p><ul><li class="yes">Até <b>20 mundos por lote</b></li><li class="yes">Arquivos grandes, sujeitos ao navegador</li><li class="yes">Recursos avançados por 30 dias</li></ul>
             <a class="btn-plan btn-pay" data-pay="creator" href="#">Comprar Criador · R$ 39,90</a>
           </div>
-        </div>
-      </div>
+        </div></div>
+      </details>
     </div>
     <p class="pay-note">*Arquivos grandes dependem da memória e capacidade do navegador. Pix confirmado libera o acesso; créditos não expiram antes do uso e passes são compras únicas, sem renovação automática. <b>Use o mesmo e-mail da sua conta Google.</b></p>
   </section>
@@ -655,6 +674,7 @@
 </div>
 
 <script src="vendor/jszip.min.js?v=14"></script>
+<script src="addon-utility.js?v=1"></script>
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=28"></script>
@@ -670,10 +690,10 @@
 <script src="chunks.js?v=10"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 <script src="firebase-config.js?v=14"></script>
 <script src="auth.js?v=16"></script>
-<script src="pagamento.js?v=32"></script>
+<script src="pagamento.js?v=34"></script>
 <script src="entitlements.js?v=4"></script>
 <script src="guia-site.js?v=8"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>

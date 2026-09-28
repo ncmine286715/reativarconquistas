@@ -145,7 +145,7 @@
     });
   }
 
-  var PLAN_IDS = ["world1", "ouro", "diamante", "vip7", "vip30", "creator"];
+  var PLAN_IDS = ["vip7", "ouro", "world1", "vip30", "diamante", "creator"];
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var planCatalogReady = false;
@@ -201,7 +201,7 @@
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
     }
     var overview = document.querySelector(".plans-sub");
-    if (overview) overview.textContent = "Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.";
+    if (overview) overview.textContent = "Passe de 7 dias para vários mundos; Ouro para três mundos no seu ritmo. Compra única, sem renovação automática.";
   }
   function ensurePlanCatalog() {
     if (planCatalogReady) return Promise.resolve(PUBLIC_PLANS);
