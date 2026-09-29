@@ -4,10 +4,13 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "node tests/editor-core.cjs && node tests/converter-roundtrip.cjs && node tests/builder-core.cjs && node tests/entitlements-client.cjs && node tests/inline-scripts.cjs && node tests/tool-intents.cjs && node tests/google-measurement.cjs && node tests/google-seo.cjs && node tests/studio.cjs"
+    "test": "node tests/editor-core.cjs && node tests/converter-roundtrip.cjs && node tests/builder-core.cjs && node tests/entitlements-client.cjs && node tests/inline-scripts.cjs && node tests/tool-intents.cjs && node tests/google-measurement.cjs && node tests/google-seo.cjs && node tests/studio.cjs && node tests/world-upgrade.cjs && node tests/checkout-infinitepay.cjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
 }

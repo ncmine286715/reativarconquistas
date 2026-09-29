@@ -211,7 +211,5 @@
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     }
   }, true);
-  try {
-    if (file !== "builder-lab.html" && !localStorage.getItem(KEY)) setTimeout(function () { if (index < 0) render(0); }, 900);
-  } catch (e) { if (file !== "builder-lab.html") setTimeout(function () { if (index < 0) render(0); }, 900); }
+  // Help remains available from the launcher; never interrupt the upload flow.
 })();

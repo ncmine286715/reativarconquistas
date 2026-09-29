@@ -16,7 +16,7 @@
   function enabled() { return !!base() && !!window.fetch; }
   function paymentProvider() {
     var p = String((window.RC_CONFIG || {}).PAYMENT_PROVIDER || "depix").toLowerCase();
-    return p === "kiwify" || p === "hybrid" ? p : "depix";
+    return p === "infinitepay" ? p : (p === "kiwify" || p === "hybrid" ? p : "depix");
   }
 
   function req(path, opts) {
@@ -148,6 +148,7 @@
   var PLAN_IDS = ["world1", "ouro", "diamante", "vip7", "vip30", "creator"];
   var PLANS = {};
   var PUBLIC_PLANS = {};
+  var paymentServerConfig = null;
   var planCatalogReady = false;
   var planCatalogPending = null;
   var planModalWaiting = false;
@@ -161,6 +162,7 @@
     return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
   }
   function applyPlanCatalog(config) {
+    paymentServerConfig = config || null;
     PUBLIC_PLANS = config && config.plans || {};
     PLAN_IDS.forEach(function (id) {
       var p = PUBLIC_PLANS[id];
@@ -202,6 +204,26 @@
     }
     var overview = document.querySelector(".plans-sub");
     if (overview) overview.textContent = "Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.";
+    updateRecommendation();
+  }
+  function updateRecommendation() {
+    var select = document.getElementById("planUse"), text = document.getElementById("planRecommendation"), button = document.getElementById("recommendedPlan");
+    if (!select || !text || !button) return;
+    var choice = { single: "world1", week: "vip7", month: "vip30", batch: "creator", flexible: "ouro" }[select.value] || "world1";
+    var p = PUBLIC_PLANS[choice];
+    if (!p) { text.textContent = "Carregando opções e preços…"; button.disabled = true; return; }
+    var description = {
+      single: "Para um único mundo, um crédito é suficiente.",
+      week: "Para vários mundos nos próximos 7 dias, o passe evita comprar um crédito a cada mundo.",
+      month: "Para editar ao longo do mês, o passe mantém as ferramentas disponíveis por 30 dias.",
+      batch: "Para trabalhar com 11 a 20 mundos por lote, o Criador oferece a capacidade necessária.",
+      flexible: "Para 3 mundos em datas diferentes, o pacote de créditos não vence antes do uso."
+    }[select.value];
+    if (select.value === "week" && PUBLIC_PLANS.world1) description += " Custa " + priceText(p.price_cents - PUBLIC_PLANS.world1.price_cents) + " a mais que um crédito.";
+    text.textContent = description + " " + planSummary(choice);
+    button.textContent = "Escolher " + p.label + " · " + planPrice(choice);
+    button.disabled = false;
+    button.onclick = function () { checkout(choice, null, { source: "pricing_card" }); };
   }
   function ensurePlanCatalog() {
     if (planCatalogReady) return Promise.resolve(PUBLIC_PLANS);
@@ -228,6 +250,7 @@
     }).join("");
   }
   function normalizePlan(plan) { return PLANS[plan] ? plan : ""; }  /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
+  function infinitepayEnabled() { return paymentProvider() === "infinitepay"; }
   function depixEnabled() {
     try {
       var cfg = window.RC_CONFIG || {};
@@ -286,6 +309,17 @@
   }
   function depixStatus(id) {
     return authReq("/api/depix/status?id=" + encodeURIComponent(id));
+  }
+  function infinitepayCreate(plan, source) {
+    if (!checkoutRequestId) checkoutRequestId = newRequestId();
+    return authReq("/api/infinitepay/create", {
+      method: "POST", headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ plan: normalizePlan(plan), source: String(source || "").slice(0, 40), terms_accepted: true, terms_version: "2026-09-26-v1.8", request_id: checkoutRequestId })
+    });
+  }
+  function infinitepayStatus(params) {
+    var query = new URLSearchParams({ order_nsu: params.order_nsu, transaction_nsu: params.transaction_nsu, slug: params.slug });
+    return authReq("/api/infinitepay/status?" + query.toString());
   }
   function fetchEntitlementPayload() { return authReq("/api/entitlements"); }
   function entitlements() {
@@ -443,6 +477,29 @@
       "</div>" +
       "</div>";
     document.body.appendChild(bg);
+    if (infinitepayEnabled()) {
+      var fields = bg.querySelector(".pay-form-grid");
+      if (fields) fields.hidden = true;
+      var dataLabel = bg.querySelector(".pay-data-label");
+      if (dataLabel) dataLabel.hidden = true;
+      var badge = bg.querySelector("#payMethodBadge");
+      if (badge) badge.textContent = "CHECKOUT · INFINITEPAY";
+      var intro = bg.querySelector("#payIntroText");
+      if (intro) intro.textContent = "Compra única, sem renovação automática. O acesso será vinculado à conta Google exibida acima.";
+      var next = bg.querySelector("#payNextStep");
+      if (next) next.textContent = "Próxima etapa: abrir o checkout seguro da InfinitePay para escolher a forma de pagamento.";
+      var conn = bg.querySelector("#payConn");
+      if (conn) conn.textContent = "InfinitePay configurada · vendas ativas";
+    }
+    bg.addEventListener('keydown', function(e) {
+      if (e.key !== 'Tab') return;
+      var items = Array.from(bg.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href]')).filter(function(el) { return el.getClientRects().length; });
+      if (!items.length) return;
+      var first = items[0], last = items[items.length-1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    window.setTimeout(function() { var field = bg.querySelector(infinitepayEnabled() ? '#payGo' : '#payDoc'); if(field) field.focus(); }, 0);
     if (kiwifyEnabled()) {
       var pixFields = bg.querySelector(".pay-form-grid");
       if (pixFields) pixFields.hidden = true;
@@ -471,7 +528,7 @@
     }
     function checkoutCta(planId) {
       var p = PLANS[normalizePlan(planId)];
-      return paymentProvider() === "kiwify" ? p.cta : "Continuar para pagar no Pix · " + p.price;
+      return infinitepayEnabled() ? "Ir para InfinitePay · " + p.price : (paymentProvider() === "kiwify" ? p.cta : "Continuar para pagar no Pix · " + p.price);
     }
     function paintPlan() {
       var p = PLANS[selPlan()];
@@ -482,7 +539,7 @@
       document.getElementById("payGo").textContent = checkoutCta(selPlan());
     }
     Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) {
-      r.addEventListener("change", function () { paintPlan(); track("plan_viewed", { plan: normalizePlan(r.value) }); });
+      r.addEventListener("change", function () { checkoutRequestId = newRequestId(); paintPlan(); track("plan_viewed", { plan: normalizePlan(r.value) }); });
     });
     paintPlan();
     bg.addEventListener("click", function (e) { if (e.target === bg) closePay(); });
@@ -493,7 +550,7 @@
         return r.json();
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
-        if (c) c.textContent = paymentProvider() === "kiwify"
+        if (c) c.textContent = infinitepayEnabled() ? (cfg.infinitepay_configured ? "✓ Checkout InfinitePay disponível" : "InfinitePay indisponível no momento") : paymentProvider() === "kiwify"
           ? "Checkout Kiwify configurado"
           : (cfg.depix_configured ? "✓ Pix disponível via Depix" : "Serviço de pagamento disponível");
       }).catch(function (err) {
@@ -523,6 +580,10 @@
     refreshVipLock();
     document.getElementById("payBack").addEventListener("click", closePay);
     var checkoutInFlight = false;
+    function setCheckoutBusy(busy) {
+      checkoutInFlight = busy;
+      Array.prototype.forEach.call(bg.querySelectorAll("input[name='payplan']"), function (r) { r.disabled = busy; });
+    }
     document.getElementById("payGo").addEventListener("click", function () {
       var go = document.getElementById("payGo");
       if (checkoutInFlight || (go && go.disabled)) return;
@@ -533,6 +594,7 @@
         return;
       }
       var selectedPlan = selPlan();
+      if (infinitepayEnabled() && (!paymentServerConfig || !paymentServerConfig.infinitepay_configured || paymentServerConfig.sales_enabled === false)) { payStatus("InfinitePay indisponível agora. Tente novamente mais tarde.", "err"); return; }
       if (paymentProvider() === "kiwify" && kiwifyEnabled()) {
         var kwUrl = kiwifyUrl(selectedPlan);
         if (!kwUrl) {
@@ -559,7 +621,7 @@
         return;
       }
       var pixEmail = String((document.getElementById("payPixEmail") || {}).value || "").trim().toLowerCase();
-      if (!validEmail(pixEmail)) {
+      if (!infinitepayEnabled() && !validEmail(pixEmail)) {
         track("checkout_validation_failed", { plan: selPlan(), reason: "email" });
         payStatus("Preencha um e-mail válido para o Pix.", "err");
         return;
@@ -580,8 +642,8 @@
           return;
         }
       }
-      if (selectedPlan !== "vip7" || depixEnabled()) contextCheckoutWindow = openContextCheckoutWindow(context);
-      checkoutInFlight = true;
+      if (infinitepayEnabled() || selectedPlan !== "vip7" || depixEnabled()) contextCheckoutWindow = openContextCheckoutWindow(context);
+      setCheckoutBusy(true);
       go.disabled = true; go.textContent = "Verificando…";
       var buyerName = "";
       try {
@@ -589,11 +651,11 @@
         if (u0 && u0.name) buyerName = u0.name;
       } catch (e0) {}
       entitlements().then(function (ent) {
-        if (ent.active && document.getElementById("payModal") && !vipOverride) { checkoutInFlight = false; closeContextCheckoutWindow(contextCheckoutWindow); showActiveBenefits(ent); return; }
+        if (ent.active && document.getElementById("payModal") && !vipOverride) { setCheckoutBusy(false); closeContextCheckoutWindow(contextCheckoutWindow); showActiveBenefits(ent); return; }
         attempt(1);
       }).catch(function () {
         closeContextCheckoutWindow(contextCheckoutWindow);
-        checkoutInFlight = false;
+        setCheckoutBusy(false);
         go.disabled = false;
         go.textContent = checkoutCta(selPlan());
         payStatus("Não foi possível verificar os benefícios desta conta. Nenhuma nova cobrança foi criada. Atualize a conta e tente novamente.", "err");
@@ -603,8 +665,31 @@
         go.disabled = true; go.textContent = "Gerando cobrança…";
         payStatus(n > 1 ? "Tentando de novo (tentativa " + n + ")…" : (depixEnabled() ? "Criando sua cobrança Pix no Depix…" : "Preparando seu checkout…"));
         var planEl = document.querySelector("#payModal input[name='payplan']:checked");
-        var plan = normalizePlan(planEl && planEl.value);
-        // Depix primeiro (Pix via Worker); AbacatePay como reserva.
+        var plan = selectedPlan;
+        if (infinitepayEnabled()) {
+          track("checkout_opened", Object.assign({ plan: plan, provider: "infinitepay" }, context));
+          infinitepayCreate(plan, context.source).then(function (r) {
+            if (!/^https:\/\/(?:checkout\.infinitepay\.com\.br|checkout\.infinitepay\.io)\//i.test(String(r.url || ""))) throw new Error("Resposta inválida do checkout InfinitePay.");
+            try { sessionStorage.setItem("rc_pending_infinitepay", JSON.stringify({ order_nsu: r.id, plan: plan, created_at: Date.now() })); } catch (e) {}
+            payStatus("Abrindo o checkout da InfinitePay…");
+            signalContextCheckout(context);
+            if (contextCheckoutWindow) {
+              try { contextCheckoutWindow.location.href = r.url; }
+              catch (e) { closeContextCheckoutWindow(contextCheckoutWindow); location.href = r.url; return; }
+              closePay();
+            } else location.assign(r.url);
+          }).catch(function (err) {
+            closeContextCheckoutWindow(contextCheckoutWindow);
+            setCheckoutBusy(false);
+            track("pix_create_error", { plan: plan, error_type: classifyError(err), provider: "infinitepay" });
+            logClient("infinitepay-create", (err && err.message) || err);
+            go.disabled = false;
+            go.textContent = checkoutCta(plan);
+            payStatus(friendlyErr(err), "err");
+          });
+          return;
+        }
+        // Legacy providers are unreachable when InfinitePay is selected.
         if (depixEnabled()) {
           var docEl = document.getElementById("payDoc");
           var doc = docEl ? docEl.value : "";
@@ -627,7 +712,7 @@
             }
           }).catch(function (err) {
             closeContextCheckoutWindow(contextCheckoutWindow);
-            checkoutInFlight = false;
+            setCheckoutBusy(false);
             track("pix_create_error", { plan: plan, error_type: classifyError(err) });
             logClient("depix-create", (err && err.message) || err);
             go.disabled = false;
@@ -671,7 +756,7 @@
           }
         }).catch(function (err) {
           closeContextCheckoutWindow(contextCheckoutWindow);
-          checkoutInFlight = false;
+          setCheckoutBusy(false);
           logClient("create-alt", (err && err.message) || err);
           go.disabled = false;
           go.textContent = checkoutCta(plan);
@@ -686,11 +771,35 @@
     var box = document.getElementById("box");
     var id = "";
     var depixId = "";
+    var infinitePayParams = null;
     try {
       var qs = new URLSearchParams(location.search);
       id = qs.get("id") || "";
       depixId = qs.get("checkout_id") || qs.get("checkoutId") || "";
+      var orderNsu = qs.get("order_nsu") || "";
+      var transactionNsu = qs.get("transaction_nsu") || "";
+      var slug = qs.get("slug") || qs.get("invoice_slug") || "";
+      if (orderNsu && transactionNsu && slug) infinitePayParams = { order_nsu: orderNsu, transaction_nsu: transactionNsu, slug: slug };
     } catch (e) {}
+    if (infinitePayParams) {
+      if (box) { box.hidden = false; box.className = "status"; box.textContent = "Confirmando pagamento com a InfinitePay…"; }
+      return infinitepayStatus(infinitePayParams).then(function (r) {
+        if (r.paid && window.RC_analytics) window.RC_analytics.purchase(r);
+        if (r.paid) {
+          try { sessionStorage.removeItem("rc_pending_infinitepay"); sessionStorage.removeItem(PENDING_CHECKOUT_CONTEXT); } catch (e) {}
+          var untilTxt = +r.world_credits > 0 ? (+r.world_credits) + " crédito(s) de mundo disponíveis" : "acesso liberado";
+          if (box) { box.className = "status ok"; box.textContent = "Pagamento InfinitePay confirmado; " + untilTxt + ". Volte à ferramenta para continuar."; }
+          try { document.dispatchEvent(new Event("rc-auth")); } catch (e2) {}
+        } else {
+          trackPaymentState(r);
+          if (box) { box.className = "status"; box.textContent = "Pagamento ainda em confirmação pela InfinitePay. Aguarde um minuto e atualize esta página; não faça outra compra."; }
+        }
+        return r;
+      }).catch(function () {
+        if (box) { box.className = "status"; box.textContent = "A InfinitePay ainda está confirmando. Aguarde e atualize; se já pagou, não faça outra compra."; }
+        return null;
+      });
+    }
     if (!depixId) {
       try { depixId = localStorage.getItem("rc_pending_depix") || ""; } catch (e2) {}
     }
@@ -699,7 +808,7 @@
     }
     // Depix primeiro: id chk_... ou pendência depix salva.
     var useDepix = !!(depixId && (!id || depixId === id || /^chk_/.test(depixId) || /^chk_/.test(id)));
-    if (useDepix && depixEnabled()) {
+    if (useDepix) {
       var did = /^chk_/.test(depixId) ? depixId : (/^chk_/.test(id) ? id : (depixId || id));
       if (box) { box.hidden = false; box.className = "status"; box.textContent = "Confirmando Pix (Depix)…"; }
       return depixStatus(did).then(function (r) {
@@ -807,6 +916,8 @@
   function wire() {
     if (wireInstalled) return;
     wireInstalled = true;
+    var planUse = document.getElementById("planUse");
+    if (planUse) planUse.addEventListener("change", updateRecommendation);
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
       var plan = String(b.getAttribute("data-pay") || "");
       if (!depixEnabled() && !kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }

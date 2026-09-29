@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "project": {
+    "name": "reativarconquistas",
+    "productType": "Minecraft Bedrock world editor",
+    "stack": [
+      "HTML",
+      "CSS",
+      "vanilla JavaScript",
+      "Cloudflare Workers"
+    ]
+  },
+  "sources": {
+    "tokens": [
+      "site/style.css"
+    ],
+    "components": [],
+    "assets": [
+      "site/assets"
+    ],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "unknown",
+    "colors": {},
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "unknown"
+  },
+  "components": {
+    "installed": [],
+    "preferredPrimitives": [
+      "Native file input",
+      "Native details/summary",
+      "Native select and button"
+    ],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [
+      "Upload and export guide before advanced tools",
+      "44px touch controls",
+      "Reuse existing Minecraft textures",
+      "Preserve world originals"
+    ],
+    "avoid": [
+      "Framework dependencies",
+      "Automatic map rendering on low-memory devices",
+      "Automatic onboarding modal"
+    ]
+  },
+  "decisions": [
+    "Upload and export tutorial first; orange native controls, existing Minecraft item assets, responsive details and two-column rule controls.",
+    "21st File Uploader search reviewed; reuse native inputs instead of introducing React into the vanilla editor.",
+    "Optional map preview on low-memory devices; no automatic guide modal."
+  ],
+  "evidence": [],
+  "generatedAt": "2026-09-29T22:03:15.834Z"
+}

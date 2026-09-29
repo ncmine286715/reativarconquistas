@@ -169,7 +169,7 @@ function checkoutLockUntil(checkout) {
   const explicitExpiry = timestampMs(checkout && (checkout.expires_at || (checkout.result && checkout.result.expires_at)));
   if (explicitExpiry) return explicitExpiry;
   const startedAt = +((checkout && (checkout.at || checkout.created_at)) || 0);
-  return startedAt + (checkout && checkout.provider === "abacate" ? ABACATE_PENDING_MS : ABANDONED_AFTER_MS);
+  return startedAt + (checkout && ["abacate", "infinitepay"].includes(checkout.provider) ? ABACATE_PENDING_MS : ABANDONED_AFTER_MS);
 }
 function checkoutIsPending(checkout, now = Date.now()) {
   return !!checkout && ["creating", "ready"].includes(checkout.status) && checkoutLockUntil(checkout) > now;
@@ -667,6 +667,26 @@ async function entitlementStub(env, uid, email) {
 // nesse caso, o crédito fica inicialmente indexado pelo e-mail. Ao consultar
 // a conta, aceitamos o mesmo e-mail como identidade legada; compras novas
 // autenticadas continuam usando o UID.
+function infinitePayOrderStub(env, orderNsu) {
+  if (!env.ENTITLEMENTS) throw new Error("ENTITLEMENTS não configurado no Worker.");
+  return env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("infinitepay:" + String(orderNsu || "").trim().slice(0, 100)));
+}
+async function saveInfinitePayOrder(env, order) {
+  const stub = infinitePayOrderStub(env, order.order_nsu);
+  const response = await stub.fetch("https://entitlements/payment/record", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(order)
+  });
+  if (!response.ok) throw new Error("Não consegui registrar o pedido de pagamento.");
+  return response.json();
+}
+async function getInfinitePayOrder(env, orderNsu) {
+  const stub = infinitePayOrderStub(env, orderNsu);
+  const response = await stub.fetch("https://entitlements/payment/get");
+  if (!response.ok) throw new Error("Não consegui consultar o pedido de pagamento.");
+  const result = await response.json();
+  return result && result.order || null;
+}
+
 function paymentReceiptKey(identityKind, identity, provider, billingId) {
   return "payrec:" + identityKind + ":" + encodeURIComponent(String(identity || "")) + ":" + cleanDimension(provider, 20) + ":" + encodeURIComponent(String(billingId || "").slice(0, 180));
 }
@@ -709,6 +729,119 @@ async function grantPurchase(env, email, billingId, plan, uid = "", provider = "
   return grant;
 }
 
+function isValidInfinitePayCheckoutUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    return url.protocol === "https:" && ["checkout.infinitepay.com.br", "checkout.infinitepay.io"].includes(url.hostname.toLowerCase());
+  } catch { return false; }
+}
+
+async function infinitePayCreate(env, { orderNsu, plan, email, name, uid }) {
+  const handle = String(env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
+  if (!handle) throw new Error("Configure INFINITEPAY_HANDLE no Worker antes de abrir as vendas.");
+  const base = String(env.PUBLIC_BASE_URL || "https://worldify.com.br").replace(/\/$/, "");
+  const definition = PLAN_LIMITS[plan];
+  const response = await fetch("https://api.checkout.infinitepay.io/links", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      handle,
+      redirect_url: base + "/sucesso.html",
+      webhook_url: String(env.PAYMENT_API_URL || base).replace(/\/$/, "") + "/api/infinitepay/webhook",
+      order_nsu: orderNsu,
+      customer: { name: String(name || "Worldify").slice(0, 100), email },
+      items: [{ quantity: 1, price: definition.price_cents, description: (definition.catalog_label || definition.label).slice(0, 100) }]
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  const checkoutUrl = String(payload.url || payload.checkout_url || payload.link || "");
+  const validCheckoutUrl = isValidInfinitePayCheckoutUrl(checkoutUrl);
+  if (!response.ok || payload.success === false || !validCheckoutUrl) {
+    const providerError = (message, retryable) => {
+      const error = new Error(message);
+      error.retryable = retryable;
+      return error;
+    };
+    if (response.status === 401 || response.status === 403) {
+      throw providerError("A InfinitePay recusou a criação do checkout. Ative o Checkout Integrado em Vendas > Checkout > Configurações e confirme se a InfiniteTag configurada pertence a essa conta.", true);
+    }
+    if (response.status === 400) {
+      throw providerError("A InfinitePay rejeitou os dados do pedido. Confirme se o Checkout Integrado está habilitado e tente novamente.", true);
+    }
+    if (response.status === 429) {
+      throw providerError("A InfinitePay recebeu muitas tentativas. Aguarde alguns minutos e tente novamente.", true);
+    }
+    if (response.status >= 500) {
+      throw providerError("O checkout da InfinitePay está temporariamente indisponível. Tente novamente em alguns minutos.", false);
+    }
+    throw providerError("A InfinitePay não retornou um link de checkout válido. Confirme se o Checkout Integrado está habilitado na sua conta.", false);
+  }
+  return { id: orderNsu, url: checkoutUrl, plan };
+}
+
+async function infinitePayCheck(env, event) {
+  const handle = String(env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
+  if (!handle) throw new Error("INFINITEPAY_HANDLE não configurado.");
+  const response = await fetch("https://api.checkout.infinitepay.io/payment_check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      handle,
+      order_nsu: String(event.order_nsu || ""),
+      transaction_nsu: String(event.transaction_nsu || ""),
+      slug: String(event.invoice_slug || event.slug || "")
+    })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.success !== true) {
+    throw new Error("A InfinitePay ainda não confirmou o pagamento.");
+  }
+  return payload;
+}
+
+async function fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug, expectedUid = "", expectedEmail = "" }) {
+  const paidKey = "infinitepay:paid:" + orderNsu;
+  const prior = await env.PREMIUM_KV.get(paidKey, "json").catch(() => null);
+  if (prior) {
+    if (expectedUid && prior.uid !== expectedUid) throw new Error("Este pedido pertence a outra conta.");
+    return { paid: true, duplicate: true, id: orderNsu, plan: prior.plan, paid_at: prior.paid_at };
+  }
+  // New InfinitePay orders live in Durable Objects, which do not share KV's
+  // daily write cap. Fall back to KV only for checkouts created by older code.
+  let pending = await getInfinitePayOrder(env, orderNsu).catch(() => null)
+    || await env.PREMIUM_KV.get(pendKey(orderNsu), "json").catch(() => null);
+  // Recover a legacy checkout whose KV write failed after the account DO had
+  // already saved the provider URL. This lets the signed-in buyer finish the
+  // existing payment instead of creating another charge.
+  if (!pending && expectedUid && validEmail(expectedEmail)) {
+    const account = await entitlementStub(env, expectedUid, expectedEmail).then((stub) => stub.fetch("https://entitlements/state"))
+      .then((response) => response.ok ? response.json() : null).catch(() => null);
+    const checkout = (account && account.pending_payments || []).find((item) => item.id === orderNsu && item.provider === "infinitepay");
+    if (checkout) pending = { uid: expectedUid, email: expectedEmail, plan: checkout.plan, via: "infinitepay", source: "" };
+  }
+  if (!pending || pending.via !== "infinitepay") throw new Error("Pedido não encontrado.");
+  if (expectedUid && pending.uid !== expectedUid) throw new Error("Este pedido pertence a outra conta.");
+  const plan = normalizeDepixPlan(pending.plan);
+  if (!plan || !validEmail(pending.email) || !pending.uid) throw new Error("Pedido sem plano ou conta válidos.");
+  if (pending.status === "paid") return { paid: true, duplicate: true, id: orderNsu, plan, paid_at: pending.paid_at || 0 };
+  const payment = await infinitePayCheck(env, { order_nsu: orderNsu, transaction_nsu: transactionNsu, invoice_slug: slug });
+  if (!payment.paid) return { paid: false, status: "pending", id: orderNsu, plan };
+  if (+payment.amount !== PLAN_LIMITS[plan].price_cents) throw new Error("Valor recebido diferente do pedido.");
+  const paidAt = Date.now();
+  // Grant first using the idempotent account Durable Object. KV receipts are
+  // useful for legacy reconciliation, but must never block a confirmed buyer.
+  const grant = await grantPurchase(env, pending.email, orderNsu, plan, pending.uid, "infinitepay", paidAt, pending.source);
+  const orderStub = infinitePayOrderStub(env, orderNsu);
+  await orderStub.fetch("https://entitlements/payment/paid", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paid_at: paidAt })
+  }).catch(() => {});
+  await env.PREMIUM_KV.put(paidKey, JSON.stringify({ uid: pending.uid, plan, paid_at: paidAt }), { expirationTtl: 400 * 86400 }).catch(() => {});
+  await persistConfirmedPayment(env, { id: orderNsu, email: pending.email, uid: pending.uid, plan, provider: "infinitepay", source: pending.source, paid_at: paidAt }).catch(() => {});
+  await env.PREMIUM_KV.delete(pendKey(orderNsu)).catch(() => {});
+  await recordPaidCheckout(env, { id: orderNsu, email: pending.email, uid: pending.uid, plan, provider: "infinitepay", source: pending.source, paid_at: paidAt });
+  return { id: orderNsu, paid: true, status: "paid", plan, paid_at: paidAt, ...grant };
+}
+
 async function reconcileKnownPayments(env, uid, email) {
   const prefixes = ["payrec:uid:" + encodeURIComponent(uid) + ":"];
   if (email) prefixes.push("payrec:email:" + encodeURIComponent(email.toLowerCase()) + ":");
@@ -742,7 +875,8 @@ async function reconcilePendingCheckouts(env, uid, email, checkouts) {
   let unavailable = false;
   let recovered = false;
   for (const checkout of candidates) {
-    const provider = checkout.provider === "abacate" ? "abacate" : "depix";
+    const provider = ["abacate", "infinitepay"].includes(checkout.provider) ? checkout.provider : "depix";
+    if (provider === "infinitepay") continue; // Confirmed by verified webhook or authenticated return.
     const id = String(checkout.id).slice(0, 180);
     const cacheKey = "paycheck:" + encodeURIComponent(uid) + ":" + provider + ":" + encodeURIComponent(id);
     let info = await env.PREMIUM_KV.get(cacheKey, "json").catch(() => null);
@@ -1014,7 +1148,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ abacate_configured: !!env.ABACATEPAY_API_KEY, abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
+        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: !!env.ABACATEPAY_API_KEY, abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -1050,6 +1184,7 @@ export default {
 
       // ---------- Depix: criar checkout Pix ----------
       if (url.pathname === "/api/depix/create" && req.method === "POST") {
+        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const plan = normalizeDepixPlan(body.plan);
@@ -1109,6 +1244,106 @@ export default {
           return json(r, 200, cors);
         } catch (e) {
           return json({ error: String((e && e.message) || e) }, 502, cors);
+        }
+      }
+
+      // ---------- InfinitePay: checkout e confirmação server-to-server ----------
+      if (url.pathname === "/api/infinitepay/create" && req.method === "POST") {
+        if (String(env.SALES_ENABLED || "1") === "0" || !env.INFINITEPAY_HANDLE) return json({ error: "As vendas estão temporariamente suspensas. Os acessos já pagos continuam válidos até a expiração do plano." }, 503, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const plan = normalizeDepixPlan(body.plan);
+        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inválido ou indisponível para compra." }, 400, cors);
+        if (body.terms_accepted !== true) return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
+        const requestId = String(body.request_id || "").trim().slice(0, 100);
+        if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        if (!(await rlTake(env, "rl-infinitepay-v1:" + fb.uid + ":" + ip, 12, 900))) return json({ error: "Muitas tentativas em poucos minutos. Aguarde e tente novamente." }, 429, cors);
+        const source = cleanDimension(body.source, 40);
+        const checkoutStub = await entitlementStub(env, fb.uid, fb.email);
+        const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId, plan, provider: "infinitepay" })
+        });
+        let beginData = await begin.json();
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout já está em andamento.", pending: beginData.pending === true, existing_checkout: beginData.existing_checkout || null }, begin.status, cors);
+        if (!beginData.create) {
+          if (beginData.result && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
+          // A reusable checkout can outlive a failed/legacy provider response.
+          // Invalidate only a result that cannot point to an official InfinitePay checkout.
+          const staleRequestId = String(beginData.checkout_request_id || requestId);
+          await checkoutStub.fetch("https://entitlements/checkout-failed", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: staleRequestId, plan, retryable: true, error: "Saved InfinitePay checkout URL failed official-host validation." })
+          });
+          const retry = await checkoutStub.fetch("https://entitlements/checkout-begin", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: requestId, plan, provider: "infinitepay" })
+          });
+          beginData = await retry.json();
+          if (!retry.ok) return json({ error: beginData.error || "Não consegui renovar o link seguro. Atualize Minha conta e tente novamente.", pending: beginData.pending === true }, retry.status, cors);
+          if (!beginData.create) {
+            if (beginData.result && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
+            return json({ error: "A InfinitePay não retornou um link seguro válido. Nenhuma nova cobrança foi criada; tente novamente em instantes." }, 502, cors);
+          }
+        }
+        try {
+          const orderNsu = crypto.randomUUID();
+          const checkout = await infinitePayCreate(env, { orderNsu, plan, email: fb.email, name: fb.name, uid: fb.uid });
+          await saveInfinitePayOrder(env, { order_nsu: orderNsu, uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay", status: "pending" });
+          const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: requestId, plan, result: checkout })
+          });
+          if (!saved.ok) throw new Error("Checkout criado, mas não foi possível registrar o pedido.");
+          // Legacy fallback only; quota exhaustion must not hide a valid link.
+          await env.PREMIUM_KV.put(pendKey(orderNsu), JSON.stringify({ uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay" }), { expirationTtl: 30 * 86400 }).catch(() => {});
+          await recordCheckout(env, { id: orderNsu, uid: fb.uid, email: fb.email, plan, source, provider: "infinitepay", expires_at: Date.now() + 30 * 86400000 });
+          await metric(env, "payment_pending", { plan, source }, req);
+          return json(checkout, 200, cors);
+        } catch (e) {
+          if (e && e.retryable === true) {
+            await checkoutStub.fetch("https://entitlements/checkout-failed", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ request_id: requestId, plan, retryable: true, error: String(e.message || e).slice(0, 200) })
+            }).catch(() => {});
+          }
+          return json({ error: String((e && e.message) || e) }, 502, cors);
+        }
+      }
+
+      if (url.pathname === "/api/infinitepay/webhook" && req.method === "POST") {
+        let event = {};
+        try { event = await req.json(); } catch { return json({ success: false, message: "JSON inválido." }, 400, cors); }
+        const orderNsu = String(event.order_nsu || "").trim().slice(0, 100);
+        const transactionNsu = String(event.transaction_nsu || "").trim().slice(0, 120);
+        const slug = String(event.invoice_slug || event.slug || "").trim().slice(0, 120);
+        if (!orderNsu || !transactionNsu || !slug) return json({ success: false, message: "Dados do pedido incompletos." }, 400, cors);
+        try {
+          const result = await fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug });
+          if (!result.paid) return json({ success: false, message: "Pagamento ainda não confirmado." }, 400, cors);
+          return json({ success: true, message: null }, 200, cors);
+        } catch (e) {
+          console.log("infinitepay webhook erro: " + String((e && e.message) || e));
+          return json({ success: false, message: "Pagamento será conciliado após nova tentativa." }, 400, cors);
+        }
+      }
+
+      if (url.pathname === "/api/infinitepay/status" && req.method === "GET") {
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
+        const orderNsu = String(url.searchParams.get("order_nsu") || "").trim().slice(0, 100);
+        const transactionNsu = String(url.searchParams.get("transaction_nsu") || "").trim().slice(0, 120);
+        const slug = String(url.searchParams.get("slug") || "").trim().slice(0, 120);
+        if (!orderNsu || !transactionNsu || !slug) return json({ error: "Dados de retorno do checkout incompletos." }, 400, cors);
+        try {
+          const result = await fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug, expectedUid: fb.uid, expectedEmail: fb.email });
+          return json(result, 200, cors);
+        } catch (e) {
+          const msg = String((e && e.message) || e);
+          return json({ error: msg, code: /outra conta/.test(msg) ? "PURCHASE_ACCOUNT_MISMATCH" : "PAYMENT_PENDING" }, /outra conta/.test(msg) ? 403 : 202, cors);
         }
       }
 
@@ -1266,6 +1501,7 @@ export default {
       }
       // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
+        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
         if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
@@ -1591,6 +1827,34 @@ export class EntitlementDO {
         .map(([request_id, checkout]) => ({ request_id, id: checkout.result && checkout.result.id || "", checkout_url: checkout.result && checkout.result.url || "", plan: checkout.plan, provider: checkout.provider || "depix", created_at: +checkout.at || 0, expires_at: checkoutLockUntil(checkout), status: checkout.status }))
     };
     };
+    if (url.pathname === "/payment/record" && req.method === "POST") {
+      const orderNsu = String(body.order_nsu || "").trim().slice(0, 100);
+      const uid = String(body.uid || "").trim().slice(0, 160);
+      const email = String(body.email || "").trim().toLowerCase();
+      const plan = normalizeDepixPlan(body.plan);
+      if (!orderNsu || !uid || !validEmail(email) || !plan || body.via !== "infinitepay") return json({ error: "Invalid InfinitePay order." }, 400);
+      const key = "payment_record";
+      const prior = await this.state.storage.get(key);
+      if (prior && (prior.order_nsu !== orderNsu || prior.uid !== uid || prior.plan !== plan)) return json({ error: "Order identity mismatch." }, 409);
+      const order = prior || {
+        order_nsu: orderNsu, uid, email, plan,
+        source: TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "",
+        via: "infinitepay", status: "pending", at: timestampMs(body.at) || Date.now()
+      };
+      await this.state.storage.put(key, order);
+      return json({ saved: true });
+    }
+    if (url.pathname === "/payment/get" && req.method === "GET") {
+      return json({ order: await this.state.storage.get("payment_record") || null });
+    }
+    if (url.pathname === "/payment/paid" && req.method === "POST") {
+      const order = await this.state.storage.get("payment_record");
+      if (!order || order.via !== "infinitepay") return json({ error: "Order not found." }, 404);
+      order.status = "paid";
+      order.paid_at = timestampMs(body.paid_at) || Date.now();
+      await this.state.storage.put("payment_record", order);
+      return json({ saved: true });
+    }
     if (url.pathname === "/state") return json(publicState(current));
 
     if (url.pathname === "/free-quota") {
@@ -1689,7 +1953,7 @@ export class EntitlementDO {
     if (["/checkout-begin", "/checkout-result", "/checkout-failed"].includes(url.pathname)) {
       const requestId = String(body.request_id || "").trim().slice(0, 100);
       const plan = normalizeDepixPlan(body.plan);
-      const provider = body.provider === "abacate" ? "abacate" : "depix";
+      const provider = ["abacate", "infinitepay"].includes(body.provider) ? body.provider : "depix";
       if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId) || !plan) return json({ error: "Invalid checkout identity." }, 400);
       const result = await run((data) => {
         const currentCheckout = data.checkouts[requestId];
@@ -1734,6 +1998,7 @@ export class EntitlementDO {
         // A provider timeout is ambiguous: it may already have created a
         // charge. Keep the account lock until checkout expiry to avoid a retry
         // creating a second payment.
+        if (body.retryable === true && currentCheckout.status === "creating") { delete data.checkouts[requestId]; return { value: { saved: true } }; }
         currentCheckout.error = String(body.error || "Checkout result uncertain.").slice(0, 200);
         currentCheckout.last_error_at = Date.now();
         return { value: { saved: true } };

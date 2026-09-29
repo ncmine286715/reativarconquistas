@@ -170,6 +170,10 @@
   // A geração só muda quando o ARQUIVO muda — aberturas concorrentes do mesmo
   // arquivo (mapa + player) compartilham a geração e nunca se invalidam.
   function openWorld(file) {
+    if (file && /\.(mctemplate|mctemplet)$/i.test(file.name || "")) {
+      if (!window.RC_worldFormat) return Promise.reject(new Error("Importador de modelos não carregou. Recarregue a página."));
+      return window.RC_worldFormat.normalize(file).then(openWorld);
+    }
     if (cache.file === file && cache.data) return Promise.resolve(cache.data);
     if (cache.file !== file) { cache.file = file; cache.data = null; ++cache.seq; }
     var my = cache.seq;

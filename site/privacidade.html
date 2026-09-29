@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
+<script src="compatibility.js?v=20260929c"></script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
@@ -38,7 +39,7 @@
 <h2>2. O que coletamos e por quê (base legal)</h2>
 <p><b>2.1. Arquivo do mundo (.mcworld) e foto (VIP)</b> — <b>Não coletamos.</b> A conversão roda no seu navegador; o arquivo nunca é enviado. Base legal: não há tratamento de dados.</p>
 <p><b>2.2. E-mail</b> — Coletamos o e-mail da conta Google para autenticação e, no checkout Pix, um <b>e-mail do pagador</b> digitado e confirmado pelo usuário. Esse e-mail de pagamento é enviado ao provedor dentro dos dados da cobrança e pode ser diferente do e-mail da conta Google. Também usamos e-mail para suporte/reembolso. Base legal: execução do contrato e atendimento de solicitações.</p>
-<p><b>2.3. Dados de pagamento</b> — O pagamento é processado pela <b>Kiwify</b>, pelo <b>DePix</b> ou por outro provedor indicado no checkout, conforme a configuração vigente. Transmitimos ao provedor somente os dados necessários à compra, como e-mail, valor e metadados mínimos; no fluxo Pix podem ser solicitados CPF/CNPJ e e-mail do pagador. Nosso Worker não usa esses dados para definir quem recebe o VIP: a liberação continua vinculada ao UID da conta Google autenticada.</p>
+<p><b>2.3. Dados de pagamento</b> — Novas compras são processadas pela <b>InfinitePay</b>. Enviamos nome e e-mail da conta, valor, descrição do plano e identificador do pedido. Os dados bancários são preenchidos diretamente no provedor. A liberação é vinculada ao UID da conta Google autenticada, após confirmação do pagamento. Dados de compras antigas podem ser consultados nos provedores originais para conciliação.</p>
 <p><b>2.4. Métricas técnicas do funil</b> — Mantemos métricas próprias, agregadas e voltadas à operação do serviço: visualização de página, seleção/análise de mundo, exibição de oferta, clique em comprar, abertura/validação do checkout, tentativa/criação de Pix, estado do pagamento, webhook e liberação do plano. Para diagnosticar abandono, registramos data/hora, plano, preço, origem do botão/paywall, faixa de tamanho do mundo, quantidade de arquivos, página, sessão aleatória, dispositivo e navegador. Não registramos o arquivo, seu conteúdo, inventário, nome do jogador, CPF/CNPJ, e-mail puro, token Firebase, chave Pix, API key ou segredo nesses eventos. A sessão aleatória não é usada para publicidade nem vendida; os dados são retidos por até 400 dias para relatórios operacionais.</p>
 <p><b>2.5. Registro operacional de compras</b> — Quando uma cobrança é efetivamente criada, mantemos em área administrativa restrita o e-mail da conta, plano, provedor, identificador e estado da cobrança. Isso permite confirmar compras, corrigir liberações e identificar checkouts gerados que não foram pagos. O CPF/CNPJ do pagador não aparece nesse painel. Esses registros são usados apenas para suporte, prevenção a fraude e operação do serviço, com retenção de até 400 dias.</p>
 <p><b>2.5. Conta Google (UID, nome e e-mail)</b> — Finalidade: autenticar a conta, impedir que o VIP seja liberado para o e-mail errado e disponibilizar o acesso em outros aparelhos. O login é feito pelo <b>Google/Firebase</b>; nós <b>não recebemos sua senha do Google</b>. O UID do Firebase é a referência principal do VIP. Base legal: execução do contrato e segurança da conta, conforme aplicável.</p>
@@ -51,7 +52,7 @@
 
 <p><button type="button" data-analytics-settings>Alterar preferência de medição</button></p>
 <h2>4. Compartilhamento</h2>
-<p>Compartilhamos dados apenas quando necessário com: (a) <b>Google/Firebase</b> para autenticação; (b) <b>Kiwify</b>, <b>DePix</b> e eventuais provedores exibidos no checkout para pagamento; (c) <b>Cloudflare</b> para hospedagem/API; (d) <b>Google Analytics</b> apenas quando você aceitar a medição; e (e) autoridades, quando houver obrigação legal. Nunca vendemos dados pessoais.</p>
+<p>Compartilhamos dados apenas quando necessário com: (a) <b>Google/Firebase</b> para autenticação; (b) <b>InfinitePay</b> nas novas compras e provedores originais nas compras antigas para pagamento; (c) <b>Cloudflare</b> para hospedagem/API; (d) <b>Google Analytics</b> apenas quando você aceitar a medição; e (e) autoridades, quando houver obrigação legal. Nunca vendemos dados pessoais.</p>
 
 <h2>5. Segurança</h2>
 <p>Adotamos: HTTPS, processamento local (arquivo nunca sai do PC), login só via Google (sem senha nossa), segredos de pagamento fora do site (só no servidor), limite de tamanho por plano (10 MB no grátis) e validação de formato. Nenhum sistema é 100% invulnerável.</p>
@@ -68,8 +69,8 @@
 
 <p style="margin-top:24px"><a href="index.html">← Voltar ao conversor</a> · <a href="termos.html">Termos</a> · <a href="reembolso.html">Reembolso</a></p>
 </div></div>
-<script src="guia-site.js?v=5"></script>
-<script src="config.js?v=28"></script>
+<script src="guia-site.js?v=20260929c"></script>
+<script src="config.js?v=20260929c"></script>
 
 </body>
 </html>

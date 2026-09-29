@@ -1,50 +1,8 @@
 /* ReativaConquistas — Service Worker do site e do Construtor 3D.
    Páginas HTML sempre revalidam online para evitar servir conteúdo antigo.
    Recursos com ?v= podem usar cache-first; sem rede, usamos o cache local. */
-var CACHE = 'rc-builder-v29';
-var CORE = [
-  'index.html',
-  'builder-lab.html',
-  'importar.html',
-  'objetivos.html',
-  'config.js?v=28',
-  'analytics.js?v=1',
-  'firebase-config.js?v=14',
-  'auth.js?v=16',
-  'pagamento.js?v=33',
-  'entitlements.js?v=4',
-  'tool-intents.js?v=1',
-  'guia-site.css?v=3',
-  'guia-site.js?v=8',
-  'assets/null-apresenta.png',
-  'assets/null-guia.png',
-  'style.css?v=29',
-  'mapa-2d.js?v=12',
-  'app.js?v=35',
-  'builder-lab.css?v=7',
-  'builder-lab.js?v=23',
-  'java-structure.js?v=1',
-  'ferramentas-local.js?v=17',
-  'converter.js?v=18',
-  'world-format.js?v=1',
-  'logo.png',
-  'mc/item/ender_eye.png',
-  'mc/item/oak_door.png',
-  'mc/item/iron_pickaxe.png',
-  'mc/item/shears.png',
-  'mc/item/armor_stand.png',
-  'mc/item/cow_spawn_egg.png',
-  'mc/item/iron_hoe.png',
-  'mc/item/filled_map.png',
-  'mc/item/grass_block.png',
-  'mc/block/bedrock.png',
-  'vendor/jszip.min.js',
-  'vendor/leveldb-reader.js',
-  'nbt-bedrock.js',
-  'leveldb-write.js',
-  'db-common.js?v=8',
-  'bedrockChunkWorker.js'
-];
+var CACHE = 'rc-focus-20260929c';
+var CORE = ['index.html', 'importar.html', 'style.css?v=29', 'focus.css?v=20260929c', 'compatibility.js?v=20260929c', 'focus.js?v=20260929c', 'logo.png', 'mc/item/grass_block.png'];
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
 });
@@ -56,7 +14,7 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
   var url = new URL(event.request.url);
-  if (url.origin !== location.origin) return;
+  if (url.origin !== location.origin || url.pathname.indexOf('/api/') === 0) return;
 
   var acceptsHtml = (event.request.headers.get('Accept') || '').indexOf('text/html') !== -1;
   var isDocument = event.request.mode === 'navigate' || acceptsHtml;

@@ -793,14 +793,26 @@
 
   function bind() {
     var input = $("file"), drop = $("drop");
+    function preview(file) {
+      var existing = $("loadMapPreview");
+      if (existing) existing.remove();
+      if (document.documentElement.getAttribute("data-light-mode") !== "true") { renderMap(file); return; }
+      seq++; resetState();
+      var box = $("mapPreview"); if (box) box.hidden = true;
+      var button = document.createElement("button");
+      button.id = "loadMapPreview"; button.type = "button"; button.className = "btn-ghost";
+      button.textContent = "Carregar prévia do mapa (opcional)";
+      button.onclick = function () { button.remove(); renderMap(file); };
+      if (drop) drop.parentNode.insertBefore(button, drop.nextSibling);
+    }
     if (input) input.addEventListener("change", function () {
       var f = (input.files && input.files[0]) || null;
-      if (f) renderMap(f);
+      if (f) preview(f);
       else { var b = $("mapPreview"); if (b) b.hidden = true; if (drop) drop.classList.remove("drop-loaded"); seq++; }
     });
     if (drop) drop.addEventListener("drop", function (e) {
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) renderMap(f);
+      if (f) preview(f);
     });
     bindCanvas();
     var bp = $("mapModePan"), bs = $("mapModeSel");
