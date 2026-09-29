@@ -136,12 +136,12 @@
         <summary><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Enviar mundo e ver diagnóstico <span class="acc-badge" id="badgeFile">aguardando</span></summary>
         <div class="acc-body">
       <label id="drop" class="drop" for="file" tabindex="0">
-        <input id="file" type="file" name="mcworld" accept=".mcworld,.zip,.dat" multiple hidden>
+        <input id="file" type="file" name="mcworld" accept=".mcworld,.mctemplate,.zip,.dat" multiple hidden>
         <span class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
         <span class="drop-title">Selecione ou solte seu mundo</span>
-        <span class="drop-sub">Formatos aceitos: .mcworld, .zip ou .dat · o limite depende do seu plano</span>
+        <span class="drop-sub">Formatos aceitos: .mcworld, .mctemplate, .zip ou .dat · o limite depende do seu plano</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
         <span class="drop-replace" aria-hidden="true">Trocar mundo</span>
@@ -226,7 +226,7 @@
           <h3 id="compareTitle">Comparar duas cópias</h3>
           <p>O arquivo atual será comparado com outro mundo neste navegador. Não compara inventário de jogadores nem chunks.</p>
           <div class="compare-controls">
-            <input type="file" id="compareFile" accept=".mcworld,.zip,.dat">
+            <input type="file" id="compareFile" accept=".mcworld,.mctemplate,.zip,.dat">
             <button type="button" class="btn-ghost btn-mini" id="compareRun" disabled>Comparar mundo</button>
             <button type="button" class="btn-ghost btn-mini" id="compareDownload" disabled>Baixar comparação JSON</button>
           </div>
@@ -659,6 +659,7 @@
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=28"></script>
 
+<script src="world-format.js?v=1"></script>
 <script src="converter.js?v=18"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=17"></script>
@@ -667,10 +668,10 @@
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=8"></script>
-<script src="chunks.js?v=10"></script>
+<script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 <script src="firebase-config.js?v=14"></script>
 <script src="auth.js?v=16"></script>
 <script src="pagamento.js?v=32"></script>

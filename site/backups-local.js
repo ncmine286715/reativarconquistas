@@ -35,7 +35,7 @@
     }
     var db = await openDb(), record = {
       id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)),
-      name: file.name || "mundo.mcworld", label: String(label || "Cópia de segurança").trim().slice(0, 80),
+      name: (file.name || "mundo.mcworld").replace(/\.zip$/i, ".mcworld"), label: String(label || "Cópia de segurança").trim().slice(0, 80),
       size: file.size, createdAt: new Date().toISOString(), blob: file.slice(0, file.size, file.type || "application/octet-stream")
     };
     var tx = db.transaction(STORE, "readwrite");

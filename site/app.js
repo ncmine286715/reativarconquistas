@@ -295,10 +295,14 @@
     if (compareResults) compareResults.textContent = "";
     if (compareStatus) compareStatus.textContent = comparisonFile ? "Pronto para comparar as duas cópias." : "Selecione uma segunda cópia.";
   }
-  if (compareInput) compareInput.addEventListener("change", function () {
-    comparisonFile = compareInput.files && compareInput.files[0] || null;
+  if (compareInput) compareInput.addEventListener("change", async function () {
+    var file = compareInput.files && compareInput.files[0] || null;
+    var errorMessage = "";
+    try { comparisonFile = file && await window.RC_worldFormat.normalize(file); }
+    catch (error) { comparisonFile = null; errorMessage = error.message || String(error); }
     if (compareRunButton) compareRunButton.disabled = !comparisonFile || !selected;
     clearComparison();
+    if (errorMessage && compareStatus) compareStatus.textContent = errorMessage;
   });
   if (compareRunButton) compareRunButton.addEventListener("click", function () {
     if (!selected || !comparisonFile || !window.RC_local) return;
@@ -762,7 +766,7 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
 
-  var ACCEPT = /\.(mcworld|zip|dat)$/i;
+  var ACCEPT = /\.(mcworld|mctemplate|zip|dat)$/i;
 
   var GM_NAMES = ["Sobrevivência", "Criativo", "Aventura"];
   function gmName(v) { return GM_NAMES[v] || ("modo " + v); }
@@ -856,7 +860,7 @@
   });
   if (originalButton) originalButton.addEventListener("click", function () {
     var sourceFile = selectedList.length ? selectedList[0] : selected;
-    if (sourceFile) downloadLocalBlob(sourceFile, sourceFile.name || "mundo-original.mcworld");
+    if (sourceFile) downloadLocalBlob(sourceFile, (sourceFile.name || "mundo-original.mcworld").replace(/\.zip$/i, ".mcworld"));
   });
   if (reportDownloadButton) reportDownloadButton.addEventListener("click", function () {
     if (!lastWorldReport) return;
@@ -920,7 +924,9 @@
       box.textContent = t;
     }).catch(function () { if (my === raioXSeq) { box.hidden = true; paintWorldInfo(null); } });
   }
-  function pick(list) {
+  var pickRequest = 0;
+  async function pick(list) {
+    var request = ++pickRequest;
     if (!list || !list.length) return;
     var bx0 = $("filex"); if (bx0) bx0.hidden = true; // usuário cancelou a janela: mantém seleção
     var files = Array.prototype.slice.call(list || []);
@@ -931,7 +937,7 @@
       if (compareRunButton) compareRunButton.disabled = true;
       clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
-      setStatus("err", "Formato não suportado" + (got ? " (<b>" + escapeHtml(got) + "</b>)" : "") + ". Envie <b>.mcworld</b>, <b>.zip</b> do mundo ou <b>level.dat</b> — foto, .mcpack e .mcaddon <b>não são mundo</b>. Veja <a href='#faq'><b>onde achar o .mcworld</b></a>.");
+      setStatus("err", "Formato não suportado" + (got ? " (<b>" + escapeHtml(got) + "</b>)" : "") + ". Envie <b>.mcworld</b>, <b>.mctemplate</b>, <b>.zip</b> do mundo ou <b>level.dat</b> — foto, .mcpack e .mcaddon <b>não são mundo</b>. Veja <a href='#faq'><b>onde achar o .mcworld</b></a>.");
       return;
     }
     var empty = files.filter(function (f) { return !f.size; });
@@ -943,6 +949,15 @@
       setStatus("err", "O arquivo <b>" + escapeHtml(empty[0].name) + "</b> está <b>vazio</b> (0 bytes). Exporte o mundo de novo.");
       return;
     }
+    try {
+      files = await Promise.all(files.map(function (f) { return window.RC_worldFormat.normalize(f); }));
+    } catch (error) {
+      if (request !== pickRequest) return;
+      selected = null; selectedList = []; updateSubmit();
+      setStatus("err", "Não consegui abrir o modelo: " + escapeHtml(error.message || String(error)));
+      return;
+    }
+    if (request !== pickRequest) return;
     selectedList = files;
     selected = files[0];
     fileAccessReady = false;
