@@ -24,9 +24,8 @@ window.RC_CONFIG = {
      LIMITES DO SITE
      ========================= */
 
-  // Provedor ativo: "depix", "kiwify" ou "hybrid".
-  // "hybrid" mantém Depix como principal e Kiwify como link alternativo.
-  PAYMENT_PROVIDER: "depix",
+  // Todas as novas compras usam InfinitePay. Os recibos legados continuam válidos.
+  PAYMENT_PROVIDER: "infinitepay",
 
   // Limite padrão para usuários grátis.
 
@@ -71,7 +70,7 @@ window.RC_CONFIG = {
      ========================= */
 
   // O provedor ativo é controlado por PAYMENT_PROVIDER acima.
-  DEPIX_ENABLED: true,
+  DEPIX_ENABLED: false,
 
   // false = produção
   // true  = ambiente de testes

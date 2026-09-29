@@ -2,11 +2,13 @@
 (function () {
   "use strict";
   async function normalize(file) {
-    if (!file || !/\.mctemplate$/i.test(file.name || "")) return file;
+    if (!file || !/\.(?:mctemplate|mctemplet)$/i.test(file.name || "")) return file;
     if (typeof JSZip === "undefined") throw new Error("JSZip não carregou. Recarregue a página.");
     var zip = await JSZip.loadAsync(file);
     var levels = [];
     zip.forEach(function (path, entry) {
+      var original = String(entry.unsafeOriginalName || path).replace(/\\/g, "/");
+      if (/^\//.test(original) || original.split("/").indexOf("..") >= 0) throw new Error("O modelo contém um caminho de arquivo inválido.");
       if (!entry.dir && /(^|\/)level\.dat$/i.test(path.replace(/\\/g, "/"))) levels.push(path);
     });
     if (levels.length !== 1) throw new Error("O modelo precisa conter exatamente um mundo com level.dat.");
@@ -26,12 +28,17 @@
     });
     if (!entries.some(function (item) { return item.path === "level.dat"; })) throw new Error("level.dat não encontrado no mundo do modelo.");
     var out = new JSZip();
-    await Promise.all(entries.map(async function (item) {
-      out.file(item.path, await item.entry.async("uint8array"));
-    }));
-    var blob = await out.generateAsync({ type: "blob", compression: "DEFLATE" });
-    var name = file.name.replace(/\.mctemplate$/i, ".mcworld");
-    return new File([blob], name, { type: "application/octet-stream", lastModified: file.lastModified });
+    // Reuse JSZip's loaded entries instead of inflating the whole database at once.
+    // The copy gets its own name; the original archive remains untouched.
+    entries.forEach(function (item) {
+      var copy = Object.create(item.entry);
+      copy.name = item.path;
+      out.files[item.path] = copy;
+    });
+    var blob = await out.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 1 }, streamFiles: true });
+    var name = file.name.replace(/\.(?:mctemplate|mctemplet)$/i, ".mcworld");
+    try { return new File([blob], name, { type: "application/octet-stream", lastModified: file.lastModified }); }
+    catch (e) { blob.name = name; blob.lastModified = file.lastModified; return blob; }
   }
   window.RC_worldFormat = { normalize: normalize };
 })();

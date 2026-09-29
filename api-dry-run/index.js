@@ -1,63 +1,34 @@
-/* ReativaConquistas — Worker Cloudflare (API: Depix + AbacatePay + contas).
-   NENHUM segredo neste arquivo: tudo via `wrangler secret put` (nunca no git/site).
-   Planos: world1 (1 crédito = 599 centavos), ouro (3 = 1499), diamante (5 = 2290), vip7, vip30 e creator.
-   Fluxo Depix (ativo): site/pagamento.js -> POST /api/depix/create -> api.depixapp.com
-   -> payment_url -> volta em sucesso.html?checkout_id=chk_... -> GET /api/depix/status
-   -> webhook POST /api/depix/webhook (HMAC X-DePix-Signature com DEPIX_WEBHOOK_SECRET).
-   Endpoints (chamados por site/pagamento.js e site/auth.js):
-      POST /api/depix/create   {name, plan, payer_tax_number} -> {url, id, plan}
-                               (plano sempre explícito; vínculo ao Firebase UID autenticado)
-      GET  /api/depix/status?id=chk_... -> {status, paid, email, plan?, premium_until_ms?}
-      POST /api/depix/webhook   (chamado pelo Depix App; verifica HMAC)
-      POST /api/depix/simulate {id} (TESTE local: sk_test_ marca como pago)
-      POST /api/abacate/create   {email, name, plan?} -> {url, id, plan} (reserva)
-      GET  /api/abacate/status?id=BILLING_ID -> {status, paid, email, plan?, premium_until_ms?}
-      POST /api/abacate/webhook[?secret=...]   (chamado pelo AbacatePay)
-      GET  /api/premium (Bearer Firebase) -> compatibility alias for /api/entitlements
-      GET  /api/config -> flags públicas
-      POST /api/kiwify/webhook[?secret=...] (reserva — backup em site/backup-kiwify-*)
-    Secrets (via API: nunca neste arquivo nem no git):
-      DEPIX_API_KEY (sk_test_ p/ teste, sk_live_ p/ produção),
-      DEPIX_WEBHOOK_SECRET (whsec_... do painel Depix > My Business),
-      ABACATEPAY_API_KEY, WEBHOOK_SECRET, KIWIFY_SECRET, KIWIFY_TOKEN
-    Vars (wrangler.toml): ABACATEPAY_PRODUCT_ID, ABACATEPAY_PRODUCT_ID_WORLD1,
-      ABACATEPAY_PRODUCT_ID_24H (legado), KIWIFY_PID_WORLD1, KIWIFY_PID_7D,
-      KIWIFY_PID_24H (legado), KIWIFY_PID_30D, KIWIFY_PID_CREATOR,
-      PUBLIC_BASE_URL, ALLOWED_ORIGINS,
-      DEPIX_TEST_MODE ("1" = teste).
-    KV: PREMIUM_KV (pendências, recibos, auditoria e migração legada por e-mail).
-*/
+var __defProp = Object.defineProperty;
+var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "PAYMENT_CONFIRMED"]);
-const TERMS_VERSION = "2026-09-20-v1.6";
-const SECURITY_REWARD_DAYS = 9999;
-
+// src/index.js
+var PAID = /* @__PURE__ */ new Set(["PAID", "COMPLETED", "APPROVED", "PAYMENT_CONFIRMED"]);
+var TERMS_VERSION = "2026-09-20-v1.6";
+var SECURITY_REWARD_DAYS = 9999;
 function json(data, status = 200, cors = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...securityHeaders(), ...cors },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...securityHeaders(), ...cors }
   });
 }
-
-export function corsHeaders(req, env) {
+__name(json, "json");
+function corsHeaders(req, env) {
   const origin = req.headers.get("Origin") || "";
   const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
   const local = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-  const ok = origin && (allowed.includes(origin) ||
-    allowed.some((a) => a.startsWith("*.") && origin.endsWith(a.slice(1))) || local);
-  // file:// manda Origin "null"; não é uma origem confiável e não recebe CORS.
+  const ok = origin && (allowed.includes(origin) || allowed.some((a) => a.startsWith("*.") && origin.endsWith(a.slice(1))) || local);
   if (origin && ok) {
     return {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "Access-Control-Max-Age": "600",
-      "Vary": "Origin",
+      "Vary": "Origin"
     };
   }
   return {};
 }
-
+__name(corsHeaders, "corsHeaders");
 function securityHeaders() {
   return {
     "X-Content-Type-Options": "nosniff",
@@ -67,32 +38,39 @@ function securityHeaders() {
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
     "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; frame-src https://*.firebaseapp.com https://accounts.google.com;",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; frame-src https://*.firebaseapp.com https://accounts.google.com;"
   };
 }
-
+__name(securityHeaders, "securityHeaders");
 function withSecurityHeaders(response) {
   const headers = new Headers(response.headers);
   for (const [key, value] of Object.entries(securityHeaders())) headers.set(key, value);
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
-
-const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120));
-const premKey = (email) => "prem:" + email.trim().toLowerCase();
-const premUidKey = (uid) => "premuid:" + String(uid || "").trim().slice(0, 160);
-const pendKey = (id) => "pend:" + id;
-const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
-// A única fonte de permissões, limites e preços. Os clientes recebem somente
-// a projeção pública deste catálogo; cada autorização usa estes mesmos dados.
-export const PLAN_LIMITS = Object.freeze({
+__name(withSecurityHeaders, "withSecurityHeaders");
+var validEmail = /* @__PURE__ */ __name((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || "").trim().toLowerCase().slice(0, 120)), "validEmail");
+var premKey = /* @__PURE__ */ __name((email) => "prem:" + email.trim().toLowerCase(), "premKey");
+var premUidKey = /* @__PURE__ */ __name((uid) => "premuid:" + String(uid || "").trim().slice(0, 160), "premUidKey");
+var pendKey = /* @__PURE__ */ __name((id) => "pend:" + id, "pendKey");
+var PLAN_LIMITS = Object.freeze({
   free: Object.freeze({
-    label: "Plano gratuito", duration_days: 0, price_cents: 0,
-    max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
+    label: "Plano gratuito",
+    duration_days: 0,
+    price_cents: 0,
+    max_file_mb: 10,
+    max_file_bytes: 10 * 1024 * 1024,
+    max_batch: 2,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: {
-      restore_achievements: true, change_mode: false, hardcore: false,
-      advanced_rules: true, change_difficulty: true, world_icon: true,
-      rename: true, remove_behavior_packs: true, add_behavior_packs: 2,
+      restore_achievements: true,
+      change_mode: false,
+      hardcore: false,
+      advanced_rules: true,
+      change_difficulty: true,
+      world_icon: true,
+      rename: true,
+      remove_behavior_packs: true,
+      add_behavior_packs: 2,
       chunks_restore: { max_chunks: 8, daily_operations: 1 },
       player: { basic_inventory: true, armor: false, ender_chest: false, xp: false, max_enchantment: "vanilla", daily_operations: 2 },
       builder: { daily_operations: 3 },
@@ -100,152 +78,232 @@ export const PLAN_LIMITS = Object.freeze({
     }
   }),
   world1: Object.freeze({
-    label: "Créditos de mundo", catalog_label: "Ferro · 1 crédito", duration_days: 0, price_cents: 599, credit_count: 1,
-    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
-    kind: "world_credit", project_window_days: 30,
+    label: "Cr\xE9ditos de mundo",
+    catalog_label: "Ferro \xB7 1 cr\xE9dito",
+    duration_days: 0,
+    price_cents: 599,
+    credit_count: 1,
+    max_file_mb: 150,
+    max_file_bytes: 150 * 1024 * 1024,
+    max_batch: 1,
+    kind: "world_credit",
+    project_window_days: 30,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true, repeated_operations_same_world: true }
   }),
   ouro: Object.freeze({
-    label: "Créditos de mundo", catalog_label: "Ouro · 3 créditos", duration_days: 0, price_cents: 1499, credit_count: 3,
-    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
-    kind: "world_credit", project_window_days: 30,
+    label: "Cr\xE9ditos de mundo",
+    catalog_label: "Ouro \xB7 3 cr\xE9ditos",
+    duration_days: 0,
+    price_cents: 1499,
+    credit_count: 3,
+    max_file_mb: 150,
+    max_file_bytes: 150 * 1024 * 1024,
+    max_batch: 1,
+    kind: "world_credit",
+    project_window_days: 30,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true, repeated_operations_same_world: true }
   }),
   diamante: Object.freeze({
-    label: "Créditos de mundo", catalog_label: "Diamante · 5 créditos", duration_days: 0, price_cents: 2290, credit_count: 5,
-    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
-    kind: "world_credit", project_window_days: 30,
+    label: "Cr\xE9ditos de mundo",
+    catalog_label: "Diamante \xB7 5 cr\xE9ditos",
+    duration_days: 0,
+    price_cents: 2290,
+    credit_count: 5,
+    max_file_mb: 150,
+    max_file_bytes: 150 * 1024 * 1024,
+    max_batch: 1,
+    kind: "world_credit",
+    project_window_days: 30,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true, repeated_operations_same_world: true }
   }),
   vip24h: Object.freeze({
-    label: "Passe 24 horas (legado)", duration_days: 1, price_cents: 599,
-    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    label: "Passe 24 horas (legado)",
+    duration_days: 1,
+    price_cents: 599,
+    max_file_mb: 150,
+    max_file_bytes: 150 * 1024 * 1024,
+    max_batch: 1,
+    kind: "time",
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true }
   }),
   vip7: Object.freeze({
-    label: "Passe 7 dias", duration_days: 7, price_cents: 799,
-    max_file_mb: 500, max_file_bytes: 500 * 1024 * 1024, max_batch: 5,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    label: "Passe 7 dias",
+    duration_days: 7,
+    price_cents: 799,
+    max_file_mb: 500,
+    max_file_bytes: 500 * 1024 * 1024,
+    max_batch: 5,
+    kind: "time",
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true }
   }),
   vip30: Object.freeze({
-    label: "Passe 30 dias", duration_days: 30, price_cents: 2490,
-    max_file_mb: null, max_file_bytes: null, max_batch: 10,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    label: "Passe 30 dias",
+    duration_days: 30,
+    price_cents: 2490,
+    max_file_mb: null,
+    max_file_bytes: null,
+    max_batch: 10,
+    kind: "time",
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true }
   }),
   creator: Object.freeze({
-    label: "Criador", duration_days: 30, price_cents: 3990,
-    max_file_mb: null, max_file_bytes: null, max_batch: 20,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    label: "Criador",
+    duration_days: 30,
+    price_cents: 3990,
+    max_file_mb: null,
+    max_file_bytes: null,
+    max_batch: 20,
+    kind: "time",
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
     capabilities: { premium_features: true }
   })
 });
-const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
-const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
-  id, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
-  kind: plan.kind || "time", credit_count: plan.credit_count || 0,
-  max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
-  allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
+var WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 864e5;
+var PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
+  id,
+  label: plan.catalog_label || plan.label,
+  duration_days: plan.duration_days,
+  price_cents: plan.price_cents,
+  kind: plan.kind || "time",
+  credit_count: plan.credit_count || 0,
+  max_file_mb: plan.max_file_mb,
+  max_file_bytes: plan.max_file_bytes,
+  max_batch: plan.max_batch,
+  allowed_tools: plan.allowed_tools,
+  capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
 }]).filter(([id]) => id !== "vip24h")));
-const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const PURCHASABLE_PLAN_IDS = new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
-const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
-const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
-const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
-const TELEMETRY_SOURCES = new Set(["pricing_card", "world_size_paywall", "feature_paywall", "tool_conquistas", "tool_hardcore", "tool_criativo", "tool_keep_inventory", "tool_jogador", "tool_addons", "tool_chunks", "tool_mundo", "tool_upload", "tool_builder"]);
-const TELEMETRY_REASONS = new Set(["terms", "email", "document", "session_expired", "unavailable"]);
-const TELEMETRY_ERRORS = new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
-const ADMIN_HISTORY_LIMIT = 300;
-const ADMIN_HISTORY_TTL = 400 * 86400;
-const ABANDONED_AFTER_MS = 20 * 60 * 1000;
-const ABACATE_PENDING_MS = 24 * 60 * 60 * 1000;
+var FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
+var PURCHASABLE_PLAN_IDS = /* @__PURE__ */ new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
+var KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
+var PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
+var ANALYTICS_EVENTS = /* @__PURE__ */ new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
+var TELEMETRY_SOURCES = /* @__PURE__ */ new Set(["pricing_card", "world_size_paywall", "feature_paywall", "tool_conquistas", "tool_hardcore", "tool_criativo", "tool_keep_inventory", "tool_jogador", "tool_addons", "tool_chunks", "tool_mundo", "tool_upload", "tool_builder"]);
+var TELEMETRY_REASONS = /* @__PURE__ */ new Set(["terms", "email", "document", "session_expired", "unavailable"]);
+var TELEMETRY_ERRORS = /* @__PURE__ */ new Set(["document_invalid", "email_invalid", "unauthenticated", "rate_limited", "api_key", "compliance", "timeout", "network", "provider", "internal"]);
+var ADMIN_HISTORY_LIMIT = 300;
+var ADMIN_HISTORY_TTL = 400 * 86400;
+var ABANDONED_AFTER_MS = 20 * 60 * 1e3;
+var ABACATE_PENDING_MS = 24 * 60 * 60 * 1e3;
 function checkoutLockUntil(checkout) {
-  const explicitExpiry = timestampMs(checkout && (checkout.expires_at || (checkout.result && checkout.result.expires_at)));
+  const explicitExpiry = timestampMs(checkout && (checkout.expires_at || checkout.result && checkout.result.expires_at));
   if (explicitExpiry) return explicitExpiry;
-  const startedAt = +((checkout && (checkout.at || checkout.created_at)) || 0);
+  const startedAt = +(checkout && (checkout.at || checkout.created_at) || 0);
   return startedAt + (checkout && ["abacate", "infinitepay"].includes(checkout.provider) ? ABACATE_PENDING_MS : ABANDONED_AFTER_MS);
 }
+__name(checkoutLockUntil, "checkoutLockUntil");
 function checkoutIsPending(checkout, now = Date.now()) {
   return !!checkout && ["creating", "ready"].includes(checkout.status) && checkoutLockUntil(checkout) > now;
 }
-function analyticsDay(ms = Date.now()) { return new Date(ms).toISOString().slice(0, 10); }
-function cleanDimension(value, max = 40) { return String(value || "").replace(/[^a-zA-Z0-9_:\-.]/g, "_").slice(0, max); }
-function deviceType(ua) { return /mobile|android|iphone|ipad/i.test(ua || "") ? "mobile" : "desktop"; }
-function browserType(ua) { ua = ua || ""; return /edg\//i.test(ua) ? "edge" : /firefox/i.test(ua) ? "firefox" : /chrome|crios/i.test(ua) ? "chrome" : /safari/i.test(ua) ? "safari" : "other"; }
+__name(checkoutIsPending, "checkoutIsPending");
+function analyticsDay(ms = Date.now()) {
+  return new Date(ms).toISOString().slice(0, 10);
+}
+__name(analyticsDay, "analyticsDay");
+function cleanDimension(value, max = 40) {
+  return String(value || "").replace(/[^a-zA-Z0-9_:\-.]/g, "_").slice(0, max);
+}
+__name(cleanDimension, "cleanDimension");
+function deviceType(ua) {
+  return /mobile|android|iphone|ipad/i.test(ua || "") ? "mobile" : "desktop";
+}
+__name(deviceType, "deviceType");
 async function metric(env, event, data = {}, req = null) {
   if (!ANALYTICS_EVENTS.has(event)) return;
-  const day = analyticsDay(); const key = "analytics:" + day;
-  const current = (await env.PREMIUM_KV.get(key, "json").catch(() => null)) || { events: {}, plans: {}, sources: {}, devices: {}, filters: {}, errors: {}, revenue_cents: 0 };
+  const day = analyticsDay();
+  const key = "analytics:" + day;
+  const current = await env.PREMIUM_KV.get(key, "json").catch(() => null) || { events: {}, plans: {}, sources: {}, devices: {}, filters: {}, errors: {}, revenue_cents: 0 };
   current.events[event] = (+current.events[event] || 0) + 1;
   const plan = cleanDimension(data.plan, 20);
   const source = cleanDimension(data.source, 40);
   const device = req ? deviceType(req.headers.get("User-Agent")) : "";
-  if (plan) { current.plans[plan] = current.plans[plan] || {}; current.plans[plan][event] = (+current.plans[plan][event] || 0) + 1; }
-  if (source) { current.sources[source] = current.sources[source] || {}; current.sources[source][event] = (+current.sources[source][event] || 0) + 1; }
-  if (device) { current.devices[device] = current.devices[device] || {}; current.devices[device][event] = (+current.devices[device][event] || 0) + 1; }
-  const filterKeys = new Set([
-    [plan || "*", "*", "*"].join("|"), ["*", device || "*", "*"].join("|"), ["*", "*", source || "*"].join("|"),
-    [plan || "*", device || "*", "*"].join("|"), [plan || "*", "*", source || "*"].join("|"), ["*", device || "*", source || "*"].join("|"),
+  if (plan) {
+    current.plans[plan] = current.plans[plan] || {};
+    current.plans[plan][event] = (+current.plans[plan][event] || 0) + 1;
+  }
+  if (source) {
+    current.sources[source] = current.sources[source] || {};
+    current.sources[source][event] = (+current.sources[source][event] || 0) + 1;
+  }
+  if (device) {
+    current.devices[device] = current.devices[device] || {};
+    current.devices[device][event] = (+current.devices[device][event] || 0) + 1;
+  }
+  const filterKeys = /* @__PURE__ */ new Set([
+    [plan || "*", "*", "*"].join("|"),
+    ["*", device || "*", "*"].join("|"),
+    ["*", "*", source || "*"].join("|"),
+    [plan || "*", device || "*", "*"].join("|"),
+    [plan || "*", "*", source || "*"].join("|"),
+    ["*", device || "*", source || "*"].join("|"),
     [plan || "*", device || "*", source || "*"].join("|")
   ]);
-  for (const filterKey of filterKeys) { current.filters[filterKey] = current.filters[filterKey] || {}; current.filters[filterKey][event] = (+current.filters[filterKey][event] || 0) + 1; }
+  for (const filterKey of filterKeys) {
+    current.filters[filterKey] = current.filters[filterKey] || {};
+    current.filters[filterKey][event] = (+current.filters[filterKey][event] || 0) + 1;
+  }
   if (event === "payment_paid" && PLAN_PRICES[plan]) current.revenue_cents = (+current.revenue_cents || 0) + PLAN_PRICES[plan];
-  if (event === "pix_create_error" || event === "checkout_validation_failed") { const ek = cleanDimension(data.error_type || data.reason || "unknown", 40); current.errors[ek] = (current.errors[ek] || 0) + 1; }
-  await env.PREMIUM_KV.put(key, JSON.stringify(current), { expirationTtl: 400 * 86400 }).catch(() => {});
+  if (event === "pix_create_error" || event === "checkout_validation_failed") {
+    const ek = cleanDimension(data.error_type || data.reason || "unknown", 40);
+    current.errors[ek] = (current.errors[ek] || 0) + 1;
+  }
+  await env.PREMIUM_KV.put(key, JSON.stringify(current), { expirationTtl: 400 * 86400 }).catch(() => {
+  });
 }
-
-export function isAdminEmail(env, email) {
+__name(metric, "metric");
+function isAdminEmail(env, email) {
   const allowed = String(env.ADMIN_EMAILS || "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean);
   return allowed.includes(String(email || "").trim().toLowerCase());
 }
-
-export function classifyAdminCheckout(item, now = Date.now()) {
+__name(isAdminEmail, "isAdminEmail");
+function classifyAdminCheckout(item, now = Date.now()) {
   if (item && item.status === "paid") return "paid";
   return item && now >= checkoutLockUntil(item) ? "abandoned" : "pending";
 }
-
+__name(classifyAdminCheckout, "classifyAdminCheckout");
 async function adminUser(req, env) {
   const fb = await firebaseUser(req, env);
   return fb && isAdminEmail(env, fb.email) ? fb : null;
 }
-
+__name(adminUser, "adminUser");
 async function adminList(env, key) {
   const value = await env.PREMIUM_KV.get(key, "json").catch(() => null);
   return Array.isArray(value) ? value : [];
 }
-
+__name(adminList, "adminList");
 async function checkoutTelemetrySource(env, id) {
   const checkouts = await adminList(env, "admin:checkouts");
   const checkout = checkouts.find((item) => item.id === String(id || ""));
   const source = String(checkout && checkout.source || "");
   return TELEMETRY_SOURCES.has(source) ? source : "";
 }
-
+__name(checkoutTelemetrySource, "checkoutTelemetrySource");
 async function saveAdminList(env, key, items) {
-  await env.PREMIUM_KV.put(key, JSON.stringify(items.slice(0, ADMIN_HISTORY_LIMIT)), { expirationTtl: ADMIN_HISTORY_TTL }).catch(() => {});
+  await env.PREMIUM_KV.put(key, JSON.stringify(items.slice(0, ADMIN_HISTORY_LIMIT)), { expirationTtl: ADMIN_HISTORY_TTL }).catch(() => {
+  });
 }
-
+__name(saveAdminList, "saveAdminList");
 function summarizeAdminErrors(items) {
-  const groups = new Map();
+  const groups = /* @__PURE__ */ new Map();
   for (const item of items) {
     const rawMessage = String(item.msg || "Sem detalhes");
     let kind = "technical";
-    let title = "Erro técnico";
+    let title = "Erro t\xE9cnico";
     let message = rawMessage;
     if (/aceitar os termos|e-mail válido|cpf\/cnpj válido/i.test(rawMessage)) {
       kind = "checkout_input";
       title = "Dados incompletos no checkout";
-      message = "O Pix não foi criado porque o cliente não preencheu ou confirmou todos os dados.";
+      message = "O Pix n\xE3o foi criado porque o cliente n\xE3o preencheu ou confirmou todos os dados.";
     } else if (/compliance review|unable to process deposits/i.test(rawMessage)) {
       kind = "depix_compliance";
-      title = "Pagamento recusado pela análise da Depix";
-      message = "A Depix bloqueou esta cobrança para o pagador. Oriente o cliente a falar com o suporte da Depix ou usar outro pagador.";
+      title = "Pagamento recusado pela an\xE1lise da Depix";
+      message = "A Depix bloqueou esta cobran\xE7a para o pagador. Oriente o cliente a falar com o suporte da Depix ou usar outro pagador.";
     } else if (item.step) {
       title += " em " + String(item.step).slice(0, 40);
     }
@@ -257,7 +315,7 @@ function summarizeAdminErrors(items) {
   }
   return Array.from(groups.values()).sort((a, b) => b.at - a.at).slice(0, 20);
 }
-
+__name(summarizeAdminErrors, "summarizeAdminErrors");
 async function recordCheckout(env, entry) {
   const items = await adminList(env, "admin:checkouts");
   const id = String(entry.id || "").slice(0, 180);
@@ -276,7 +334,7 @@ async function recordCheckout(env, entry) {
   });
   await saveAdminList(env, "admin:checkouts", items);
 }
-
+__name(recordCheckout, "recordCheckout");
 async function recordPaidCheckout(env, entry) {
   const id = String(entry.id || "").slice(0, 180);
   if (!id) return;
@@ -285,9 +343,7 @@ async function recordPaidCheckout(env, entry) {
   const checkout = checkouts.find((item) => item.id === id);
   const checkoutSource = String(checkout && checkout.source || "");
   const entrySource = String(entry.source || "");
-  const attribution = TELEMETRY_SOURCES.has(checkoutSource)
-    ? checkoutSource
-    : (TELEMETRY_SOURCES.has(entrySource) ? entrySource : cleanDimension(entrySource || checkoutSource || entry.provider, 40));
+  const attribution = TELEMETRY_SOURCES.has(checkoutSource) ? checkoutSource : TELEMETRY_SOURCES.has(entrySource) ? entrySource : cleanDimension(entrySource || checkoutSource || entry.provider, 40);
   if (checkout) {
     checkout.status = "paid";
     checkout.paid_at = paidAt;
@@ -296,9 +352,8 @@ async function recordPaidCheckout(env, entry) {
     if (entry.plan) checkout.plan = normalizeDepixPlan(entry.plan);
   }
   await saveAdminList(env, "admin:checkouts", checkouts);
-
   const purchases = await adminList(env, "admin:purchases");
-  const plan = normalizeDepixPlan(entry.plan || (checkout && checkout.plan));
+  const plan = normalizeDepixPlan(entry.plan || checkout && checkout.plan);
   const existingPurchase = purchases.find((item) => item.id === id);
   if (existingPurchase) {
     existingPurchase.paid_at = paidAt;
@@ -315,16 +370,16 @@ async function recordPaidCheckout(env, entry) {
     id,
     at: checkout ? checkout.at : paidAt,
     paid_at: paidAt,
-    email: String(entry.email || (checkout && checkout.email) || "").trim().toLowerCase().slice(0, 120),
-    uid: String(entry.uid || (checkout && checkout.uid) || "").slice(0, 160),
+    email: String(entry.email || checkout && checkout.email || "").trim().toLowerCase().slice(0, 120),
+    uid: String(entry.uid || checkout && checkout.uid || "").slice(0, 160),
     plan,
     amount_cents: PLAN_PRICES[plan] || 0,
-    provider: String(entry.provider || (checkout && checkout.provider) || "depix").slice(0, 20),
+    provider: String(entry.provider || checkout && checkout.provider || "depix").slice(0, 20),
     source: attribution
   });
   await saveAdminList(env, "admin:purchases", purchases);
 }
-
+__name(recordPaidCheckout, "recordPaidCheckout");
 async function recordAdminAction(env, entry) {
   const items = await adminList(env, "admin:actions");
   items.unshift({
@@ -337,29 +392,30 @@ async function recordAdminAction(env, entry) {
   });
   await saveAdminList(env, "admin:actions", items);
 }
-
+__name(recordAdminAction, "recordAdminAction");
 async function reconcileDepixCheckout(env, id) {
   id = String(id || "").trim().slice(0, 180);
-  if (!id) throw new Error("ID da cobrança obrigatório.");
+  if (!id) throw new Error("ID da cobran\xE7a obrigat\xF3rio.");
   const info = await depixStatus(env, id);
   const pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
-  if (info.uid && pend && pend.uid && String(info.uid) !== String(pend.uid)) throw new Error("UID do provedor não corresponde ao UID do checkout.");
-  const email = String(info.email || (pend && pend.email) || "").trim().toLowerCase();
-  const uid = String(info.uid || (pend && pend.uid) || "").trim().slice(0, 160);
-  const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
+  if (info.uid && pend && pend.uid && String(info.uid) !== String(pend.uid)) throw new Error("UID do provedor n\xE3o corresponde ao UID do checkout.");
+  const email = String(info.email || pend && pend.email || "").trim().toLowerCase();
+  const uid = String(info.uid || pend && pend.uid || "").trim().slice(0, 160);
+  const plan = normalizeDepixPlan(pend && pend.plan || info.plan);
   if (!plan) throw new Error("Pagamento confirmado sem um plano reconhecido.");
   if (!info.paid) return { id, paid: false, status: info.status, email, plan };
-  if (!validEmail(email)) throw new Error("Pagamento confirmado, mas sem e-mail válido para liberar o plano.");
+  if (!validEmail(email)) throw new Error("Pagamento confirmado, mas sem e-mail v\xE1lido para liberar o plano.");
   const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pend && pend.source, paid_at: info.paid_at });
   const grant = await grantPurchase(env, email, id, plan, uid, "depix", info.paid_at, pend && pend.source);
   await env.PREMIUM_KV.delete(receipt.key);
   await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: pend && pend.source });
-  await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+  await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {
+  });
   return { id, paid: true, status: info.status, email, plan, source: pend && pend.source, ...grant };
 }
-
+__name(reconcileDepixCheckout, "reconcileDepixCheckout");
 async function listDepixCheckouts(env, status) {
-  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor.");
+  if (!env.DEPIX_API_KEY) throw new Error("Depix n\xE3o configurado no servidor.");
   const response = await fetch("https://api.depixapp.com/api/checkouts?status=" + encodeURIComponent(status) + "&limit=100", {
     headers: { Authorization: "Bearer " + env.DEPIX_API_KEY }
   });
@@ -367,20 +423,26 @@ async function listDepixCheckouts(env, status) {
   const data = await response.json();
   return Array.isArray(data.checkouts) ? data.checkouts : [];
 }
-
-export async function reconcileRecentDepixCheckouts(env) {
+__name(listDepixCheckouts, "listDepixCheckouts");
+async function reconcileRecentDepixCheckouts(env) {
   const all = [];
   for (const status of ["approved", "completed"]) {
     all.push(...await listDepixCheckouts(env, status));
   }
-  const seen = new Set();
+  const seen = /* @__PURE__ */ new Set();
   const results = [];
   for (const checkout of all) {
     const id = String(checkout.id || "").trim().slice(0, 180);
     if (!id || !isDepixReleasableStatus(checkout.status) || seen.has(id)) continue;
     seen.add(id);
     let metadata = checkout.metadata || {};
-    if (typeof metadata === "string") { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
+    if (typeof metadata === "string") {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch {
+        metadata = {};
+      }
+    }
     const email = String(metadata.email || "").trim().toLowerCase();
     const uid = String(metadata.firebase_uid || "").trim().slice(0, 160);
     const rawPlan = String(metadata.plan || "");
@@ -392,28 +454,35 @@ export async function reconcileRecentDepixCheckouts(env) {
     const grant = await grantPurchase(env, email, id, plan, uid, "depix", paidAt, pending && pending.source);
     await env.PREMIUM_KV.delete(receipt.key);
     await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: "automatic_reconcile" });
-    await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+    await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {
+    });
     results.push({ id, paid: true, status: String(checkout.status || ""), email, plan, ...grant });
   }
   return { checked: seen.size, recovered: results.length, results };
 }
-
-// Valida o ID token do Firebase no servidor. O navegador nunca escolhe qual
-// conta receberá o VIP: UID/e-mail vêm da sessão Google verificada.
+__name(reconcileRecentDepixCheckouts, "reconcileRecentDepixCheckouts");
 async function firebaseUser(req, env) {
   const h = req.headers.get("Authorization") || "";
   const token = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
   const apiKey = String(env.FIREBASE_WEB_API_KEY || "").trim();
   if (!token || token.length > 4096) return null;
-  if (!apiKey) { const error = new Error("Firebase verification is unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error; }
+  if (!apiKey) {
+    const error = new Error("Firebase verification is unavailable.");
+    error.code = "AUTH_UNAVAILABLE";
+    throw error;
+  }
   try {
     const resp = await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + encodeURIComponent(apiKey), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken: token }),
+      body: JSON.stringify({ idToken: token })
     });
     if (!resp.ok) {
-      if (resp.status >= 500 || resp.status === 429) { const error = new Error("Firebase verification is temporarily unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error; }
+      if (resp.status >= 500 || resp.status === 429) {
+        const error = new Error("Firebase verification is temporarily unavailable.");
+        error.code = "AUTH_UNAVAILABLE";
+        throw error;
+      }
       return null;
     }
     const data = await resp.json();
@@ -422,38 +491,38 @@ async function firebaseUser(req, env) {
     return {
       uid: String(u.localId).slice(0, 160),
       email: String(u.email).trim().toLowerCase(),
-      name: String(u.displayName || "").slice(0, 80),
+      name: String(u.displayName || "").slice(0, 80)
     };
   } catch (e) {
     if (e && e.code === "AUTH_UNAVAILABLE") throw e;
-    const error = new Error("Firebase verification is temporarily unavailable."); error.code = "AUTH_UNAVAILABLE"; throw error;
+    const error = new Error("Firebase verification is temporarily unavailable.");
+    error.code = "AUTH_UNAVAILABLE";
+    throw error;
   }
 }
+__name(firebaseUser, "firebaseUser");
 async function rlTake(env, key, limit, ttl) {
-  const n = parseInt((await env.PREMIUM_KV.get(key).catch(() => null)) || "0", 10);
+  const n = parseInt(await env.PREMIUM_KV.get(key).catch(() => null) || "0", 10);
   if (n >= limit) return false;
-  await env.PREMIUM_KV.put(key, String(n + 1), { expirationTtl: ttl }).catch(() => {});
+  await env.PREMIUM_KV.put(key, String(n + 1), { expirationTtl: ttl }).catch(() => {
+  });
   return true;
 }
-
+__name(rlTake, "rlTake");
 function quotaIdentity(req, fb) {
   if (fb && fb.uid) return "uid:" + fb.uid;
   return "ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80);
 }
-export function isSecurityResearcherReward(env, email) {
+__name(quotaIdentity, "quotaIdentity");
+function isSecurityResearcherReward(env, email) {
   const configured = String(env.SECURITY_REWARD_EMAIL || "").trim().toLowerCase();
   return !!configured && configured === String(email || "").trim().toLowerCase();
 }
-
+__name(isSecurityResearcherReward, "isSecurityResearcherReward");
 async function abacateCreate(env, email, name, uid, origin, plan) {
-  const pid = plan === "world1" ? env.ABACATEPAY_PRODUCT_ID_WORLD1
-    : plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H
-    : env.ABACATEPAY_PRODUCT_ID;
+  const pid = plan === "world1" ? env.ABACATEPAY_PRODUCT_ID_WORLD1 : plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID;
   if (!pid) {
-    throw new Error(plan === "world1"
-      ? "Produto de 1 mundo não configurado no servidor (ABACATEPAY_PRODUCT_ID_WORLD1)."
-      : plan === "vip24h" ? "Produto legado de 24 horas não configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)."
-      : "Produto não configurado no servidor (ABACATEPAY_PRODUCT_ID).");
+    throw new Error(plan === "world1" ? "Produto de 1 mundo n\xE3o configurado no servidor (ABACATEPAY_PRODUCT_ID_WORLD1)." : plan === "vip24h" ? "Produto legado de 24 horas n\xE3o configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)." : "Produto n\xE3o configurado no servidor (ABACATEPAY_PRODUCT_ID).");
   }
   const base = (origin || String(env.PUBLIC_BASE_URL || "")).replace(/\/+$/, "");
   const body = {
@@ -461,72 +530,86 @@ async function abacateCreate(env, email, name, uid, origin, plan) {
     returnUrl: base + "/",
     completionUrl: base + "/sucesso.html",
     metadata: { firebase_uid: uid || "", email, name, plan },
-    methods: ["PIX", "CARD"],
+    methods: ["PIX", "CARD"]
   };
   const resp = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
     method: "POST",
     headers: { Authorization: "Bearer " + env.ABACATEPAY_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(body)
   });
   const txt = await resp.text();
   let data;
-  try { data = JSON.parse(txt); } catch { throw new Error("AbacatePay respondeu algo inválido."); }
+  try {
+    data = JSON.parse(txt);
+  } catch {
+    throw new Error("AbacatePay respondeu algo inv\xE1lido.");
+  }
   if (!resp.ok) {
-    const detail = String((data && (data.error || data.message)) || txt).slice(0, 300);
+    const detail = String(data && (data.error || data.message) || txt).slice(0, 300);
     if (/version mismatch/i.test(detail)) {
-      throw new Error("Chave/produto incompatíveis: confira ABACATEPAY_PRODUCT_ID no Worker.");
+      throw new Error("Chave/produto incompat\xEDveis: confira ABACATEPAY_PRODUCT_ID no Worker.");
     }
     throw new Error("AbacatePay recusou (" + resp.status + "): " + detail);
   }
   const d = data.data || data;
-  if (!d.url) throw new Error("AbacatePay não retornou URL de pagamento.");
+  if (!d.url) throw new Error("AbacatePay n\xE3o retornou URL de pagamento.");
   return { url: d.url, id: d.id, plan, expires_at: timestampMs(d.expiresAt || d.expires_at) };
 }
-
+__name(abacateCreate, "abacateCreate");
 async function abacateStatus(env, id) {
   const urls = [
     "https://api.abacatepay.com/v2/checkouts/get?id=" + encodeURIComponent(id),
-    "https://api.abacatepay.com/v1/billing/get?id=" + encodeURIComponent(id),
+    "https://api.abacatepay.com/v1/billing/get?id=" + encodeURIComponent(id)
   ];
   let last = null;
   for (const u of urls) {
     try {
       const resp = await fetch(u, { headers: { Authorization: "Bearer " + env.ABACATEPAY_API_KEY } });
-      if (!resp.ok) { last = new Error("HTTP " + resp.status); continue; }
+      if (!resp.ok) {
+        last = new Error("HTTP " + resp.status);
+        continue;
+      }
       const data = await resp.json();
       const b = data.data || data;
       const status = String(b.status || "").toUpperCase();
       const meta = b.metadata || {};
       const cust = b.customer || {};
       const email = String(meta.email || cust.email || "").toLowerCase();
-      return { status: status || "UNKNOWN", paid: isPaidPaymentStatus(status), email, uid: String(meta.firebase_uid || "").slice(0, 160), plan: normalizeDepixPlan(meta.plan),
-        paid_at: timestampMs(b.paidAt || b.paid_at || b.approvedAt || b.approved_at || b.completedAt || b.updatedAt || b.updated_at) };
-    } catch (e) { last = e; }
+      return {
+        status: status || "UNKNOWN",
+        paid: isPaidPaymentStatus(status),
+        email,
+        uid: String(meta.firebase_uid || "").slice(0, 160),
+        plan: normalizeDepixPlan(meta.plan),
+        paid_at: timestampMs(b.paidAt || b.paid_at || b.approvedAt || b.approved_at || b.completedAt || b.updatedAt || b.updated_at)
+      };
+    } catch (e) {
+      last = e;
+    }
   }
-  throw new Error("Não consegui consultar a cobrança agora (" + (last && last.message) + ").");
+  throw new Error("N\xE3o consegui consultar a cobran\xE7a agora (" + (last && last.message) + ").");
 }
-
-/* ---------- Depix: preços em centavos p/ teste e produção ---------- */
-export function normalizeDepixPlan(plan) {
+__name(abacateStatus, "abacateStatus");
+function normalizeDepixPlan(plan) {
   const value = String(plan || "").trim();
   return Object.prototype.hasOwnProperty.call(PLAN_LIMITS, value) && value !== "free" ? value : "";
 }
-export function isPaidPaymentStatus(status) {
+__name(normalizeDepixPlan, "normalizeDepixPlan");
+function isPaidPaymentStatus(status) {
   return PAID.has(String(status || "").trim().toUpperCase());
 }
+__name(isPaidPaymentStatus, "isPaidPaymentStatus");
 function depixAmount(plan) {
   plan = normalizeDepixPlan(plan);
   return plan ? PLAN_LIMITS[plan].price_cents : 0;
 }
+__name(depixAmount, "depixAmount");
 function depixPlanLabel(plan) {
   plan = normalizeDepixPlan(plan);
-  return plan ? (PLAN_LIMITS[plan].catalog_label || PLAN_LIMITS[plan].label) : "";
+  return plan ? PLAN_LIMITS[plan].catalog_label || PLAN_LIMITS[plan].label : "";
 }
-
-// Kiwify envia o produto no webhook. IDs configurados no Worker têm
-// prioridade; os nomes abaixo existem para permitir ativação imediata sem
-// confiar em um produto desconhecido como se fosse VIP30.
-export function normalizeKiwifyPlan(body, env) {
+__name(depixPlanLabel, "depixPlanLabel");
+function normalizeKiwifyPlan(body, env) {
   const product = body && (body.Product || body.product || {}) || {};
   const pid = String(product.product_id || product.id || body.product_id || body.productId || "").trim();
   const rawName = product.product_name || product.name || body.product_name || body.productName || "";
@@ -546,62 +629,76 @@ export function normalizeKiwifyPlan(body, env) {
   if (name === "criador") return "creator";
   return "";
 }
-
+__name(normalizeKiwifyPlan, "normalizeKiwifyPlan");
 function cleanDoc(s) {
   return String(s || "").replace(/\D/g, "").slice(0, 14);
 }
+__name(cleanDoc, "cleanDoc");
 function validDocServer(s) {
   var d = cleanDoc(s);
-  if (d.length === 11 && !/^(\d)\1{10}$/.test(d)) return true; // CPF: formato (a receita valida no QR)
-  if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true; // CNPJ: formato
+  if (d.length === 11 && !/^(\d)\1{10}$/.test(d)) return true;
+  if (d.length === 14 && !/^(\d)\1{13}$/.test(d)) return true;
   return false;
 }
-// Verifica HMAC do webhook Depix: header "t=...,v1=..." sobre "timestamp.rawBody".
+__name(validDocServer, "validDocServer");
 async function verifyDepixSignature(rawBody, header, secret) {
   if (!secret || !header) return false;
   var t = "", v1 = "";
-  String(header).split(",").forEach(function (p) {
+  String(header).split(",").forEach(function(p) {
     var kv = String(p).trim().split("=");
     if (kv[0] === "t") t = kv[1] || "";
     if (kv[0] === "v1") v1 = (kv[1] || "").toLowerCase();
   });
   if (!t || !v1 || !/^[0-9]+$/.test(t)) return false;
-  if (Math.abs(Date.now() / 1000 - (+t)) > 600) return false; // tolerância 10 min
+  if (Math.abs(Date.now() / 1e3 - +t) > 600) return false;
   try {
     var key = await crypto.subtle.importKey(
-      "raw", new TextEncoder().encode(secret),
-      { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
     var sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(t + "." + rawBody));
-    var hex = [...new Uint8Array(sig)].map(function (x) { return x.toString(16).padStart(2, "0"); }).join("");
+    var hex = [...new Uint8Array(sig)].map(function(x) {
+      return x.toString(16).padStart(2, "0");
+    }).join("");
     return hex === v1;
-  } catch (e) { return false; }
+  } catch (e) {
+    return false;
+  }
 }
+__name(verifyDepixSignature, "verifyDepixSignature");
 async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req, requestId = "") {
-  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
+  if (!env.DEPIX_API_KEY) throw new Error("Depix n\xE3o configurado no servidor (DEPIX_API_KEY). Rode: wrangler secret put DEPIX_API_KEY");
   plan = normalizeDepixPlan(plan);
   var amount = depixAmount(plan);
   var origin = "";
-  try { origin = new URL(req.url).origin; } catch (e) {}
+  try {
+    origin = new URL(req.url).origin;
+  } catch (e) {
+  }
   var siteBase = "";
   try {
     var o = req.headers.get("Origin") || "";
     siteBase = o.startsWith("http") ? o : String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
-  } catch (e2) {}
+  } catch (e2) {
+  }
   if (!siteBase) siteBase = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
   var body = {
-    amount: amount,
+    amount,
     idempotency_key: String(requestId || "").slice(0, 100),
     payer_tax_number: cleanDoc(doc),
-    description: "ReativaConquistas — " + depixPlanLabel(plan),
+    description: "ReativaConquistas \u2014 " + depixPlanLabel(plan),
     expires_in: 1200,
     callback_url: origin + "/api/depix/webhook",
     redirect_url: siteBase + "/sucesso.html",
     metadata: {
       firebase_uid: uid || "",
-      email: email,
+      email,
       payer_email: String(payerEmail || "").trim().toLowerCase(),
       name: name || "",
-      plan: plan,
+      plan,
       request_id: String(requestId || "").slice(0, 100)
     }
   };
@@ -612,85 +709,96 @@ async function depixCreate(env, email, name, uid, plan, doc, payerEmail, req, re
   });
   var txt = await resp.text();
   var data = {};
-  try { data = txt ? JSON.parse(txt) : {}; } catch (e) { throw new Error("Depix respondeu algo inválido."); }
+  try {
+    data = txt ? JSON.parse(txt) : {};
+  } catch (e) {
+    throw new Error("Depix respondeu algo inv\xE1lido.");
+  }
   if (!resp.ok) {
-    var msg = String((data.response && data.response.errorMessage) || (data.error && data.error.message) || txt).slice(0, 300);
+    var msg = String(data.response && data.response.errorMessage || data.error && data.error.message || txt).slice(0, 300);
     throw new Error("Depix recusou (" + resp.status + "): " + msg);
   }
-  if (!data.id || !data.payment_url) throw new Error("Depix não retornou link de pagamento.");
-  return { url: data.payment_url, id: data.id, plan: plan, expires_at: timestampMs(data.expires_at || data.expiresAt) };
+  if (!data.id || !data.payment_url) throw new Error("Depix n\xE3o retornou link de pagamento.");
+  return { url: data.payment_url, id: data.id, plan, expires_at: timestampMs(data.expires_at || data.expiresAt) };
 }
+__name(depixCreate, "depixCreate");
 async function depixStatus(env, id) {
-  if (!env.DEPIX_API_KEY) throw new Error("Depix não configurado no servidor (DEPIX_API_KEY).");
+  if (!env.DEPIX_API_KEY) throw new Error("Depix n\xE3o configurado no servidor (DEPIX_API_KEY).");
   var resp = await fetch("https://api.depixapp.com/api/checkouts/" + encodeURIComponent(id), {
     headers: { Authorization: "Bearer " + env.DEPIX_API_KEY }
   });
-  if (!resp.ok) throw new Error("Não consegui consultar o Pix agora (HTTP " + resp.status + ").");
+  if (!resp.ok) throw new Error("N\xE3o consegui consultar o Pix agora (HTTP " + resp.status + ").");
   var data = await resp.json();
   var c = data.checkout || data;
   var status = String(c.status || "").toLowerCase();
   var paid = isDepixReleasableStatus(status);
   var meta = c.metadata || {};
-  if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch (e) { meta = {}; } }
+  if (typeof meta === "string") {
+    try {
+      meta = JSON.parse(meta);
+    } catch (e) {
+      meta = {};
+    }
+  }
   return {
     status: status || "unknown",
-    paid: paid,
+    paid,
     uid: String(meta.firebase_uid || "").slice(0, 160),
     email: String(meta.email || "").toLowerCase(),
     plan: normalizeDepixPlan(meta.plan),
     paid_at: timestampMs(c.paid_at || c.approved_at || c.completed_at || c.updated_at)
   };
 }
-
+__name(depixStatus, "depixStatus");
 function timestampMs(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
+  if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1e3 : value;
   if (typeof value === "string" && value.trim()) {
     const numeric = Number(value);
-    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1000 : numeric;
+    if (Number.isFinite(numeric)) return numeric < 1e12 ? numeric * 1e3 : numeric;
     const parsed = Date.parse(value);
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
 }
-
-export function isDepixReleasableStatus(status) {
+__name(timestampMs, "timestampMs");
+function isDepixReleasableStatus(status) {
   return ["approved", "completed"].includes(String(status || "").toLowerCase());
 }
-
+__name(isDepixReleasableStatus, "isDepixReleasableStatus");
 async function entitlementStub(env, uid, email) {
-  if (!env.ENTITLEMENTS) throw new Error("ENTITLEMENTS não configurado no Worker.");
+  if (!env.ENTITLEMENTS) throw new Error("ENTITLEMENTS n\xE3o configurado no Worker.");
   const name = String(uid || email || "").trim().slice(0, 160);
   return env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName(name));
 }
-
-// Compras Kiwify antigas podem chegar antes de existir um UID Firebase e,
-// nesse caso, o crédito fica inicialmente indexado pelo e-mail. Ao consultar
-// a conta, aceitamos o mesmo e-mail como identidade legada; compras novas
-// autenticadas continuam usando o UID.
+__name(entitlementStub, "entitlementStub");
 function infinitePayOrderStub(env, orderNsu) {
-  if (!env.ENTITLEMENTS) throw new Error("ENTITLEMENTS não configurado no Worker.");
+  if (!env.ENTITLEMENTS) throw new Error("ENTITLEMENTS n\xE3o configurado no Worker.");
   return env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("infinitepay:" + String(orderNsu || "").trim().slice(0, 100)));
 }
+__name(infinitePayOrderStub, "infinitePayOrderStub");
 async function saveInfinitePayOrder(env, order) {
   const stub = infinitePayOrderStub(env, order.order_nsu);
   const response = await stub.fetch("https://entitlements/payment/record", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(order)
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(order)
   });
-  if (!response.ok) throw new Error("Não consegui registrar o pedido de pagamento.");
+  if (!response.ok) throw new Error("N\xE3o consegui registrar o pedido de pagamento.");
   return response.json();
 }
+__name(saveInfinitePayOrder, "saveInfinitePayOrder");
 async function getInfinitePayOrder(env, orderNsu) {
   const stub = infinitePayOrderStub(env, orderNsu);
   const response = await stub.fetch("https://entitlements/payment/get");
-  if (!response.ok) throw new Error("Não consegui consultar o pedido de pagamento.");
+  if (!response.ok) throw new Error("N\xE3o consegui consultar o pedido de pagamento.");
   const result = await response.json();
   return result && result.order || null;
 }
-
+__name(getInfinitePayOrder, "getInfinitePayOrder");
 function paymentReceiptKey(identityKind, identity, provider, billingId) {
   return "payrec:" + identityKind + ":" + encodeURIComponent(String(identity || "")) + ":" + cleanDimension(provider, 20) + ":" + encodeURIComponent(String(billingId || "").slice(0, 180));
 }
-
+__name(paymentReceiptKey, "paymentReceiptKey");
 async function persistConfirmedPayment(env, payment) {
   const plan = normalizeDepixPlan(payment.plan);
   const id = String(payment.id || payment.billing_id || "").trim().slice(0, 180);
@@ -698,7 +806,7 @@ async function persistConfirmedPayment(env, payment) {
   const uid = String(payment.uid || "").trim().slice(0, 160);
   const email = String(payment.email || "").trim().toLowerCase();
   const source = TELEMETRY_SOURCES.has(String(payment.source || "")) ? String(payment.source) : "";
-  if (!id || !plan || (!uid && !validEmail(email))) throw new Error("Pagamento confirmado sem identidade ou plano válido.");
+  if (!id || !plan || !uid && !validEmail(email)) throw new Error("Pagamento confirmado sem identidade ou plano v\xE1lido.");
   const identityKind = uid ? "uid" : "email";
   const identity = uid || email;
   const key = paymentReceiptKey(identityKind, identity, provider, id);
@@ -706,18 +814,19 @@ async function persistConfirmedPayment(env, payment) {
   await env.PREMIUM_KV.put(key, JSON.stringify({ id, provider, uid, email, plan, source, paid_at: paidAt }), { expirationTtl: 400 * 86400 });
   return { key, id, provider, uid, email, plan, source, paid_at: paidAt };
 }
-
+__name(persistConfirmedPayment, "persistConfirmedPayment");
 async function grantPurchase(env, email, billingId, plan, uid = "", provider = "depix", paidAt = 0, source = "") {
   plan = normalizeDepixPlan(plan);
-  if (!plan) throw new Error("Plano de pagamento não reconhecido; benefício não concedido.");
-  if (!env.ENTITLEMENTS) throw new Error("Armazenamento de benefícios indisponível.");
+  if (!plan) throw new Error("Plano de pagamento n\xE3o reconhecido; benef\xEDcio n\xE3o concedido.");
+  if (!env.ENTITLEMENTS) throw new Error("Armazenamento de benef\xEDcios indispon\xEDvel.");
   const stub = await entitlementStub(env, uid, email);
   const idempotencyKey = cleanDimension(provider, 20) + ":" + String(billingId || "").trim().slice(0, 180);
   const r = await stub.fetch("https://entitlements/grant", {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ plan, billing_id: idempotencyKey, email, uid, paid_at: timestampMs(paidAt) || Date.now() })
   });
-  if (!r.ok) throw new Error("Não consegui registrar o benefício da compra.");
+  if (!r.ok) throw new Error("N\xE3o consegui registrar o benef\xEDcio da compra.");
   const out = await r.json();
   const grant = { premium_until_ms: +out.premium_until_ms || 0, world_credits: +out.world_credits || 0, plan: out.plan || plan, duplicate: out.duplicate === true };
   if (!grant.duplicate && provider !== "manual") {
@@ -728,14 +837,16 @@ async function grantPurchase(env, email, billingId, plan, uid = "", provider = "
   }
   return grant;
 }
-
+__name(grantPurchase, "grantPurchase");
 function isValidInfinitePayCheckoutUrl(value) {
   try {
     const url = new URL(String(value || ""));
     return url.protocol === "https:" && ["checkout.infinitepay.com.br", "checkout.infinitepay.io"].includes(url.hostname.toLowerCase());
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
-
+__name(isValidInfinitePayCheckoutUrl, "isValidInfinitePayCheckoutUrl");
 async function infinitePayCreate(env, { orderNsu, plan, email, name, uid }) {
   const handle = String(env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
   if (!handle) throw new Error("Configure INFINITEPAY_HANDLE no Worker antes de abrir as vendas.");
@@ -757,31 +868,31 @@ async function infinitePayCreate(env, { orderNsu, plan, email, name, uid }) {
   const checkoutUrl = String(payload.url || payload.checkout_url || payload.link || "");
   const validCheckoutUrl = isValidInfinitePayCheckoutUrl(checkoutUrl);
   if (!response.ok || payload.success === false || !validCheckoutUrl) {
-    const providerError = (message, retryable) => {
+    const providerError = /* @__PURE__ */ __name((message, retryable) => {
       const error = new Error(message);
       error.retryable = retryable;
       return error;
-    };
+    }, "providerError");
     if (response.status === 401 || response.status === 403) {
-      throw providerError("A InfinitePay recusou a criação do checkout. Ative o Checkout Integrado em Vendas > Checkout > Configurações e confirme se a InfiniteTag configurada pertence a essa conta.", true);
+      throw providerError("A InfinitePay recusou a cria\xE7\xE3o do checkout. Ative o Checkout Integrado em Vendas > Checkout > Configura\xE7\xF5es e confirme se a InfiniteTag configurada pertence a essa conta.", true);
     }
     if (response.status === 400) {
-      throw providerError("A InfinitePay rejeitou os dados do pedido. Confirme se o Checkout Integrado está habilitado e tente novamente.", true);
+      throw providerError("A InfinitePay rejeitou os dados do pedido. Confirme se o Checkout Integrado est\xE1 habilitado e tente novamente.", true);
     }
     if (response.status === 429) {
       throw providerError("A InfinitePay recebeu muitas tentativas. Aguarde alguns minutos e tente novamente.", true);
     }
     if (response.status >= 500) {
-      throw providerError("O checkout da InfinitePay está temporariamente indisponível. Tente novamente em alguns minutos.", false);
+      throw providerError("O checkout da InfinitePay est\xE1 temporariamente indispon\xEDvel. Tente novamente em alguns minutos.", false);
     }
-    throw providerError("A InfinitePay não retornou um link de checkout válido. Confirme se o Checkout Integrado está habilitado na sua conta.", false);
+    throw providerError("A InfinitePay n\xE3o retornou um link de checkout v\xE1lido. Confirme se o Checkout Integrado est\xE1 habilitado na sua conta.", false);
   }
   return { id: orderNsu, url: checkoutUrl, plan };
 }
-
+__name(infinitePayCreate, "infinitePayCreate");
 async function infinitePayCheck(env, event) {
   const handle = String(env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
-  if (!handle) throw new Error("INFINITEPAY_HANDLE não configurado.");
+  if (!handle) throw new Error("INFINITEPAY_HANDLE n\xE3o configurado.");
   const response = await fetch("https://api.checkout.infinitepay.io/payment_check", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -794,11 +905,11 @@ async function infinitePayCheck(env, event) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success !== true) {
-    throw new Error("A InfinitePay ainda não confirmou o pagamento.");
+    throw new Error("A InfinitePay ainda n\xE3o confirmou o pagamento.");
   }
   return payload;
 }
-
+__name(infinitePayCheck, "infinitePayCheck");
 async function fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug, expectedUid = "", expectedEmail = "" }) {
   const paidKey = "infinitepay:paid:" + orderNsu;
   const prior = await env.PREMIUM_KV.get(paidKey, "json").catch(() => null);
@@ -806,42 +917,39 @@ async function fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug, ex
     if (expectedUid && prior.uid !== expectedUid) throw new Error("Este pedido pertence a outra conta.");
     return { paid: true, duplicate: true, id: orderNsu, plan: prior.plan, paid_at: prior.paid_at };
   }
-  // New InfinitePay orders live in Durable Objects, which do not share KV's
-  // daily write cap. Fall back to KV only for checkouts created by older code.
-  let pending = await getInfinitePayOrder(env, orderNsu).catch(() => null)
-    || await env.PREMIUM_KV.get(pendKey(orderNsu), "json").catch(() => null);
-  // Recover a legacy checkout whose KV write failed after the account DO had
-  // already saved the provider URL. This lets the signed-in buyer finish the
-  // existing payment instead of creating another charge.
+  let pending = await getInfinitePayOrder(env, orderNsu).catch(() => null) || await env.PREMIUM_KV.get(pendKey(orderNsu), "json").catch(() => null);
   if (!pending && expectedUid && validEmail(expectedEmail)) {
-    const account = await entitlementStub(env, expectedUid, expectedEmail).then((stub) => stub.fetch("https://entitlements/state"))
-      .then((response) => response.ok ? response.json() : null).catch(() => null);
+    const account = await entitlementStub(env, expectedUid, expectedEmail).then((stub) => stub.fetch("https://entitlements/state")).then((response) => response.ok ? response.json() : null).catch(() => null);
     const checkout = (account && account.pending_payments || []).find((item) => item.id === orderNsu && item.provider === "infinitepay");
     if (checkout) pending = { uid: expectedUid, email: expectedEmail, plan: checkout.plan, via: "infinitepay", source: "" };
   }
-  if (!pending || pending.via !== "infinitepay") throw new Error("Pedido não encontrado.");
+  if (!pending || pending.via !== "infinitepay") throw new Error("Pedido n\xE3o encontrado.");
   if (expectedUid && pending.uid !== expectedUid) throw new Error("Este pedido pertence a outra conta.");
   const plan = normalizeDepixPlan(pending.plan);
-  if (!plan || !validEmail(pending.email) || !pending.uid) throw new Error("Pedido sem plano ou conta válidos.");
+  if (!plan || !validEmail(pending.email) || !pending.uid) throw new Error("Pedido sem plano ou conta v\xE1lidos.");
   if (pending.status === "paid") return { paid: true, duplicate: true, id: orderNsu, plan, paid_at: pending.paid_at || 0 };
   const payment = await infinitePayCheck(env, { order_nsu: orderNsu, transaction_nsu: transactionNsu, invoice_slug: slug });
   if (!payment.paid) return { paid: false, status: "pending", id: orderNsu, plan };
   if (+payment.amount !== PLAN_LIMITS[plan].price_cents) throw new Error("Valor recebido diferente do pedido.");
   const paidAt = Date.now();
-  // Grant first using the idempotent account Durable Object. KV receipts are
-  // useful for legacy reconciliation, but must never block a confirmed buyer.
   const grant = await grantPurchase(env, pending.email, orderNsu, plan, pending.uid, "infinitepay", paidAt, pending.source);
   const orderStub = infinitePayOrderStub(env, orderNsu);
   await orderStub.fetch("https://entitlements/payment/paid", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ paid_at: paidAt })
-  }).catch(() => {});
-  await env.PREMIUM_KV.put(paidKey, JSON.stringify({ uid: pending.uid, plan, paid_at: paidAt }), { expirationTtl: 400 * 86400 }).catch(() => {});
-  await persistConfirmedPayment(env, { id: orderNsu, email: pending.email, uid: pending.uid, plan, provider: "infinitepay", source: pending.source, paid_at: paidAt }).catch(() => {});
-  await env.PREMIUM_KV.delete(pendKey(orderNsu)).catch(() => {});
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paid_at: paidAt })
+  }).catch(() => {
+  });
+  await env.PREMIUM_KV.put(paidKey, JSON.stringify({ uid: pending.uid, plan, paid_at: paidAt }), { expirationTtl: 400 * 86400 }).catch(() => {
+  });
+  await persistConfirmedPayment(env, { id: orderNsu, email: pending.email, uid: pending.uid, plan, provider: "infinitepay", source: pending.source, paid_at: paidAt }).catch(() => {
+  });
+  await env.PREMIUM_KV.delete(pendKey(orderNsu)).catch(() => {
+  });
   await recordPaidCheckout(env, { id: orderNsu, email: pending.email, uid: pending.uid, plan, provider: "infinitepay", source: pending.source, paid_at: paidAt });
   return { id: orderNsu, paid: true, status: "paid", plan, paid_at: paidAt, ...grant };
 }
-
+__name(fulfillInfinitePayOrder, "fulfillInfinitePayOrder");
 async function reconcileKnownPayments(env, uid, email) {
   const prefixes = ["payrec:uid:" + encodeURIComponent(uid) + ":"];
   if (email) prefixes.push("payrec:email:" + encodeURIComponent(email.toLowerCase()) + ":");
@@ -853,48 +961,52 @@ async function reconcileKnownPayments(env, uid, email) {
         const receipt = await env.PREMIUM_KV.get(item.name, "json");
         if (!receipt) continue;
         await grantPurchase(env, email, receipt.id, receipt.plan, uid, receipt.provider, receipt.paid_at, receipt.source);
-        await recordPaidCheckout(env, { id: receipt.provider === "kiwify" ? "kiwify:" + receipt.id : receipt.id,
-          email: receipt.email || email, uid, plan: receipt.plan, provider: receipt.provider, paid_at: receipt.paid_at, source: "entitlement_reconcile" });
+        await recordPaidCheckout(env, {
+          id: receipt.provider === "kiwify" ? "kiwify:" + receipt.id : receipt.id,
+          email: receipt.email || email,
+          uid,
+          plan: receipt.plan,
+          provider: receipt.provider,
+          paid_at: receipt.paid_at,
+          source: "entitlement_reconcile"
+        });
         await env.PREMIUM_KV.delete(item.name);
       }
-      cursor = page.list_complete ? undefined : page.cursor;
+      cursor = page.list_complete ? void 0 : page.cursor;
     } while (cursor);
   }
 }
-
+__name(reconcileKnownPayments, "reconcileKnownPayments");
 async function reconcilePendingCheckouts(env, uid, email, checkouts) {
-  const recent = (Array.isArray(checkouts) ? checkouts : [])
-    .filter((item) => checkoutIsPending(item))
-    .sort((a, b) => +b.created_at - +a.created_at);
+  const recent = (Array.isArray(checkouts) ? checkouts : []).filter((item) => checkoutIsPending(item)).sort((a, b) => +b.created_at - +a.created_at);
   const uncertainCreation = recent.find((item) => item.status === "creating" && !item.id);
-  const candidates = recent
-    .filter((item) => item.id)
-    .sort((a, b) => +b.created_at - +a.created_at)
-    .slice(0, 20);
+  const candidates = recent.filter((item) => item.id).sort((a, b) => +b.created_at - +a.created_at).slice(0, 20);
   let latestPending = uncertainCreation ? { plan: uncertainCreation.plan, provider: uncertainCreation.provider, status: "checkout_creation_uncertain", created_at: +uncertainCreation.created_at, request_id: uncertainCreation.request_id || "", checkout_url: "" } : null;
   let unavailable = false;
   let recovered = false;
   for (const checkout of candidates) {
     const provider = ["abacate", "infinitepay"].includes(checkout.provider) ? checkout.provider : "depix";
-    if (provider === "infinitepay") continue; // Confirmed by verified webhook or authenticated return.
+    if (provider === "infinitepay") continue;
     const id = String(checkout.id).slice(0, 180);
     const cacheKey = "paycheck:" + encodeURIComponent(uid) + ":" + provider + ":" + encodeURIComponent(id);
     let info = await env.PREMIUM_KV.get(cacheKey, "json").catch(() => null);
     if (!info) {
-      try { info = provider === "depix" ? await depixStatus(env, id) : await abacateStatus(env, id); }
-      catch (error) {
+      try {
+        info = provider === "depix" ? await depixStatus(env, id) : await abacateStatus(env, id);
+      } catch (error) {
         unavailable = true;
         await metric(env, "entitlement_load_error", { reason: "unavailable" });
         continue;
       }
-      await env.PREMIUM_KV.put(cacheKey, JSON.stringify({ paid: info.paid === true, status: String(info.status || "unknown"), paid_at: timestampMs(info.paid_at) }), { expirationTtl: info.paid === true ? 30 : 5 }).catch(() => {});
+      await env.PREMIUM_KV.put(cacheKey, JSON.stringify({ paid: info.paid === true, status: String(info.status || "unknown"), paid_at: timestampMs(info.paid_at) }), { expirationTtl: info.paid === true ? 30 : 5 }).catch(() => {
+      });
     }
     if (info.paid !== true) {
       if (!latestPending || +checkout.created_at > +latestPending.created_at) latestPending = { plan: checkout.plan, provider, status: info.status || "pending", created_at: +checkout.created_at, request_id: checkout.request_id || "", checkout_url: checkout.checkout_url || "" };
       continue;
     }
     const plan = normalizeDepixPlan(checkout.plan);
-    if (!plan || (info.plan && info.plan !== plan) || (info.uid && info.uid !== uid)) {
+    if (!plan || info.plan && info.plan !== plan || info.uid && info.uid !== uid) {
       unavailable = true;
       continue;
     }
@@ -907,47 +1019,40 @@ async function reconcilePendingCheckouts(env, uid, email, checkouts) {
       await recordPaidCheckout(env, { id, email: info.email || email, uid, plan, provider, source: "entitlement_reconcile" });
       recovered = true;
     } catch (error) {
-      // Keep the provider's paid result cached and the checkout available for a later grant retry.
       unavailable = true;
     }
   }
   return { pending_payment: latestPending, unavailable, recovered };
 }
-
+__name(reconcilePendingCheckouts, "reconcilePendingCheckouts");
 async function readObjectState(stub) {
   const response = await stub.fetch("https://entitlements/state");
   if (!response.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
   return response.json();
 }
-
-export async function getUserEntitlements(env, firebaseUid, user = {}) {
+__name(readObjectState, "readObjectState");
+async function getUserEntitlements(env, firebaseUid, user = {}) {
   const uid = String(firebaseUid || "").trim().slice(0, 160);
   const email = String(user.email || "").trim().toLowerCase();
   if (!uid || !validEmail(email)) throw new Error("AUTH_REQUIRED");
-
-  // Recibos confirmados ficam no KV até o Durable Object confirmar a concessão.
-  // Esta leitura no próximo login/status recupera falhas temporárias de grant.
   await reconcileKnownPayments(env, uid, email);
-
   const uidStub = await entitlementStub(env, uid, email);
   let uidState = await readObjectState(uidStub);
   const pendingReconciliation = await reconcilePendingCheckouts(env, uid, email, uidState.pending_payments);
   if (pendingReconciliation.recovered) uidState = await readObjectState(uidStub);
-
-  // Migra concessões antigas por e-mail somente após validar o e-mail no token Google.
   const legacyEmailStub = await entitlementStub(env, "", email);
   const legacyEmailState = await readObjectState(legacyEmailStub);
   if (+legacyEmailState.revision > 0) {
     const importRes = await uidStub.fetch("https://entitlements/import", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source: "legacy-email:" + email, revision: legacyEmailState.revision, state: legacyEmailState })
     });
     if (!importRes.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
   }
-
   const uidRecord = await env.PREMIUM_KV.get(premUidKey(uid), "json");
   const emailRecord = await env.PREMIUM_KV.get(premKey(email), "json");
-  const legacyRecord = (+((emailRecord && emailRecord.until) || 0) > +((uidRecord && uidRecord.until) || 0)) ? emailRecord : uidRecord;
+  const legacyRecord = +(emailRecord && emailRecord.until || 0) > +(uidRecord && uidRecord.until || 0) ? emailRecord : uidRecord;
   if (legacyRecord && +legacyRecord.until > +uidState.premium_until_ms) {
     const legacyPlan = normalizeDepixPlan(legacyRecord.plan);
     if (!legacyPlan || PLAN_LIMITS[legacyPlan].kind !== "time") {
@@ -955,16 +1060,16 @@ export async function getUserEntitlements(env, firebaseUid, user = {}) {
       throw new Error("ENTITLEMENT_UNAVAILABLE");
     }
     const migrated = await uidStub.fetch("https://entitlements/migrate", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ premium_until_ms: +legacyRecord.until, plan: legacyPlan })
     });
     if (!migrated.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
   }
-
   const state = await readObjectState(uidStub);
   const now = Date.now();
   const reward = isSecurityResearcherReward(env, email);
-  const timeUntil = Math.max(+state.premium_until_ms || 0, reward ? now + SECURITY_REWARD_DAYS * 86400000 : 0);
+  const timeUntil = Math.max(+state.premium_until_ms || 0, reward ? now + SECURITY_REWARD_DAYS * 864e5 : 0);
   const activeProjects = (state.world_projects || []).filter((project) => +project.expires_at > now);
   const storedTimePlan = timeUntil > now ? normalizeDepixPlan(state.plan) : "";
   if (timeUntil > now && !reward && (!storedTimePlan || PLAN_LIMITS[storedTimePlan].kind !== "time")) {
@@ -973,30 +1078,36 @@ export async function getUserEntitlements(env, firebaseUid, user = {}) {
   }
   const timePlan = reward ? "creator" : storedTimePlan;
   const worldCredits = Math.max(0, +state.world_credits || 0);
-  const plan = timePlan || ((worldCredits || activeProjects.length) ? "world1" : "free");
+  const plan = timePlan || (worldCredits || activeProjects.length ? "world1" : "free");
   if (plan === "free" && pendingReconciliation.unavailable) throw new Error("ENTITLEMENT_UNAVAILABLE");
   const definition = PLAN_LIMITS[plan];
   const active = plan !== "free";
-  const expiresAt = plan === "world1"
-    ? (activeProjects.length ? Math.max(...activeProjects.map((project) => +project.expires_at || 0)) : null)
-    : (timeUntil > now ? (reward ? timeUntil : (+state.plan_expires_at > now ? +state.plan_expires_at : timeUntil)) : null);
+  const expiresAt = plan === "world1" ? activeProjects.length ? Math.max(...activeProjects.map((project) => +project.expires_at || 0)) : null : timeUntil > now ? reward ? timeUntil : +state.plan_expires_at > now ? +state.plan_expires_at : timeUntil : null;
   return {
-    authenticated: true, active, status: active ? "active" : "free", plan,
-    plan_label: definition.label, expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-    premium_until_ms: plan === "world1" ? 0 : (timeUntil > now ? timeUntil : 0),
-    world_credits: worldCredits, active_world_projects: activeProjects.length,
+    authenticated: true,
+    active,
+    status: active ? "active" : "free",
+    plan,
+    plan_label: definition.label,
+    expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+    premium_until_ms: plan === "world1" ? 0 : timeUntil > now ? timeUntil : 0,
+    world_credits: worldCredits,
+    active_world_projects: activeProjects.length,
     world_projects: activeProjects.map((project) => ({ id: project.id, expires_at: +project.expires_at })),
-    max_file_mb: definition.max_file_mb, max_file_bytes: definition.max_file_bytes,
-    max_batch: definition.max_batch, allowed_tools: definition.allowed_tools,
-    capabilities: definition.capabilities, account_email: email,
+    max_file_mb: definition.max_file_mb,
+    max_file_bytes: definition.max_file_bytes,
+    max_batch: definition.max_batch,
+    allowed_tools: definition.allowed_tools,
+    capabilities: definition.capabilities,
+    account_email: email,
     pending_payment: plan === "free" && pendingReconciliation.pending_payment ? {
       ...pendingReconciliation.pending_payment,
       plan_label: PLAN_LIMITS[pendingReconciliation.pending_payment.plan]?.label || "plano pago"
     } : null
   };
 }
-
-export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), features = {}) {
+__name(getUserEntitlements, "getUserEntitlements");
+function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), features = {}) {
   worlds = Number(worlds);
   sizeBytes = Number(sizeBytes);
   if (!Number.isSafeInteger(worlds) || worlds < 1 || worlds > 100 || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1) {
@@ -1011,33 +1122,32 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
   const maxChunks = +free.capabilities.chunks_restore.max_chunks;
   const chunkCount = Math.max(0, Number(features.chunks_count) || 0);
   const playerAdvanced = features.player_advanced === true;
-  const addPacks = Math.max(0, Math.min(1000, Number(features.add_packs) || 0));
-  const toolRequiresPremium = tools.some((tool) => !knownTools.has(tool) ||
-    (tool === "chunks_restore" && chunkCount > maxChunks) ||
-    (tool === "player_basic" && playerAdvanced));
-  const paidFeature = sizeBytes > free.max_file_bytes || worlds > free.max_batch ||
-    (features.mode && String(features.mode).toLowerCase() !== "keep" && !(String(features.mode).toLowerCase() === "survival" && features.reactivate_achievements === true)) || features.hardcore === true ||
-    addPacks > free.capabilities.add_behavior_packs || playerAdvanced ||
-    toolRequiresPremium;
-
-  const timeActive = +((ent && ent.premium_until_ms) || 0) > now && ent.plan !== "world1";
+  const addPacks = Math.max(0, Math.min(1e3, Number(features.add_packs) || 0));
+  const toolRequiresPremium = tools.some((tool) => !knownTools.has(tool) || tool === "chunks_restore" && chunkCount > maxChunks || tool === "player_basic" && playerAdvanced);
+  const paidFeature = sizeBytes > free.max_file_bytes || worlds > free.max_batch || features.mode && String(features.mode).toLowerCase() !== "keep" && !(String(features.mode).toLowerCase() === "survival" && features.reactivate_achievements === true) || features.hardcore === true || addPacks > free.capabilities.add_behavior_packs || playerAdvanced || toolRequiresPremium;
+  const timeActive = +(ent && ent.premium_until_ms || 0) > now && ent.plan !== "world1";
   if (timeActive && (!PLAN_LIMITS[ent.plan] || PLAN_LIMITS[ent.plan].kind !== "time")) {
     return { allowed: false, code: "PLAN_UNVERIFIED" };
   }
   const hasWorldBenefit = +(ent && ent.world_credits || 0) > 0 || +(ent && ent.active_world_projects || 0) > 0;
-  const plan = timeActive ? ent.plan : (hasWorldBenefit ? "world1" : "free");
+  const plan = timeActive ? ent.plan : hasWorldBenefit ? "world1" : "free";
   const worldPlanActive = !timeActive && hasWorldBenefit;
   const planDefinition = PLAN_LIMITS[plan];
   if (tools.some((tool) => !planDefinition.allowed_tools.includes(tool))) {
     return { allowed: false, code: "TOOL_NOT_INCLUDED", plan };
   }
   if (!paidFeature && timeActive) {
-    const limit = PLAN_LIMITS[plan];
-    return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb, requires_completion: false };
+    const limit2 = PLAN_LIMITS[plan];
+    return { allowed: true, plan, max_batch: limit2.max_batch, max_file_mb: limit2.max_file_mb, requires_completion: false };
   }
   if (!paidFeature && !worldPlanActive) {
-    return { allowed: true, plan: "free", max_batch: free.max_batch, max_file_mb: free.max_file_mb,
-      free_quota_tools: tools.map((tool) => ({ tool, limit: tool === "convert" ? free.capabilities.convert.daily_operations : (tool === "chunks_restore" ? free.capabilities.chunks_restore.daily_operations : (tool === "player_basic" ? free.capabilities.player.daily_operations : (tool === "builder" ? free.capabilities.builder.daily_operations : 0))) })).filter((item) => item.limit > 0) };
+    return {
+      allowed: true,
+      plan: "free",
+      max_batch: free.max_batch,
+      max_file_mb: free.max_file_mb,
+      free_quota_tools: tools.map((tool) => ({ tool, limit: tool === "convert" ? free.capabilities.convert.daily_operations : tool === "chunks_restore" ? free.capabilities.chunks_restore.daily_operations : tool === "player_basic" ? free.capabilities.player.daily_operations : tool === "builder" ? free.capabilities.builder.daily_operations : 0 })).filter((item) => item.limit > 0)
+    };
   }
   if (plan === "free" && ent.pending_payment) {
     return { allowed: false, code: "PAYMENT_PENDING", plan: "free", pending_plan: ent.pending_payment.plan };
@@ -1048,11 +1158,17 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
   if (limit.max_file_bytes !== null && sizeBytes > limit.max_file_bytes) {
     return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: limit.max_file_mb, max_file_bytes: limit.max_file_bytes };
   }
-  return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb,
-    requires_credit: plan === "world1", requires_completion: plan === "world1" };
+  return {
+    allowed: true,
+    plan,
+    max_batch: limit.max_batch,
+    max_file_mb: limit.max_file_mb,
+    requires_credit: plan === "world1",
+    requires_completion: plan === "world1"
+  };
 }
-
-export default {
+__name(checkEntitlement, "checkEntitlement");
+var index_default = {
   async fetch(req, env) {
     const url = new URL(req.url);
     const cors = corsHeaders(req, env);
@@ -1062,20 +1178,15 @@ export default {
       }
       return withSecurityHeaders(new Response(null, { status: 204, headers: { ...securityHeaders(), ...cors } }));
     }
-
-    // O mesmo Worker tambem pode servir o frontend quando o dominio aponta
-    // diretamente para ele. Rotas /api/* continuam sendo tratadas abaixo.
     if (!url.pathname.startsWith("/api/") && env.ASSETS) {
       return withSecurityHeaders(await env.ASSETS.fetch(req));
     }
-
     try {
-      // ---------- flags públicas ----------
       if (url.pathname === "/api/admin/dashboard" && req.method === "GET") {
         const admin = await adminUser(req, env);
-        if (!admin) return json({ error: "Conta sem permissão para acessar o painel." }, 403, cors);
+        if (!admin) return json({ error: "Conta sem permiss\xE3o para acessar o painel." }, 403, cors);
         const days = Math.max(1, Math.min(400, parseInt(url.searchParams.get("days") || "30", 10) || 30));
-        const since = Date.now() - days * 86400000;
+        const since = Date.now() - days * 864e5;
         const allPurchases = await adminList(env, "admin:purchases");
         const allCheckouts = await adminList(env, "admin:checkouts");
         const allManualGrants = await adminList(env, "admin:actions");
@@ -1095,7 +1206,7 @@ export default {
             revenue_cents: revenue,
             abandoned_count: abandoned.length,
             pending_count: pending.length,
-            conversion_percent: decided ? Math.round(purchases.length * 1000 / decided) / 10 : 0
+            conversion_percent: decided ? Math.round(purchases.length * 1e3 / decided) / 10 : 0
           },
           purchases: purchases.slice(0, 150),
           manual_grants: manualGrants.slice(0, 150),
@@ -1104,32 +1215,38 @@ export default {
           errors: summarizeAdminErrors(errors.filter((item) => (+item.at || 0) >= since))
         }, 200, cors);
       }
-
       if (url.pathname === "/api/admin/grant" && req.method === "POST") {
         const admin = await adminUser(req, env);
-        if (!admin) return json({ error: "Conta sem permissão para liberar planos." }, 403, cors);
-        if (!(await rlTake(env, "rl-admin-grant:" + admin.uid, 60, 86400))) return json({ error: "Limite diário de liberações atingido." }, 429, cors);
+        if (!admin) return json({ error: "Conta sem permiss\xE3o para liberar planos." }, 403, cors);
+        if (!await rlTake(env, "rl-admin-grant:" + admin.uid, 60, 86400)) return json({ error: "Limite di\xE1rio de libera\xE7\xF5es atingido." }, 429, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         const email = String(body.email || "").trim().toLowerCase();
         const rawPlan = String(body.plan || "");
         const plan = rawPlan === "vip24h" ? "vip24h" : normalizeDepixPlan(rawPlan);
         const reason = String(body.reason || "").trim().slice(0, 160);
-        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
-        if (!["world1", "vip24h", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inválido." }, 400, cors);
-        if (reason.length < 3) return json({ error: "Informe o motivo da liberação." }, 400, cors);
+        if (!validEmail(email)) return json({ error: "Informe um e-mail v\xE1lido." }, 400, cors);
+        if (!["world1", "vip24h", "vip7", "vip30", "creator"].includes(rawPlan)) return json({ error: "Plano inv\xE1lido." }, 400, cors);
+        if (reason.length < 3) return json({ error: "Informe o motivo da libera\xE7\xE3o." }, 400, cors);
         const billingId = "manual:" + Date.now() + ":" + crypto.randomUUID();
         const grant = await grantPurchase(env, email, billingId, plan, "", "manual");
         await recordAdminAction(env, { admin: admin.email, email, plan, reason, billing_id: billingId });
         return json({ ok: true, email, plan, premium_until_ms: grant.premium_until_ms, world_credits: grant.world_credits }, 200, cors);
       }
-
       if (url.pathname === "/api/admin/depix/reconcile" && req.method === "POST") {
         const admin = await adminUser(req, env);
-        if (!admin) return json({ error: "Conta sem permissão para reconciliar pagamentos." }, 403, cors);
-        if (!(await rlTake(env, "rl-admin-reconcile:" + admin.uid, 30, 3600))) return json({ error: "Muitas reconciliações. Aguarde alguns minutos." }, 429, cors);
+        if (!admin) return json({ error: "Conta sem permiss\xE3o para reconciliar pagamentos." }, 403, cors);
+        if (!await rlTake(env, "rl-admin-reconcile:" + admin.uid, 30, 3600)) return json({ error: "Muitas reconcilia\xE7\xF5es. Aguarde alguns minutos." }, 429, cors);
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const requestedId = String(body.id || "").trim().slice(0, 180);
         let reconciliation;
         if (requestedId) {
@@ -1137,42 +1254,41 @@ export default {
             const result = await reconcileDepixCheckout(env, requestedId);
             reconciliation = { checked: 1, recovered: result.paid ? 1 : 0, results: [result] };
           } catch (error) {
-            reconciliation = { checked: 1, recovered: 0, results: [{ id: requestedId, paid: false, error: String((error && error.message) || error).slice(0, 240) }] };
+            reconciliation = { checked: 1, recovered: 0, results: [{ id: requestedId, paid: false, error: String(error && error.message || error).slice(0, 240) }] };
           }
         } else {
           reconciliation = await reconcileRecentDepixCheckouts(env);
         }
         const { checked, recovered, results } = reconciliation;
-        await recordAdminAction(env, { admin: admin.email, email: "reconcile", plan: "vip30", reason: "Reconciliação Depix: " + recovered + " pagamento(s)", billing_id: requestedId || "recentes" });
+        await recordAdminAction(env, { admin: admin.email, email: "reconcile", plan: "vip30", reason: "Reconcilia\xE7\xE3o Depix: " + recovered + " pagamento(s)", billing_id: requestedId || "recentes" });
         return json({ ok: true, checked, recovered, results }, 200, cors);
       }
-
       if (url.pathname === "/api/config" && req.method === "GET") {
         return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: !!env.ABACATEPAY_API_KEY, abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
-
-      // The browser may display quota locally, but it cannot be the authority
-      // for the free-operation count. This endpoint is a defense-in-depth
-      // gate for the official UI; truly unforgeable billing still requires
-      // paid processing to happen on a server.
       if (url.pathname === "/api/free-quota" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-free-quota:" + ip, 120, 86400))) return json({ error: "Muitas consultas de quota." }, 429, cors);
+        if (!await rlTake(env, "rl-free-quota:" + ip, 120, 86400)) return json({ error: "Muitas consultas de quota." }, 429, cors);
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const fb = await firebaseUser(req, env);
-        const day = new Date().toISOString().slice(0, 10);
+        const day = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
         const identity = quotaIdentity(req, fb);
         if (env.ENTITLEMENTS) {
           const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + identity));
           const result = await stub.fetch("https://entitlements/free-quota", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ day, consume: body.consume === true })
           });
           return json(await result.json(), result.status, cors);
         }
         const key = "freequota:" + day + ":" + encodeURIComponent(identity);
-        let used = parseInt((await env.PREMIUM_KV.get(key).catch(() => null)) || "0", 10);
+        let used = parseInt(await env.PREMIUM_KV.get(key).catch(() => null) || "0", 10);
         if (!Number.isFinite(used) || used < 0) used = 0;
         if (body.consume === true) {
           if (used >= FREE_DAILY) return json({ allowed: false, code: "QUOTA_EXCEEDED", used, remaining: 0 }, 402, cors);
@@ -1181,14 +1297,16 @@ export default {
         }
         return json({ allowed: used < FREE_DAILY, used, remaining: Math.max(0, FREE_DAILY - used) }, body.consume === true && used >= FREE_DAILY ? 402 : 200, cors);
       }
-
-      // ---------- Depix: criar checkout Pix ----------
       if (url.pathname === "/api/depix/create" && req.method === "POST") {
-        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
+        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a p\xE1gina e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         const plan = normalizeDepixPlan(body.plan);
-        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inválido ou indisponível para compra." }, 400, cors);
+        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inv\xE1lido ou indispon\xEDvel para compra." }, 400, cors);
         const source = cleanDimension(body.source, 40);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
@@ -1199,28 +1317,29 @@ export default {
         if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
         const doc = cleanDoc(body.payer_tax_number || body.doc || body.cpf);
         const payerEmail = String(body.payer_email || "").trim().toLowerCase().slice(0, 120);
-        if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ válido p/ gerar o Pix." }, 400, cors);
-        if (!validEmail(payerEmail)) return json({ error: "Preencha um e-mail válido para o Pix." }, 400, cors);
+        if (!validDocServer(doc)) return json({ error: "Informe um CPF/CNPJ v\xE1lido p/ gerar o Pix." }, 400, cors);
+        if (!validEmail(payerEmail)) return json({ error: "Preencha um e-mail v\xE1lido para o Pix." }, 400, cors);
         if (body.terms_accepted !== true) {
-          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+          return json({ error: "Voc\xEA precisa aceitar os Termos de Uso e a Pol\xEDtica de Reembolso antes de pagar." }, 400, cors);
         }
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        // Evita bloqueio exagerado: por conta + IP, janela curta e chave versionada.
-        // O frontend não repete automaticamente uma cobrança que falhou.
-        if (!(await rlTake(env, "rl-depix-v2:" + uid + ":" + ip, 12, 900))) {
+        if (!await rlTake(env, "rl-depix-v2:" + uid + ":" + ip, 12, 900)) {
           return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
         }
         const checkoutStub = await entitlementStub(env, uid, email);
         const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan, provider: "depix" })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId, plan, provider: "depix" })
         });
         const beginData = await begin.json();
-        if (!begin.ok) return json({ error: beginData.error || "Este checkout já foi iniciado. Aguarde o resultado antes de tentar outra vez.", pending: beginData.pending === true }, begin.status, cors);
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout j\xE1 foi iniciado. Aguarde o resultado antes de tentar outra vez.", pending: beginData.pending === true }, begin.status, cors);
         let providerRequestId = requestId;
         if (beginData.retry_request_id) {
           providerRequestId = String(beginData.retry_request_id).slice(0, 100);
           const retryBegin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: providerRequestId, plan, provider: "depix" })
           });
           const retryData = await retryBegin.json();
@@ -1231,62 +1350,75 @@ export default {
         try {
           const r = await depixCreate(env, email, name, uid, plan, doc, payerEmail, req, providerRequestId);
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: providerRequestId, plan, result: r })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: providerRequestId, plan, result: r })
           });
-          if (!saved.ok) throw new Error("Cobrança iniciada, mas não consegui guardar o checkout. Não tente pagar novamente; atualize o status em alguns instantes.");
+          if (!saved.ok) throw new Error("Cobran\xE7a iniciada, mas n\xE3o consegui guardar o checkout. N\xE3o tente pagar novamente; atualize o status em alguns instantes.");
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
-            uid, email, at: Date.now(), plan, source, via: "depix",
-            terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
-          }), { expirationTtl: 30 * 86400 }).catch(() => {});
+            uid,
+            email,
+            at: Date.now(),
+            plan,
+            source,
+            via: "depix",
+            terms_version: TERMS_VERSION,
+            client_terms_version: String(body.terms_version || "").slice(0, 40),
+            terms_accepted_at: Date.now()
+          }), { expirationTtl: 30 * 86400 }).catch(() => {
+          });
           await recordCheckout(env, { id: r.id, uid, email, plan, source, provider: "depix", expires_at: r.expires_at });
           await metric(env, "payment_pending", { plan, source }, req);
           await metric(env, "pix_create_success", { plan, source }, req);
           return json(r, 200, cors);
         } catch (e) {
-          return json({ error: String((e && e.message) || e) }, 502, cors);
+          return json({ error: String(e && e.message || e) }, 502, cors);
         }
       }
-
-      // ---------- InfinitePay: checkout e confirmação server-to-server ----------
       if (url.pathname === "/api/infinitepay/create" && req.method === "POST") {
-        if (String(env.SALES_ENABLED || "1") === "0" || !env.INFINITEPAY_HANDLE) return json({ error: "As vendas estão temporariamente suspensas. Os acessos já pagos continuam válidos até a expiração do plano." }, 503, cors);
+        if (String(env.SALES_ENABLED || "1") === "0" || !env.INFINITEPAY_HANDLE) return json({ error: "As vendas est\xE3o temporariamente suspensas. Os acessos j\xE1 pagos continuam v\xE1lidos at\xE9 a expira\xE7\xE3o do plano." }, 503, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         const plan = normalizeDepixPlan(body.plan);
-        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inválido ou indisponível para compra." }, 400, cors);
-        if (body.terms_accepted !== true) return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+        if (!PURCHASABLE_PLAN_IDS.has(plan)) return json({ error: "Plano inv\xE1lido ou indispon\xEDvel para compra." }, 400, cors);
+        if (body.terms_accepted !== true) return json({ error: "Voc\xEA precisa aceitar os Termos de Uso e a Pol\xEDtica de Reembolso antes de pagar." }, 400, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
         const requestId = String(body.request_id || "").trim().slice(0, 100);
         if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-infinitepay-v1:" + fb.uid + ":" + ip, 12, 900))) return json({ error: "Muitas tentativas em poucos minutos. Aguarde e tente novamente." }, 429, cors);
+        if (!await rlTake(env, "rl-infinitepay-v1:" + fb.uid + ":" + ip, 12, 900)) return json({ error: "Muitas tentativas em poucos minutos. Aguarde e tente novamente." }, 429, cors);
         const source = cleanDimension(body.source, 40);
         const checkoutStub = await entitlementStub(env, fb.uid, fb.email);
         const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ request_id: requestId, plan, provider: "infinitepay" })
         });
         let beginData = await begin.json();
-        if (!begin.ok) return json({ error: beginData.error || "Este checkout já está em andamento.", pending: beginData.pending === true, existing_checkout: beginData.existing_checkout || null }, begin.status, cors);
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout j\xE1 est\xE1 em andamento.", pending: beginData.pending === true, existing_checkout: beginData.existing_checkout || null }, begin.status, cors);
         if (!beginData.create) {
           if (beginData.result && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
-          // A reusable checkout can outlive a failed/legacy provider response.
-          // Invalidate only a result that cannot point to an official InfinitePay checkout.
           const staleRequestId = String(beginData.checkout_request_id || requestId);
           await checkoutStub.fetch("https://entitlements/checkout-failed", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: staleRequestId, plan, retryable: true, error: "Saved InfinitePay checkout URL failed official-host validation." })
           });
           const retry = await checkoutStub.fetch("https://entitlements/checkout-begin", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: requestId, plan, provider: "infinitepay" })
           });
           beginData = await retry.json();
-          if (!retry.ok) return json({ error: beginData.error || "Não consegui renovar o link seguro. Atualize Minha conta e tente novamente.", pending: beginData.pending === true }, retry.status, cors);
+          if (!retry.ok) return json({ error: beginData.error || "N\xE3o consegui renovar o link seguro. Atualize Minha conta e tente novamente.", pending: beginData.pending === true }, retry.status, cors);
           if (!beginData.create) {
             if (beginData.result && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
-            return json({ error: "A InfinitePay não retornou um link seguro válido. Nenhuma nova cobrança foi criada; tente novamente em instantes." }, 502, cors);
+            return json({ error: "A InfinitePay n\xE3o retornou um link seguro v\xE1lido. Nenhuma nova cobran\xE7a foi criada; tente novamente em instantes." }, 502, cors);
           }
         }
         try {
@@ -1294,43 +1426,48 @@ export default {
           const checkout = await infinitePayCreate(env, { orderNsu, plan, email: fb.email, name: fb.name, uid: fb.uid });
           await saveInfinitePayOrder(env, { order_nsu: orderNsu, uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay", status: "pending" });
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: requestId, plan, result: checkout })
           });
-          if (!saved.ok) throw new Error("Checkout criado, mas não foi possível registrar o pedido.");
-          // Legacy fallback only; quota exhaustion must not hide a valid link.
-          await env.PREMIUM_KV.put(pendKey(orderNsu), JSON.stringify({ uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay" }), { expirationTtl: 30 * 86400 }).catch(() => {});
-          await recordCheckout(env, { id: orderNsu, uid: fb.uid, email: fb.email, plan, source, provider: "infinitepay", expires_at: Date.now() + 30 * 86400000 });
+          if (!saved.ok) throw new Error("Checkout criado, mas n\xE3o foi poss\xEDvel registrar o pedido.");
+          await env.PREMIUM_KV.put(pendKey(orderNsu), JSON.stringify({ uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay" }), { expirationTtl: 30 * 86400 }).catch(() => {
+          });
+          await recordCheckout(env, { id: orderNsu, uid: fb.uid, email: fb.email, plan, source, provider: "infinitepay", expires_at: Date.now() + 30 * 864e5 });
           await metric(env, "payment_pending", { plan, source }, req);
           return json(checkout, 200, cors);
         } catch (e) {
           if (e && e.retryable === true) {
             await checkoutStub.fetch("https://entitlements/checkout-failed", {
-              method: "POST", headers: { "Content-Type": "application/json" },
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ request_id: requestId, plan, retryable: true, error: String(e.message || e).slice(0, 200) })
-            }).catch(() => {});
+            }).catch(() => {
+            });
           }
-          return json({ error: String((e && e.message) || e) }, 502, cors);
+          return json({ error: String(e && e.message || e) }, 502, cors);
         }
       }
-
       if (url.pathname === "/api/infinitepay/webhook" && req.method === "POST") {
         let event = {};
-        try { event = await req.json(); } catch { return json({ success: false, message: "JSON inválido." }, 400, cors); }
+        try {
+          event = await req.json();
+        } catch {
+          return json({ success: false, message: "JSON inv\xE1lido." }, 400, cors);
+        }
         const orderNsu = String(event.order_nsu || "").trim().slice(0, 100);
         const transactionNsu = String(event.transaction_nsu || "").trim().slice(0, 120);
         const slug = String(event.invoice_slug || event.slug || "").trim().slice(0, 120);
         if (!orderNsu || !transactionNsu || !slug) return json({ success: false, message: "Dados do pedido incompletos." }, 400, cors);
         try {
           const result = await fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug });
-          if (!result.paid) return json({ success: false, message: "Pagamento ainda não confirmado." }, 400, cors);
+          if (!result.paid) return json({ success: false, message: "Pagamento ainda n\xE3o confirmado." }, 400, cors);
           return json({ success: true, message: null }, 200, cors);
         } catch (e) {
-          console.log("infinitepay webhook erro: " + String((e && e.message) || e));
-          return json({ success: false, message: "Pagamento será conciliado após nova tentativa." }, 400, cors);
+          console.log("infinitepay webhook erro: " + String(e && e.message || e));
+          return json({ success: false, message: "Pagamento ser\xE1 conciliado ap\xF3s nova tentativa." }, 400, cors);
         }
       }
-
       if (url.pathname === "/api/infinitepay/status" && req.method === "GET") {
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
@@ -1342,20 +1479,18 @@ export default {
           const result = await fulfillInfinitePayOrder(env, { orderNsu, transactionNsu, slug, expectedUid: fb.uid, expectedEmail: fb.email });
           return json(result, 200, cors);
         } catch (e) {
-          const msg = String((e && e.message) || e);
+          const msg = String(e && e.message || e);
           return json({ error: msg, code: /outra conta/.test(msg) ? "PURCHASE_ACCOUNT_MISMATCH" : "PAYMENT_PENDING" }, /outra conta/.test(msg) ? 403 : 202, cors);
         }
       }
-
-      // ---------- Depix: status (volta do checkout / polling) ----------
       if (url.pathname === "/api/depix/status" && req.method === "GET") {
         const id = (url.searchParams.get("id") || "").trim();
-        if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
+        if (!id) return json({ error: "Par\xE2metro 'id' obrigat\xF3rio." }, 400, cors);
         try {
           const fb = await firebaseUser(req, env);
           if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
           const statusIp = req.headers.get("CF-Connecting-IP") || "unknown";
-          if (!(await rlTake(env, "rl-depix-status:" + fb.uid + ":" + statusIp, 60, 900))) {
+          if (!await rlTake(env, "rl-depix-status:" + fb.uid + ":" + statusIp, 60, 900)) {
             return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
           }
           const info = await depixStatus(env, id);
@@ -1364,18 +1499,18 @@ export default {
           let uid = info.uid || "";
           let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
           if (info.uid && pend && pend.uid && String(info.uid) !== String(pend.uid)) {
-            return json({ error: "Esta cobrança não corresponde à identidade gravada no checkout." }, 403, cors);
+            return json({ error: "Esta cobran\xE7a n\xE3o corresponde \xE0 identidade gravada no checkout." }, 403, cors);
           }
           if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
           if (pend && pend.uid && !uid) uid = String(pend.uid);
-          const ownerUid = String(info.uid || (pend && pend.uid) || "");
-          if (ownerUid ? ownerUid !== fb.uid : (email && email !== fb.email)) {
-            return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
+          const ownerUid = String(info.uid || pend && pend.uid || "");
+          if (ownerUid ? ownerUid !== fb.uid : email && email !== fb.email) {
+            return json({ error: "Esta cobran\xE7a pertence a outra conta Google." }, 403, cors);
           }
-          const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
-          if (info.paid && !plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          const plan = normalizeDepixPlan(pend && pend.plan || info.plan);
+          if (info.paid && !plan) return json({ error: "Pagamento confirmado, mas o plano n\xE3o p\xF4de ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           out.plan = plan;
-          out.source = String((pend && pend.source) || "").slice(0, 80);
+          out.source = String(pend && pend.source || "").slice(0, 80);
           if (email) out.email = email;
           if (info.paid && email) {
             const receipt = await persistConfirmedPayment(env, { id, email, plan, uid, provider: "depix", source: pend && pend.source, paid_at: info.paid_at });
@@ -1385,111 +1520,120 @@ export default {
             out.premium_until_ms = grant.premium_until_ms;
             out.world_credits = grant.world_credits;
             out.amount_cents = PLAN_PRICES[plan] || 0;
-            await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+            await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {
+            });
           }
           return json(out, 200, cors);
         } catch (e) {
-          console.log("depix status erro: " + cleanDimension((e && e.message) || e, 120));
-          return json({ error: String((e && e.message) || e) }, 502, cors);
+          console.log("depix status erro: " + cleanDimension(e && e.message || e, 120));
+          return json({ error: String(e && e.message || e) }, 502, cors);
         }
       }
-
-      // ---------- Depix: webhook (Depix -> Worker; verifica HMAC) ----------
       if (url.pathname === "/api/depix/webhook" && req.method === "POST") {
         const raw = await req.text();
         await metric(env, "webhook_received", {}, req);
         const sig = req.headers.get("X-DePix-Signature") || req.headers.get("x-depix-signature") || "";
-        if (!env.DEPIX_WEBHOOK_SECRET) return json({ error: "webhook não configurado" }, 503, cors);
+        if (!env.DEPIX_WEBHOOK_SECRET) return json({ error: "webhook n\xE3o configurado" }, 503, cors);
         const ok = await verifyDepixSignature(raw, sig, env.DEPIX_WEBHOOK_SECRET);
         if (!ok) return json({ error: "forbidden" }, 403, cors);
         await metric(env, "webhook_verified", {}, req);
         let evt = {};
-        try { evt = raw ? JSON.parse(raw) : {}; } catch { evt = {}; }
+        try {
+          evt = raw ? JSON.parse(raw) : {};
+        } catch {
+          evt = {};
+        }
         const data = evt.data || evt.checkout || evt;
         const bid = String(data.id || data.checkout_id || data.checkoutId || "");
         const status = String(evt.type || evt.event || data.status || "").toLowerCase();
         try {
-          const lst = (await env.PREMIUM_KV.get("dlog", "json").catch(() => null)) || [];
+          const lst = await env.PREMIUM_KV.get("dlog", "json").catch(() => null) || [];
           lst.unshift({ at: Date.now(), type: String(evt.type || evt.event || "").slice(0, 60), id: bid.slice(0, 40), status: status.slice(0, 30) });
-          await env.PREMIUM_KV.put("dlog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
-        } catch (e) {}
+          await env.PREMIUM_KV.put("dlog", JSON.stringify(lst.slice(0, 50))).catch(() => {
+          });
+        } catch (e) {
+        }
         if (bid) {
           try {
             const reconciled = await reconcileDepixCheckout(env, bid);
             if (reconciled.paid === false) return json({ ok: true, paid: false }, 200, cors);
-          } catch (e) { console.log("depix webhook erro: " + (e && e.message)); return json({ error: "Pagamento confirmado ou pendente de concessão; o recibo será reconciliado." }, 503, cors); }
+          } catch (e) {
+            console.log("depix webhook erro: " + (e && e.message));
+            return json({ error: "Pagamento confirmado ou pendente de concess\xE3o; o recibo ser\xE1 reconciliado." }, 503, cors);
+          }
         }
         return json({ ok: true }, 200, cors);
       }
-
-      // ---------- Depix: visor do log (só com segredo do webhook) ----------
       if (url.pathname === "/api/depix/log" && req.method === "GET") {
         if (!env.DEPIX_WEBHOOK_SECRET || url.searchParams.get("secret") !== env.DEPIX_WEBHOOK_SECRET) {
           return json({ error: "forbidden" }, 403, cors);
         }
-        return json({ items: (await env.PREMIUM_KV.get("dlog", "json").catch(() => null)) || [] }, 200, cors);
+        return json({ items: await env.PREMIUM_KV.get("dlog", "json").catch(() => null) || [] }, 200, cors);
       }
-
-      // ---------- Depix: simular pagamento (TESTE local, sk_test_ apenas) ----------
       if (url.pathname === "/api/depix/simulate" && req.method === "POST") {
         if (!env.DEPIX_API_KEY || !String(env.DEPIX_API_KEY).startsWith("sk_test_")) {
-          return json({ error: "Simulação só com sk_test_ no servidor." }, 403, cors);
+          return json({ error: "Simula\xE7\xE3o s\xF3 com sk_test_ no servidor." }, 403, cors);
         }
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const id = String(body.id || url.searchParams.get("id") || "").trim();
-        if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
+        if (!id) return json({ error: "Par\xE2metro 'id' obrigat\xF3rio." }, 400, cors);
         const resp = await fetch("https://api.depixapp.com/api/checkouts/" + encodeURIComponent(id) + "/simulate-payment", {
           method: "POST",
           headers: { Authorization: "Bearer " + env.DEPIX_API_KEY, "Content-Type": "application/json" },
           body: "{}"
         });
         const txt = await resp.text();
-        if (!resp.ok) return json({ error: "Depix recusou simulação (" + resp.status + "): " + txt.slice(0, 200) }, 502, cors);
-        return json({ ok: true, id: id }, 200, cors);
+        if (!resp.ok) return json({ error: "Depix recusou simula\xE7\xE3o (" + resp.status + "): " + txt.slice(0, 200) }, 502, cors);
+        return json({ ok: true, id }, 200, cors);
       }
-
-      // ---------- log de erro do navegador (diagnóstico; leitura protegida) ----------
       if (url.pathname === "/api/client-log" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-log:" + ip, 20, 3600))) return json({ ok: false }, 429, cors);
+        if (!await rlTake(env, "rl-log:" + ip, 20, 3600)) return json({ ok: false }, 429, cors);
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const rawMessage = String(body.message || "").toLowerCase();
-        const safeMessage = /cpf|cnpj|document/.test(rawMessage) ? "document_error"
-          : /email|e-mail/.test(rawMessage) ? "email_error"
-          : /timeout|timed out/.test(rawMessage) ? "timeout"
-          : /failed to fetch|network|conex/.test(rawMessage) ? "network"
-          : /401|auth|conta google/.test(rawMessage) ? "authentication"
-          : /429|rate|tentativas/.test(rawMessage) ? "rate_limited"
-          : /5\d\d|provider|depix|abacate/.test(rawMessage) ? "payment_provider"
-          : "client_error";
+        const safeMessage = /cpf|cnpj|document/.test(rawMessage) ? "document_error" : /email|e-mail/.test(rawMessage) ? "email_error" : /timeout|timed out/.test(rawMessage) ? "timeout" : /failed to fetch|network|conex/.test(rawMessage) ? "network" : /401|auth|conta google/.test(rawMessage) ? "authentication" : /429|rate|tentativas/.test(rawMessage) ? "rate_limited" : /5\d\d|provider|depix|abacate/.test(rawMessage) ? "payment_provider" : "client_error";
         let page = "/";
-        try { page = new URL(String(body.href || "/"), url.origin).pathname.slice(0, 120) || "/"; } catch (e) {}
+        try {
+          page = new URL(String(body.href || "/"), url.origin).pathname.slice(0, 120) || "/";
+        } catch (e) {
+        }
         const entry = {
           at: Date.now(),
-          step: new Set(["selftest", "depix-create", "create-alt"]).has(String(body.step || "")) ? String(body.step) : "other",
+          step: (/* @__PURE__ */ new Set(["selftest", "depix-create", "create-alt"])).has(String(body.step || "")) ? String(body.step) : "other",
           msg: safeMessage,
           href: page
         };
-        const lst = (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [];
+        const lst = await env.PREMIUM_KV.get("clog", "json").catch(() => null) || [];
         lst.unshift(entry);
-        await env.PREMIUM_KV.put("clog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
+        await env.PREMIUM_KV.put("clog", JSON.stringify(lst.slice(0, 50))).catch(() => {
+        });
         return json({ ok: true }, 200, cors);
       }
       if (url.pathname === "/api/client-log" && req.method === "GET") {
         if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
           return json({ error: "forbidden" }, 403, cors);
         }
-        return json({ items: (await env.PREMIUM_KV.get("clog", "json").catch(() => null)) || [] }, 200, cors);
+        return json({ items: await env.PREMIUM_KV.get("clog", "json").catch(() => null) || [] }, 200, cors);
       }
-
-      // Funil comercial agregado: nunca recebe CPF/CNPJ, e-mail, conteúdo de mundo ou tokens.
       if (url.pathname === "/api/telemetry" && req.method === "POST") {
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-tel:" + ip, 120, 3600))) return json({ ok: false }, 429, cors);
+        if (!await rlTake(env, "rl-tel:" + ip, 120, 3600)) return json({ ok: false }, 429, cors);
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const event = String(body.event || "").trim().slice(0, 40);
         if (!ANALYTICS_EVENTS.has(event)) return json({ ok: false }, 400, cors);
         const plan = PLAN_LIMITS[String(body.plan || "")] ? String(body.plan) : "";
@@ -1499,89 +1643,105 @@ export default {
         await metric(env, event, { plan, source, reason, error_type }, req);
         return json({ ok: true }, 200, cors);
       }
-      // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
-        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
-        if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
+        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a p\xE1gina e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
+        if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento n\xE3o configurado no servidor." }, 502, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         const requestedPlan = normalizeDepixPlan(body.plan);
-        if (!requestedPlan) return json({ error: "Plano inválido." }, 400, cors);
-        if (!["world1", "vip30"].includes(requestedPlan)) return json({ error: "Este provedor reserva só suporta Resolver 1 mundo e Passe 30 dias; use o Pix principal para este plano." }, 400, cors);
+        if (!requestedPlan) return json({ error: "Plano inv\xE1lido." }, 400, cors);
+        if (!["world1", "vip30"].includes(requestedPlan)) return json({ error: "Este provedor reserva s\xF3 suporta Resolver 1 mundo e Passe 30 dias; use o Pix principal para este plano." }, 400, cors);
         const source = TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "";
         const providerPlan = requestedPlan;
-        if (providerPlan === "world1" && !env.ABACATEPAY_PRODUCT_ID_WORLD1) return json({ error: "Produto Resolver 1 mundo não configurado no servidor." }, 502, cors);
-        if (providerPlan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto não configurado no servidor." }, 502, cors);
+        if (providerPlan === "world1" && !env.ABACATEPAY_PRODUCT_ID_WORLD1) return json({ error: "Produto Resolver 1 mundo n\xE3o configurado no servidor." }, 502, cors);
+        if (providerPlan === "vip30" && !env.ABACATEPAY_PRODUCT_ID) return json({ error: "Produto n\xE3o configurado no servidor." }, 502, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com sua conta Google para continuar." }, 401, cors);
         const requestId = String(body.request_id || "").trim().slice(0, 100);
         if (!/^[a-zA-Z0-9_-]{16,100}$/.test(requestId)) return json({ error: "Identificador seguro do checkout ausente. Reabra o checkout e tente novamente." }, 400, cors);
         if (body.terms_accepted !== true) {
-          return json({ error: "Você precisa aceitar os Termos de Uso e a Política de Reembolso antes de pagar." }, 400, cors);
+          return json({ error: "Voc\xEA precisa aceitar os Termos de Uso e a Pol\xEDtica de Reembolso antes de pagar." }, 400, cors);
         }
         const email = fb.email;
         const name = fb.name;
         const uid = fb.uid;
         const ip = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-alt-v2:" + uid + ":" + ip, 12, 900))) {
+        if (!await rlTake(env, "rl-alt-v2:" + uid + ":" + ip, 12, 900)) {
           return json({ error: "Muitas tentativas em poucos minutos. Aguarde 15 minutos e tente novamente." }, 429, cors);
         }
         const checkoutStub = await entitlementStub(env, uid, email);
         const begin = await checkoutStub.fetch("https://entitlements/checkout-begin", {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, provider: "abacate" })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: requestId, plan: requestedPlan, provider: "abacate" })
         });
         const beginData = await begin.json();
-        if (!begin.ok) return json({ error: beginData.error || "Este checkout já foi iniciado. Aguarde o resultado.", pending: beginData.pending === true }, begin.status, cors);
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout j\xE1 foi iniciado. Aguarde o resultado.", pending: beginData.pending === true }, begin.status, cors);
         if (!beginData.create) return json(beginData.result, 200, cors);
         try {
           const origin = req.headers.get("Origin") || "";
           const r = await abacateCreate(env, email, name, uid, origin.startsWith("http") ? origin : "", providerPlan);
           const safe = { id: r.id, url: r.url, plan: requestedPlan, expires_at: r.expires_at };
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
           });
-          if (!saved.ok) throw new Error("Checkout iniciado, mas não consegui guardar o link. Não gere outra cobrança; consulte o suporte.");
+          if (!saved.ok) throw new Error("Checkout iniciado, mas n\xE3o consegui guardar o link. N\xE3o gere outra cobran\xE7a; consulte o suporte.");
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
-            uid, email, at: Date.now(), plan: requestedPlan, source, via: "abacate",
-            terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
-          }), { expirationTtl: 30 * 86400 }).catch(() => {});
+            uid,
+            email,
+            at: Date.now(),
+            plan: requestedPlan,
+            source,
+            via: "abacate",
+            terms_version: TERMS_VERSION,
+            client_terms_version: String(body.terms_version || "").slice(0, 40),
+            terms_accepted_at: Date.now()
+          }), { expirationTtl: 30 * 86400 }).catch(() => {
+          });
           await recordCheckout(env, { id: r.id, uid, email, plan: requestedPlan, provider: "abacate", source, expires_at: r.expires_at });
           return json(safe, 200, cors);
         } catch (e) {
           await checkoutStub.fetch("https://entitlements/checkout-failed", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, error: String((e && e.message) || e).slice(0, 200) })
-          }).catch(() => {});
-          return json({ error: String((e && e.message) || e) }, 502, cors);
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request_id: requestId, plan: requestedPlan, error: String(e && e.message || e).slice(0, 200) })
+          }).catch(() => {
+          });
+          return json({ error: String(e && e.message || e) }, 502, cors);
         }
       }
-
-      // ---------- status ----------
       if (url.pathname === "/api/abacate/status" && req.method === "GET") {
         const id = (url.searchParams.get("id") || "").trim();
-        if (!id) return json({ error: "Parâmetro 'id' obrigatório." }, 400, cors);
+        if (!id) return json({ error: "Par\xE2metro 'id' obrigat\xF3rio." }, 400, cors);
         const fb = await firebaseUser(req, env);
         if (!fb) return json({ error: "Entre novamente com a mesma conta Google usada na compra." }, 401, cors);
         const statusIp = req.headers.get("CF-Connecting-IP") || "unknown";
-        if (!(await rlTake(env, "rl-abacate-status:" + fb.uid + ":" + statusIp, 60, 900))) {
+        if (!await rlTake(env, "rl-abacate-status:" + fb.uid + ":" + statusIp, 60, 900)) {
           return json({ error: "Muitas consultas de pagamento. Aguarde alguns minutos." }, 429, cors);
         }
         const info = await abacateStatus(env, id);
         const out = { id, status: info.status, paid: info.paid, email: info.email };
         let pend = await env.PREMIUM_KV.get(pendKey(id), "json").catch(() => null);
-        let email = String(info.email || (pend && pend.email) || "").toLowerCase();
-        if (pend && info.uid && pend.uid && String(pend.uid) !== info.uid) return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
-        if (pend && info.email && pend.email && String(pend.email).toLowerCase() !== String(info.email).toLowerCase()) return json({ error: "A identidade desta cobrança não confere com o checkout." }, 403, cors);
-        const ownerUid = String(info.uid || (pend && pend.uid) || "");
-        if (ownerUid ? ownerUid !== fb.uid : (email && email !== fb.email)) {
-          return json({ error: "Esta cobrança pertence a outra conta Google." }, 403, cors);
+        let email = String(info.email || pend && pend.email || "").toLowerCase();
+        if (pend && info.uid && pend.uid && String(pend.uid) !== info.uid) return json({ error: "Esta cobran\xE7a pertence a outra conta Google." }, 403, cors);
+        if (pend && info.email && pend.email && String(pend.email).toLowerCase() !== String(info.email).toLowerCase()) return json({ error: "A identidade desta cobran\xE7a n\xE3o confere com o checkout." }, 403, cors);
+        const ownerUid = String(info.uid || pend && pend.uid || "");
+        if (ownerUid ? ownerUid !== fb.uid : email && email !== fb.email) {
+          return json({ error: "Esta cobran\xE7a pertence a outra conta Google." }, 403, cors);
         }
-        if (!ownerUid && !email) return json({ error: "Não consegui associar esta cobrança à sua conta Google." }, 409, cors);
+        if (!ownerUid && !email) return json({ error: "N\xE3o consegui associar esta cobran\xE7a \xE0 sua conta Google." }, 409, cors);
         if (info.paid && email) {
-          out.plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
-          out.source = String((pend && pend.source) || "").slice(0, 80);
-          if (!out.plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
-          if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado não corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
-          const uid = String(info.uid || (pend && pend.uid) || fb.uid);
+          out.plan = normalizeDepixPlan(pend && pend.plan || info.plan);
+          out.source = String(pend && pend.source || "").slice(0, 80);
+          if (!out.plan) return json({ error: "Pagamento confirmado, mas o plano n\xE3o p\xF4de ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado n\xE3o corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          const uid = String(info.uid || pend && pend.uid || fb.uid);
           const paidAt = timestampMs(info.paid_at);
           const receipt = await persistConfirmedPayment(env, { id, email, uid, plan: out.plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
           const grant = await grantPurchase(env, email, id, out.plan, uid, "abacate", paidAt, pend && pend.source);
@@ -1590,18 +1750,21 @@ export default {
           out.premium_until_ms = grant.premium_until_ms;
           out.world_credits = grant.world_credits;
           out.amount_cents = PLAN_PRICES[out.plan] || 0;
-          await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+          await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {
+          });
         }
         return json(out, 200, cors);
       }
-
-      // ---------- webhook (AbacatePay -> Worker; nunca confia só no POST) ----------
       if (url.pathname === "/api/abacate/webhook" && req.method === "POST") {
         if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
           return json({ error: "forbidden" }, 403, cors);
         }
         let evt = {};
-        try { evt = await req.json(); } catch { evt = {}; }
+        try {
+          evt = await req.json();
+        } catch {
+          evt = {};
+        }
         const data = evt.data || evt;
         const billing = data.billing || data;
         const bid = String(billing.id || data.id || "");
@@ -1615,12 +1778,12 @@ export default {
               if (pend && pend.email && !email) email = String(pend.email).toLowerCase();
             }
             if (info.paid && email) {
-              if (info.uid && pend && String(pend.uid || "") && String(pend.uid) !== info.uid) throw new Error("identidade de pagamento incompatível");
-              if (pend && info.email && String(pend.email || "").toLowerCase() && String(pend.email).toLowerCase() !== email) throw new Error("identidade de pagamento incompatível");
-              const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
-              if (!plan) throw new Error("plano não reconhecido");
-              if (info.plan && info.plan !== plan) throw new Error("plano de pagamento incompatível");
-              const uid = String(info.uid || (pend && pend.uid) || "");
+              if (info.uid && pend && String(pend.uid || "") && String(pend.uid) !== info.uid) throw new Error("identidade de pagamento incompat\xEDvel");
+              if (pend && info.email && String(pend.email || "").toLowerCase() && String(pend.email).toLowerCase() !== email) throw new Error("identidade de pagamento incompat\xEDvel");
+              const plan = normalizeDepixPlan(pend && pend.plan || info.plan);
+              if (!plan) throw new Error("plano n\xE3o reconhecido");
+              if (info.plan && info.plan !== plan) throw new Error("plano de pagamento incompat\xEDvel");
+              const uid = String(info.uid || pend && pend.uid || "");
               const paidAt = timestampMs(info.paid_at);
               const receipt = await persistConfirmedPayment(env, { id: bid, email, uid, plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
               if (uid) {
@@ -1631,14 +1794,13 @@ export default {
                 await recordPaidCheckout(env, { id: bid, email, plan, provider: "abacate" });
               }
             }
-          } catch (e) { console.log("abacate webhook erro: " + (e && e.message)); return json({ error: "Pagamento será conciliado automaticamente." }, 503, cors); }
+          } catch (e) {
+            console.log("abacate webhook erro: " + (e && e.message));
+            return json({ error: "Pagamento ser\xE1 conciliado automaticamente." }, 503, cors);
+          }
         }
         return json({ ok: true }, 200, cors);
       }
-
-      // ---------- Kiwify: compra aprovada -> libera VIP ----------      // Na Kiwify: produto -> Webhooks -> Adicionar: evento "Compra aprovada",
-      // URL: https://<worker>/api/kiwify/webhook?secret=VALOR (VALOR = secret
-      // KIWIFY_SECRET). Dias pelo produto: KIWIFY_PID_24H = 1, KIWIFY_PID_30D = 30.
       if (url.pathname === "/api/kiwify/webhook" && req.method === "POST") {
         const querySecretOk = !!env.KIWIFY_SECRET && url.searchParams.get("secret") === env.KIWIFY_SECRET;
         const headerToken = req.headers.get("x-kiwify-token") || req.headers.get("x-webhook-token") || req.headers.get("x-token") || "";
@@ -1647,57 +1809,62 @@ export default {
           return json({ error: "forbidden" }, 403, cors);
         }
         let body = {};
-        try { body = await req.json(); } catch { body = {}; }
+        try {
+          body = await req.json();
+        } catch {
+          body = {};
+        }
         const evt = String(body.webhook_event_type || body.event || body.type || "");
         const status = String(body.order_status || body.status || body.orderStatus || "").toLowerCase();
         const approvedStatus = ["paid", "approved", "completed", "payment_confirmed", "confirmed"].includes(status);
         const approvedEvent = /^(order_approved|purchase_approved|compra_aprovada)$/.test(evt.toLowerCase());
-        const approved = approvedEvent || (!evt && approvedStatus);
-        const email = String((body.Customer && body.Customer.email) || (body.customer && body.customer.email) || (body.Client && body.Client.email) || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
-        const pid = String((body.Product && (body.Product.product_id || body.Product.id)) || body.product_id || body.productId || "");
+        const approved = approvedEvent || !evt && approvedStatus;
+        const email = String(body.Customer && body.Customer.email || body.customer && body.customer.email || body.Client && body.Client.email || body.customer_email || body.customerEmail || body.email || "").trim().toLowerCase();
+        const pid = String(body.Product && (body.Product.product_id || body.Product.id) || body.product_id || body.productId || "");
         const oid = String(body.order_id || body.orderId || body.id || body.code || "");
         const plan = normalizeKiwifyPlan(body, env);
-        // log cru (últimos 50) p/ depurar sem adivinhar formato
         try {
-          const lst = (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [];
+          const lst = await env.PREMIUM_KV.get("klog", "json").catch(() => null) || [];
           lst.unshift({ at: Date.now(), evt, status, pid, oid, plan });
-          await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {});
-        } catch (e) {}
-        if (!approved || !validEmail(email) || !plan || !oid) {
-          return json({ ok: true, granted: false, reason: !plan ? "unmapped_product" : (!oid ? "missing_order_id" : "not_approved") }, 200, cors);
+          await env.PREMIUM_KV.put("klog", JSON.stringify(lst.slice(0, 50))).catch(() => {
+          });
+        } catch (e) {
         }
-        // Produto desconhecido nunca recebe um plano por fallback.
+        if (!approved || !validEmail(email) || !plan || !oid) {
+          return json({ ok: true, granted: false, reason: !plan ? "unmapped_product" : !oid ? "missing_order_id" : "not_approved" }, 200, cors);
+        }
         if (oid) {
           const seen = await env.PREMIUM_KV.get("kwo:" + oid).catch(() => null);
           if (seen) return json({ ok: true, granted: false, duplicate: true }, 200, cors);
         }
         await persistConfirmedPayment(env, { id: oid, email, plan, provider: "kiwify" });
         await recordPaidCheckout(env, { id: "kiwify:" + oid, email, plan, provider: "kiwify" });
-        await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, plan, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {});
+        await env.PREMIUM_KV.put("kwo:" + oid, JSON.stringify({ email, plan, at: Date.now() }), { expirationTtl: 90 * 86400 }).catch(() => {
+        });
         return json({ ok: true, paid: true, benefit_pending_account_claim: true, plan }, 200, cors);
       }
-      // Visor do log Kiwify (só com o segredo): ver o que chegou.
       if (url.pathname === "/api/kiwify/log" && req.method === "GET") {
         if (!env.KIWIFY_SECRET || url.searchParams.get("secret") !== env.KIWIFY_SECRET) {
           return json({ error: "forbidden" }, 403, cors);
         }
-        return json({ items: (await env.PREMIUM_KV.get("klog", "json").catch(() => null)) || [] }, 200, cors);
+        return json({ items: await env.PREMIUM_KV.get("klog", "json").catch(() => null) || [] }, 200, cors);
       }
-
-      // ---------- premium da conta Google (UID); e-mail antigo só como compatibilidade ----------
       if (url.pathname === "/api/entitlements" && req.method === "GET") {
         const fb = await firebaseUser(req, env);
-        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb) return json({ error: "Sess\xE3o Google inv\xE1lida." }, 401, cors);
         const ent = await getUserEntitlements(env, fb.uid, fb);
         await metric(env, "entitlement_loaded", { plan: ent.plan }, req);
         return json(ent, 200, cors);
       }
-
       if (url.pathname === "/api/entitlements/check" && req.method === "POST") {
         const fb = await firebaseUser(req, env);
-        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sess\xE3o Google inv\xE1lida." }, 401, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         if (!Number.isSafeInteger(body.worlds) || body.worlds < 1 || body.worlds > 100 || !Number.isSafeInteger(body.size_bytes) || body.size_bytes < 1) {
           return json({ error: "Invalid file size or world count.", code: "INVALID_REQUEST" }, 400, cors);
         }
@@ -1705,18 +1872,19 @@ export default {
         const features = body.features && typeof body.features === "object" ? body.features : {};
         const decision = checkEntitlement(ent, body.worlds, body.size_bytes, Date.now(), features);
         const operationId = String(body.operation_id || "").trim().slice(0, 120);
-        if (decision.allowed && (decision.requires_credit || (decision.free_quota_tools && decision.free_quota_tools.length)) && !operationId) {
+        if (decision.allowed && (decision.requires_credit || decision.free_quota_tools && decision.free_quota_tools.length) && !operationId) {
           return json({ allowed: false, code: "OPERATION_ID_REQUIRED", plan: decision.plan }, 400, cors);
         }
-        const quotaOwner = fb ? ("uid:" + fb.uid) : ("ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80));
+        const quotaOwner = fb ? "uid:" + fb.uid : "ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80);
         const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + quotaOwner));
         if (decision.allowed && decision.free_quota_tools && decision.free_quota_tools.length) {
           const path = "/reserve-quota";
           const quotaStates = [];
           for (const item of decision.free_quota_tools) {
             const quota = await stub.fetch("https://entitlements" + path, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ operation_id: operationId, tool: item.tool, limit: item.limit, day: new Date().toISOString().slice(0, 10) })
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ operation_id: operationId, tool: item.tool, limit: item.limit, day: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10) })
             });
             const quotaState = await quota.json();
             if (!quota.ok || quotaState.allowed === false) {
@@ -1734,7 +1902,8 @@ export default {
           const projectId = String(body.world_project_id || "").trim().slice(0, 120);
           const worldFingerprint = String(body.world_fingerprint || "").trim().slice(0, 160);
           const reservation = await stub.fetch("https://entitlements/reserve-world", {
-            method: "POST", headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, candidate_project_id: crypto.randomUUID() })
           });
           const reservationData = await reservation.json();
@@ -1750,83 +1919,87 @@ export default {
         else if (decision.plan !== "free") await metric(env, "premium_operation_authorized", { plan: decision.plan }, req);
         return json({ ...decision, world_credits: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
       }
-
       if (["/api/entitlements/complete", "/api/entitlements/consume", "/api/entitlements/release"].includes(url.pathname) && req.method === "POST") {
         const fb = await firebaseUser(req, env);
-        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb && /^Bearer\s+/i.test(req.headers.get("Authorization") || "")) return json({ error: "Sess\xE3o Google inv\xE1lida." }, 401, cors);
         let body = {};
-        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        try {
+          body = await req.json();
+        } catch {
+          return json({ error: "JSON inv\xE1lido." }, 400, cors);
+        }
         const operationId = String(body.operation_id || "").trim().slice(0, 120);
-        if (!operationId) return json({ error: "operation_id obrigatório." }, 400, cors);
-        const quotaOwner = fb ? ("uid:" + fb.uid) : ("ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80));
+        if (!operationId) return json({ error: "operation_id obrigat\xF3rio." }, 400, cors);
+        const quotaOwner = fb ? "uid:" + fb.uid : "ip:" + String(req.headers.get("CF-Connecting-IP") || "unknown").slice(0, 80);
         const stub = fb ? await entitlementStub(env, fb.uid, fb.email) : env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("free:" + quotaOwner));
         const action = url.pathname.endsWith("/release") ? "/release" : "/complete";
         const r = await stub.fetch("https://entitlements" + action, {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ operation_id: operationId, world_project_id: String(body.world_project_id || "").slice(0, 120), world_fingerprint: String(body.world_fingerprint || "").slice(0, 64) })
         });
         const out = await r.json();
         if (r.ok && out.credit_consumed) await metric(env, "credit_consumed", { plan: "world1" }, req);
         return json(out, r.status, cors);
       }
-
       if (url.pathname === "/api/premium" && req.method === "GET") {
         const fb = await firebaseUser(req, env);
-        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        if (!fb) return json({ error: "Sess\xE3o Google inv\xE1lida." }, 401, cors);
         const ent = await getUserEntitlements(env, fb.uid, fb);
         return json({ ...ent, account_email: fb.email }, 200, cors);
       }
-
       return json({ error: "rota desconhecida" }, 404, cors);
     } catch (e) {
       console.error("request failed", e && e.message ? e.message : e);
       if (e && (e.code === "AUTH_UNAVAILABLE" || e.message === "ENTITLEMENT_UNAVAILABLE")) {
-        return json({ error: e.message === "ENTITLEMENT_UNAVAILABLE" ? "Não foi possível verificar seus benefícios agora. Tente novamente." : "Não foi possível verificar sua sessão Google agora. Tente novamente." }, 503, cors);
+        return json({ error: e.message === "ENTITLEMENT_UNAVAILABLE" ? "N\xE3o foi poss\xEDvel verificar seus benef\xEDcios agora. Tente novamente." : "N\xE3o foi poss\xEDvel verificar sua sess\xE3o Google agora. Tente novamente." }, 503, cors);
       }
-      return json({ error: "Erro interno ao processar a solicitação." }, 500, cors);
+      return json({ error: "Erro interno ao processar a solicita\xE7\xE3o." }, 500, cors);
     }
   },
   async scheduled(event, env, ctx) {
     ctx.waitUntil(reconcileRecentDepixCheckouts(env).catch((error) => console.log("depix reconcile erro: " + (error && error.message))));
-  },
+  }
 };
-
-// Serializable, per-account state for the one-world credit. Cloudflare KV is
-// eventually consistent and cannot safely decrement a single credit under
-// two simultaneous devices; this Durable Object makes consume() atomic and
-// idempotent by operation_id.
-export class EntitlementDO {
-  constructor(state) { this.state = state; }
+var EntitlementDO = class {
+  static {
+    __name(this, "EntitlementDO");
+  }
+  constructor(state) {
+    this.state = state;
+  }
   async fetch(req) {
     const url = new URL(req.url);
     let body = {};
-    try { body = await req.json(); } catch { body = {}; }
-    const fresh = () => ({ world_credits: 0, premium_until_ms: 0, plan: "", time_passes: [], revision: 0, purchases: {}, consumed: {}, world_projects: {}, world_fingerprints: {}, reservations: {}, completed_ops: {}, quotas: {}, imports: {}, checkouts: {} });
-    const normalize = (data) => Object.assign(fresh(), data || {});
-    const run = (fn) => this.state.storage.transaction(async (txn) => {
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+    const fresh = /* @__PURE__ */ __name(() => ({ world_credits: 0, premium_until_ms: 0, plan: "", time_passes: [], revision: 0, purchases: {}, consumed: {}, world_projects: {}, world_fingerprints: {}, reservations: {}, completed_ops: {}, quotas: {}, imports: {}, checkouts: {} }), "fresh");
+    const normalize = /* @__PURE__ */ __name((data) => Object.assign(fresh(), data || {}), "normalize");
+    const run = /* @__PURE__ */ __name((fn) => this.state.storage.transaction(async (txn) => {
       const data = normalize(await txn.get("entitlement"));
       const result = await fn(data);
       if (!result || result.persist !== false) await txn.put("entitlement", data);
       return result || {};
-    });
+    }), "run");
     const current = normalize(await this.state.storage.get("entitlement"));
-    const publicState = (data) => {
+    const publicState = /* @__PURE__ */ __name((data) => {
       const now = Date.now();
       const passes = Array.isArray(data.time_passes) ? data.time_passes : [];
       const currentPass = passes.filter((pass) => +pass.starts_at <= now && +pass.expires_at > now).sort((a, b) => +a.starts_at - +b.starts_at)[0];
       const queuedUntil = passes.reduce((end, pass) => Math.max(end, +pass.expires_at || 0), 0);
       return {
-      world_credits: Math.max(0, +data.world_credits || 0),
-      premium_until_ms: Math.max(+data.premium_until_ms || 0, queuedUntil),
-      plan: String((currentPass && currentPass.plan) || data.plan || ""),
-      plan_expires_at: +((currentPass && currentPass.expires_at) || data.premium_until_ms || 0),
-      revision: (+data.revision || 0) || Object.keys(data.purchases || {}).length,
-      world_projects: Object.entries(data.world_projects || {}).filter(([, project]) => +project.expires_at > now)
-        .map(([id, project]) => ({ id, expires_at: +project.expires_at })),
-      pending_payments: Object.entries(data.checkouts || {}).filter(([, checkout]) => checkoutIsPending(checkout))
-        .map(([request_id, checkout]) => ({ request_id, id: checkout.result && checkout.result.id || "", checkout_url: checkout.result && checkout.result.url || "", plan: checkout.plan, provider: checkout.provider || "depix", created_at: +checkout.at || 0, expires_at: checkoutLockUntil(checkout), status: checkout.status }))
-    };
-    };
+        world_credits: Math.max(0, +data.world_credits || 0),
+        premium_until_ms: Math.max(+data.premium_until_ms || 0, queuedUntil),
+        plan: String(currentPass && currentPass.plan || data.plan || ""),
+        plan_expires_at: +(currentPass && currentPass.expires_at || data.premium_until_ms || 0),
+        revision: +data.revision || 0 || Object.keys(data.purchases || {}).length,
+        world_projects: Object.entries(data.world_projects || {}).filter(([, project]) => +project.expires_at > now).map(([id, project]) => ({ id, expires_at: +project.expires_at })),
+        pending_payments: Object.entries(data.checkouts || {}).filter(([, checkout]) => checkoutIsPending(checkout)).map(([request_id, checkout]) => ({ request_id, id: checkout.result && checkout.result.id || "", checkout_url: checkout.result && checkout.result.url || "", plan: checkout.plan, provider: checkout.provider || "depix", created_at: +checkout.at || 0, expires_at: checkoutLockUntil(checkout), status: checkout.status }))
+      };
+    }, "publicState");
     if (url.pathname === "/payment/record" && req.method === "POST") {
       const orderNsu = String(body.order_nsu || "").trim().slice(0, 100);
       const uid = String(body.uid || "").trim().slice(0, 160);
@@ -1837,9 +2010,14 @@ export class EntitlementDO {
       const prior = await this.state.storage.get(key);
       if (prior && (prior.order_nsu !== orderNsu || prior.uid !== uid || prior.plan !== plan)) return json({ error: "Order identity mismatch." }, 409);
       const order = prior || {
-        order_nsu: orderNsu, uid, email, plan,
+        order_nsu: orderNsu,
+        uid,
+        email,
+        plan,
         source: TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "",
-        via: "infinitepay", status: "pending", at: timestampMs(body.at) || Date.now()
+        via: "infinitepay",
+        status: "pending",
+        at: timestampMs(body.at) || Date.now()
       };
       await this.state.storage.put(key, order);
       return json({ saved: true });
@@ -1856,7 +2034,6 @@ export class EntitlementDO {
       return json({ saved: true });
     }
     if (url.pathname === "/state") return json(publicState(current));
-
     if (url.pathname === "/free-quota") {
       const day = String(body.day || "").replace(/[^0-9-]/g, "").slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return json({ error: "Invalid day." }, 400);
@@ -1869,7 +2046,6 @@ export class EntitlementDO {
       });
       return json(result.value, body.consume === true && !result.value.allowed ? 402 : 200);
     }
-
     if (url.pathname === "/grant") {
       const bid = String(body.billing_id || "").slice(0, 180);
       const plan = normalizeDepixPlan(body.plan);
@@ -1884,7 +2060,7 @@ export class EntitlementDO {
           const priorUntil = Math.max(+data.premium_until_ms || 0, ...data.time_passes.map((pass) => +pass.expires_at || 0));
           const confirmedAt = Math.min(timestampMs(body.paid_at) || now, now);
           const startsAt = Math.max(confirmedAt, priorUntil);
-          const expiresAt = startsAt + definition.duration_days * 86400000;
+          const expiresAt = startsAt + definition.duration_days * 864e5;
           data.time_passes.push({ plan, starts_at: startsAt, expires_at: expiresAt, billing_id: bid });
           data.premium_until_ms = Math.max(priorUntil, expiresAt);
           if (startsAt <= now) data.plan = plan;
@@ -1904,7 +2080,6 @@ export class EntitlementDO {
       });
       return json(result.value);
     }
-
     if (url.pathname === "/migrate") {
       const result = await run((data) => {
         const until = +body.premium_until_ms || 0;
@@ -1913,13 +2088,14 @@ export class EntitlementDO {
           return { persist: false, status: 400, value: { error: "Active legacy entitlement requires a known time plan." } };
         }
         if (until > +data.premium_until_ms) {
-          data.premium_until_ms = until; data.plan = plan; data.revision = (+data.revision || 0) + 1;
+          data.premium_until_ms = until;
+          data.plan = plan;
+          data.revision = (+data.revision || 0) + 1;
         }
         return { value: publicState(data) };
       });
       return json(result.value, result.status || 200);
     }
-
     if (url.pathname === "/import") {
       const source = String(body.source || "").slice(0, 200);
       const snapshot = body.state && typeof body.state === "object" ? body.state : {};
@@ -1949,7 +2125,6 @@ export class EntitlementDO {
       });
       return json(result.value, result.status || 200);
     }
-
     if (["/checkout-begin", "/checkout-result", "/checkout-failed"].includes(url.pathname)) {
       const requestId = String(body.request_id || "").trim().slice(0, 100);
       const plan = normalizeDepixPlan(body.plan);
@@ -1959,18 +2134,15 @@ export class EntitlementDO {
         const currentCheckout = data.checkouts[requestId];
         if (url.pathname === "/checkout-begin") {
           if (currentCheckout) {
-            if (currentCheckout.plan !== plan || (currentCheckout.provider && currentCheckout.provider !== provider)) return { persist: false, status: 409, value: { error: "Checkout request ID was already used for another plan or provider." } };
+            if (currentCheckout.plan !== plan || currentCheckout.provider && currentCheckout.provider !== provider) return { persist: false, status: 409, value: { error: "Checkout request ID was already used for another plan or provider." } };
             if (["creating", "ready"].includes(currentCheckout.status) && !checkoutIsPending(currentCheckout)) {
-              return { persist: false, status: 409, value: { error: "Esta cobrança expirou ou não teve resposta confirmada. Reabra o checkout para iniciar uma nova tentativa." } };
+              return { persist: false, status: 409, value: { error: "Esta cobran\xE7a expirou ou n\xE3o teve resposta confirmada. Reabra o checkout para iniciar uma nova tentativa." } };
             }
             if (currentCheckout.status === "ready") return { persist: false, value: { create: false, result: currentCheckout.result } };
-            // DePix deduplicates POST /checkouts by idempotency_key. A retry
-            // with this same request ID can safely recover the provider result.
             if (currentCheckout.status === "creating" && provider === "depix") return { persist: false, value: { create: true, retry: true } };
-            return { persist: false, status: 409, value: { error: "Este checkout já foi iniciado ou está em verificação. Não será criada outra cobrança com o mesmo pedido.", pending: currentCheckout.status === "creating" } };
+            return { persist: false, status: 409, value: { error: "Este checkout j\xE1 foi iniciado ou est\xE1 em verifica\xE7\xE3o. N\xE3o ser\xE1 criada outra cobran\xE7a com o mesmo pedido.", pending: currentCheckout.status === "creating" } };
           }
-          const pendingCheckout = Object.entries(data.checkouts).filter(([, checkout]) => checkoutIsPending(checkout))
-            .sort((a, b) => (+b[1].at || 0) - (+a[1].at || 0))[0];
+          const pendingCheckout = Object.entries(data.checkouts).filter(([, checkout]) => checkoutIsPending(checkout)).sort((a, b) => (+b[1].at || 0) - (+a[1].at || 0))[0];
           if (pendingCheckout) {
             const [pendingRequestId, pending] = pendingCheckout;
             if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.id) {
@@ -1979,7 +2151,7 @@ export class EntitlementDO {
             if (pending.status === "creating" && provider === "depix" && pending.provider === "depix" && pending.plan === plan) {
               return { persist: false, value: { create: true, retry: true, retry_request_id: pendingRequestId } };
             }
-            return { persist: false, status: 409, value: { error: "Já existe uma cobrança em andamento nesta conta. Confira o pagamento ou aguarde até 20 minutos antes de iniciar outra, para evitar uma cobrança duplicada.", pending: true, pending_plan: pending.plan } };
+            return { persist: false, status: 409, value: { error: "J\xE1 existe uma cobran\xE7a em andamento nesta conta. Confira o pagamento ou aguarde at\xE9 20 minutos antes de iniciar outra, para evitar uma cobran\xE7a duplicada.", pending: true, pending_plan: pending.plan } };
           }
           data.checkouts[requestId] = { plan, provider, status: "creating", at: Date.now() };
           return { value: { create: true } };
@@ -1988,24 +2160,27 @@ export class EntitlementDO {
         if (url.pathname === "/checkout-result") {
           if (currentCheckout.status === "ready") return { persist: false, value: { saved: true, duplicate: true } };
           const safeResult = body.result && typeof body.result === "object" ? {
-            id: String(body.result.id || "").slice(0, 180), url: String(body.result.url || "").slice(0, 1000), plan,
+            id: String(body.result.id || "").slice(0, 180),
+            url: String(body.result.url || "").slice(0, 1e3),
+            plan,
             expires_at: timestampMs(body.result.expires_at)
           } : null;
           if (!safeResult || !safeResult.id || !/^https:\/\//i.test(safeResult.url)) return { persist: false, status: 400, value: { error: "Invalid checkout result." } };
-          currentCheckout.status = "ready"; currentCheckout.result = safeResult; currentCheckout.ready_at = Date.now();
+          currentCheckout.status = "ready";
+          currentCheckout.result = safeResult;
+          currentCheckout.ready_at = Date.now();
           return { value: { saved: true } };
         }
-        // A provider timeout is ambiguous: it may already have created a
-        // charge. Keep the account lock until checkout expiry to avoid a retry
-        // creating a second payment.
-        if (body.retryable === true && currentCheckout.status === "creating") { delete data.checkouts[requestId]; return { value: { saved: true } }; }
+        if (body.retryable === true && currentCheckout.status === "creating") {
+          delete data.checkouts[requestId];
+          return { value: { saved: true } };
+        }
         currentCheckout.error = String(body.error || "Checkout result uncertain.").slice(0, 200);
         currentCheckout.last_error_at = Date.now();
         return { value: { saved: true } };
       });
       return json(result.value, result.status || 200);
     }
-
     if (url.pathname === "/quota-state" || url.pathname === "/reserve-quota") {
       const tool = String(body.tool || "").trim().toLowerCase().slice(0, 40);
       const day = String(body.day || "").replace(/[^0-9-]/g, "").slice(0, 10);
@@ -2026,13 +2201,12 @@ export class EntitlementDO {
         if (used + pending >= limit) return { persist: false, value: { allowed: false, used, remaining: 0 } };
         if (url.pathname === "/reserve-quota") {
           if (!operationId) return { persist: false, value: { allowed: false, used, remaining: 0 } };
-          data.reservations[reservationId] = { kind: "quota", operation_id: operationId, quota_key: key, expires_at: Date.now() + 3600000 };
+          data.reservations[reservationId] = { kind: "quota", operation_id: operationId, quota_key: key, expires_at: Date.now() + 36e5 };
         }
         return { value: { allowed: true, used, remaining: Math.max(0, limit - used - pending - (url.pathname === "/reserve-quota" ? 1 : 0)) } };
       });
       return json(result.value, result.value.allowed ? 200 : 402);
     }
-
     if (url.pathname === "/reserve-world") {
       const operationId = String(body.operation_id || "").slice(0, 120);
       const projectId = String(body.world_project_id || "").slice(0, 120);
@@ -2044,7 +2218,7 @@ export class EntitlementDO {
       const result = await run((data) => {
         if (data.completed_ops[operationId]) {
           const completedProject = data.completed_ops[operationId].project_id;
-          if (completedProject && (data.world_fingerprints[fingerprint] === completedProject || (data.world_projects[completedProject] && data.world_projects[completedProject].fingerprints && data.world_projects[completedProject].fingerprints[fingerprint]))) {
+          if (completedProject && (data.world_fingerprints[fingerprint] === completedProject || data.world_projects[completedProject] && data.world_projects[completedProject].fingerprints && data.world_projects[completedProject].fingerprints[fingerprint])) {
             return { persist: false, value: { allowed: true, world_project_id: completedProject, duplicate: true } };
           }
           return { persist: false, status: 409, value: { allowed: false, code: "OPERATION_ID_REUSED" } };
@@ -2071,19 +2245,21 @@ export class EntitlementDO {
         let isNew = false;
         if (!project) {
           const pendingMatch = fingerprint && Object.values(data.reservations).find((r) => r.kind === "world" && r.fingerprint === fingerprint && +r.expires_at > Date.now());
-          if (pendingMatch) { chosenId = pendingMatch.project_id; isNew = true; }
-          else {
+          if (pendingMatch) {
+            chosenId = pendingMatch.project_id;
+            isNew = true;
+          } else {
             const pendingIds = new Set(Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).map((r) => r.project_id));
             if ((+data.world_credits || 0) <= pendingIds.size) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" } };
-            chosenId = candidateId; isNew = true;
+            chosenId = candidateId;
+            isNew = true;
           }
         }
-        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, fingerprint, expires_at: Date.now() + 3600000 };
+        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, fingerprint, expires_at: Date.now() + 36e5 };
         return { value: { allowed: true, world_project_id: chosenId, new_project: isNew } };
       });
       return json(result.value, result.status || (result.value.allowed ? 200 : 409));
     }
-
     if (url.pathname === "/complete" || url.pathname === "/consume") {
       const operationId = String(body.operation_id || "").slice(0, 120);
       const outputFingerprintRaw = String(body.world_fingerprint || "").toLowerCase().slice(0, 64);
@@ -2111,8 +2287,14 @@ export class EntitlementDO {
             else project.expires_at = now + WORLD_PROJECT_WINDOW_MS;
             const activeProject = data.world_projects[reservation.project_id];
             activeProject.fingerprints = activeProject.fingerprints && typeof activeProject.fingerprints === "object" ? activeProject.fingerprints : {};
-            if (reservation.fingerprint) { activeProject.fingerprints[reservation.fingerprint] = true; data.world_fingerprints[reservation.fingerprint] = reservation.project_id; }
-            if (outputFingerprint) { activeProject.fingerprints[outputFingerprint] = true; data.world_fingerprints[outputFingerprint] = reservation.project_id; }
+            if (reservation.fingerprint) {
+              activeProject.fingerprints[reservation.fingerprint] = true;
+              data.world_fingerprints[reservation.fingerprint] = reservation.project_id;
+            }
+            if (outputFingerprint) {
+              activeProject.fingerprints[outputFingerprint] = true;
+              data.world_fingerprints[outputFingerprint] = reservation.project_id;
+            }
             activeProject.operations[operationId] = now;
             data.consumed[operationId] = { worlds: 1, at: now, project_id: reservation.project_id };
             projectId = reservation.project_id;
@@ -2120,24 +2302,41 @@ export class EntitlementDO {
           delete data.reservations[reservationId];
         }
         data.completed_ops[operationId] = { at: now, kind: reservations.map(([, reservation]) => reservation.kind).join("+"), project_id: projectId, credit_consumed: creditConsumed };
-        for (const [oldOp, record] of Object.entries(data.completed_ops)) if (now - (+record.at || 0) > 400 * 86400000) delete data.completed_ops[oldOp];
+        for (const [oldOp, record] of Object.entries(data.completed_ops)) if (now - (+record.at || 0) > 400 * 864e5) delete data.completed_ops[oldOp];
         if (creditConsumed) data.revision = (+data.revision || 0) + 1;
         return { value: { completed: true, consumed: true, credit_consumed: creditConsumed, world_project_id: projectId, world_credits: +data.world_credits || 0 } };
       });
       return json(result.value, result.status || (result.value.error ? 409 : 200));
     }
-
     if (url.pathname === "/release") {
       const operationId = String(body.operation_id || "").slice(0, 120);
       const result = await run((data) => {
         const reservations = Object.entries(data.reservations).filter(([key, reservation]) => key === operationId || reservation.operation_id === operationId);
         if (!reservations.length) return { persist: false, value: { released: true, duplicate: true, world_credits: +data.world_credits || 0 } };
-        reservations.forEach(([reservationId]) => { delete data.reservations[reservationId]; });
+        reservations.forEach(([reservationId]) => {
+          delete data.reservations[reservationId];
+        });
         return { value: { released: true, world_credits: +data.world_credits || 0 } };
       });
       return json(result.value);
     }
-
     return json({ error: "Unknown entitlement route." }, 404);
   }
-}
+};
+export {
+  EntitlementDO,
+  PLAN_LIMITS,
+  checkEntitlement,
+  classifyAdminCheckout,
+  corsHeaders,
+  index_default as default,
+  getUserEntitlements,
+  isAdminEmail,
+  isDepixReleasableStatus,
+  isPaidPaymentStatus,
+  isSecurityResearcherReward,
+  normalizeDepixPlan,
+  normalizeKiwifyPlan,
+  reconcileRecentDepixCheckouts
+};
+//# sourceMappingURL=index.js.map

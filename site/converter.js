@@ -21,7 +21,7 @@
   // Leitura informativa p/ diagnóstico (o site não altera travas de pack).
   var LOCK_FLAGS = ["hasLockedBehaviorPack", "hasLockedResourcePack"];
   // Gamerules (TAG_Byte na raiz) que o site permite ligar/desligar.
-  var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle", "doimmediaterespawn", "mobgriefing", "naturalregeneration"];
+  var RULES = ["keepinventory", "showcoordinates", "dodaylightcycle", "doweathercycle", "doimmediaterespawn", "mobgriefing", "naturalregeneration", "falldamage", "firedamage", "drowningdamage", "dofiretick", "tntexplodes", "domobspawning", "domobloot", "dotiledrops", "doinsomnia", "showdeathmessages"];
 
   function Reader(buf) {
     this.view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -40,7 +40,20 @@
   Reader.prototype.long64 = function () { this.need(8); this.p += 8; return 0; }; // valor não importa p/ skip
   Reader.prototype.longVal = function () {
     this.need(8);
-    var v = this.view.getBigInt64(this.p, true);
+    var v;
+    if (this.view.getBigInt64) v = this.view.getBigInt64(this.p, true);
+    else {
+      // Exact signed 64-bit decimal without BigInt or lossy Number conversion.
+      var lo = this.view.getUint32(this.p, true), hi = this.view.getUint32(this.p + 4, true);
+      var negative = hi >= 2147483648, digits = "";
+      if (negative) { lo = (~lo + 1) >>> 0; hi = (~hi + (lo === 0 ? 1 : 0)) >>> 0; }
+      do {
+        var remainder = hi % 10, combined = remainder * 4294967296 + lo;
+        digits = String(combined % 10) + digits;
+        hi = Math.floor(hi / 10); lo = Math.floor(combined / 10);
+      } while (hi || lo);
+      v = (negative ? "-" : "") + digits;
+    }
     this.p += 8;
     return v;
   };
@@ -464,7 +477,6 @@
     }
 
     var out = new JSZip();
-    var jobs = [];
     zip.forEach(function (rel, entry) {
       if (entry.dir) return;
       var base = baseNameOf(rel);
@@ -488,9 +500,9 @@
         out.file(rel, worldName);
         return;
       }
-      jobs.push(entry.async("uint8array").then(function (data) { out.file(rel, data); }));
+      // Keep compressed database entries; don't inflate every chunk in parallel.
+      out.files[rel] = entry;
     });
-    await Promise.all(jobs);
     if (addPacks.length) {
       var usedFolders = Object.create(null);
       var packRefNames = { behavior: worldPrefix + "world_behavior_packs.json", resource: worldPrefix + "world_resource_packs.json" };
@@ -539,7 +551,7 @@
       if (!hasLevelName) out.file("levelname.txt", worldName);
       if (!renamed.oldName && !renamed.changes.length) changes.push("nome em levelname.txt (LevelName não estava na raiz)");
     }
-    var blob = await out.generateAsync({ type: "blob", compression: "STORE" });
+    var blob = await out.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 1 }, streamFiles: true });
     // Re-open the generated artifact before exposing it to the user. This
     // catches bad ZIP output and proves the requested level.dat state survived
     // the header/gzip/ZIP round-trip.

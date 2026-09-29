@@ -766,7 +766,7 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
 
-  var ACCEPT = /\.(mcworld|mctemplate|zip|dat)$/i;
+  var ACCEPT = /\.(mcworld|mctemplate|mctemplet|zip|dat)$/i;
 
   var GM_NAMES = ["Sobrevivência", "Criativo", "Aventura"];
   function gmName(v) { return GM_NAMES[v] || ("modo " + v); }
@@ -950,7 +950,11 @@
       return;
     }
     try {
-      files = await Promise.all(files.map(function (f) { return window.RC_worldFormat.normalize(f); }));
+      // Keep batch imports sequential on devices with little available memory.
+      for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
+        files[fileIndex] = await window.RC_worldFormat.normalize(files[fileIndex]);
+        if (request !== pickRequest) return;
+      }
     } catch (error) {
       if (request !== pickRequest) return;
       selected = null; selectedList = []; updateSubmit();
@@ -989,6 +993,7 @@
       var fileDecision = window.RC_entitlements.canUseFile(files);
       if (fileDecision.status !== "ready" && fileDecision.status !== "unauthenticated") throw new Error("Entitlement unavailable");
       var maxBytes = fileDecision.max_file_bytes;
+      var limit = maxBytes === null ? "sem limite comercial" : (+(maxBytes / 1048576).toFixed(1) + " MB");
       var maxBatch = fileDecision.max_batch;
       big = fileDecision.too_large || [];
       try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track(big.length ? "file_too_large" : "file_valid", { worlds: files.length, world_size_mb: +(selected.size / 1048576).toFixed(1), plan: ent.plan, source: sourceForTool(currentToolSlug()) || "tool_upload" }); } catch (e0) {}
@@ -1001,7 +1006,7 @@
       }
       if (big.length) {
         var mb = (big[0].size / 1048576).toFixed(1);
-        var limit = maxBytes === null ? "sem limite comercial" : (+(maxBytes / 1048576).toFixed(1) + " MB");
+
         if (ent.status === "ready" && ent.active) showFilePaywall(files.length, big[0].size, "Seu mundo excede o limite atual de " + limit + ".");
         if (ent.status === "ready" && ent.active) setStatus("err", "Seu mundo tem <b>" + mb + " MB</b>. Seu plano <b>" + escapeHtml(ent.plan_label || ent.plan) + "</b> permite até <b>" + limit + "</b>.");
         else {
@@ -1336,6 +1341,16 @@
       mobgriefing: selRule(mobGriefSel),
       naturalregeneration: selRule(naturalRegenSel)
     };
+    rules.falldamage = selRule($("rule-falldamage"));
+    rules.firedamage = selRule($("rule-firedamage"));
+    rules.drowningdamage = selRule($("rule-drowningdamage"));
+    rules.dofiretick = selRule($("rule-dofiretick"));
+    rules.tntexplodes = selRule($("rule-tntexplodes"));
+    rules.domobspawning = selRule($("rule-domobspawning"));
+    rules.domobloot = selRule($("rule-domobloot"));
+    rules.dotiledrops = selRule($("rule-dotiledrops"));
+    rules.doinsomnia = selRule($("rule-doinsomnia"));
+    rules.showdeathmessages = selRule($("rule-showdeathmessages"));
     var dv = selRule(daySel);
     if (dv !== null) rules.dodaylightcycle = dv === 0 ? 0 : 1; // travar = dodaylightcycle 0
     var wv = selRule(weatherSel);

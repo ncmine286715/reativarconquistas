@@ -222,6 +222,7 @@ assert.equal(reopenedSamePlan.result.id, "chk-1", "reopening a checkout for the 
 const kv = new KV();
 const namespace = new Namespace();
 const env = {
+  PAYMENT_PROVIDER: "depix", // Legacy provider regression coverage; new sales tested below.
   PREMIUM_KV: kv, ENTITLEMENTS: namespace,
   FIREBASE_WEB_API_KEY: "firebase-test-key", DEPIX_API_KEY: "sk_test_worker",
   DEPIX_WEBHOOK_SECRET: "webhook-secret", KIWIFY_SECRET: "kiwify-test-secret",
@@ -593,3 +594,54 @@ assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.amount, 1499, "De
 assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.metadata.plan, "ouro");
 assert.ok(depixStatusCalls > 0, "status lookup reached the payment provider");
 console.log("Entitlement/payment tests passed.");
+
+// Every currently sold plan uses the same InfinitePay path and server-owned price.
+const legacyFetch = globalThis.fetch;
+const ipOrders = new Map();
+let ipPaid = false, ipWrongAmount = false, ipCreates = 0;
+globalThis.fetch = async (url, options = {}) => {
+  if (String(url) === "https://api.checkout.infinitepay.io/links") {
+    const order = JSON.parse(options.body); ipCreates++; ipOrders.set(order.order_nsu, order);
+    return Response.json({ url: "https://checkout.infinitepay.com.br/fixture?order=" + order.order_nsu });
+  }
+  if (String(url) === "https://api.checkout.infinitepay.io/payment_check") {
+    const order = ipOrders.get(JSON.parse(options.body).order_nsu);
+    return Response.json({ success: true, paid: ipPaid, amount: ipWrongAmount ? 1 : order.items[0].price });
+  }
+  return legacyFetch(url, options);
+};
+const migrated = { ...env, PAYMENT_PROVIDER: "infinitepay", INFINITEPAY_HANDLE: "fixture-merchant", SALES_ENABLED: "1", PREMIUM_KV: new KV(), ENTITLEMENTS: new Namespace() };
+for (const provider of ["depix", "abacate"]) {
+  const closed = await worker.default.fetch(apiRequest("/api/" + provider + "/create", { method: "POST", body: {} }), migrated);
+  assert.equal(closed.status, 410, "legacy creation is closed, old receipt routes remain available");
+}
+for (const [i, plan] of ["world1", "ouro", "diamante", "vip7", "vip30", "creator"].entries()) {
+  const token = "infinite-" + plan;
+  identities[token] = { localId: token, email: token + "@example.com", displayName: "Fixture Buyer" };
+  const body = { plan, price: 1, terms_accepted: true, request_id: "infinite-fixture-order-" + plan };
+  const request = () => apiRequest("/api/infinitepay/create", { method: "POST", token, body, ip: "192.0.2." + (30+i) });
+  const result = await worker.default.fetch(request(), migrated);
+  const checkout = await result.json();
+  assert.equal(result.status, 200, JSON.stringify(checkout));
+  assert.equal(ipOrders.get(checkout.id).items[0].price, worker.PLAN_LIMITS[plan].price_cents);
+  assert.equal((await (await worker.default.fetch(request(), migrated)).json()).id, checkout.id, "retry reuses original checkout");
+  const statusPath = "/api/infinitepay/status?order_nsu=" + checkout.id + "&transaction_nsu=fixture&slug=fixture";
+  ipPaid = false;
+  assert.equal((await (await worker.default.fetch(apiRequest(statusPath, { token }), migrated)).json()).paid, false);
+  assert.equal((await worker.default.fetch(apiRequest(statusPath, { token: "tokenB" }), migrated)).status, 403, "another account cannot verify the order");
+  ipPaid = true; ipWrongAmount = true;
+  const wrong = await (await worker.default.fetch(apiRequest(statusPath, { token }), migrated)).json();
+  assert.notEqual(wrong.paid, true, "wrong provider amount never grants benefits");
+  ipWrongAmount = false;
+  const webhook = () => apiRequest("/api/infinitepay/webhook", { method: "POST", token: "", body: { order_nsu: checkout.id, transaction_nsu: "fixture", invoice_slug: "fixture", paid: true, amount: 1 } });
+  const responses = await Promise.all([worker.default.fetch(webhook(), migrated), worker.default.fetch(apiRequest(statusPath, { token }), migrated)]);
+  assert.equal(responses[0].status, 200);
+  assert.equal((await responses[1].json()).paid, true);
+  const account = await (await migrated.ENTITLEMENTS.get(token).fetch(doReq("/state"))).json();
+  if (worker.PLAN_LIMITS[plan].kind === "world_credit") assert.equal(account.world_credits, worker.PLAN_LIMITS[plan].credit_count, "racing webhook grants credit once");
+  else assert.equal((await migrated.ENTITLEMENTS.get(token).state.storage.get("entitlement")).time_passes.length, 1, "racing webhook grants pass once");
+}
+assert.equal(ipCreates, 6, "all six plans create exactly one InfinitePay checkout each");
+const noConfig = { ...migrated, INFINITEPAY_HANDLE: "" };
+assert.equal((await worker.default.fetch(apiRequest("/api/infinitepay/create", { method: "POST", body: {} }), noConfig)).status, 503);
+console.log("PASS: InfinitePay all six SKUs, authoritative prices, pending/wrong amount, account ownership, retry and webhook idempotency, no legacy fallback.");

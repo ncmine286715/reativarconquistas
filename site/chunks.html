@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="style.css?v=29">
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <link rel="apple-touch-icon" href="logo.png">
+<script src="compatibility.js?v=20260929c"></script>
 </head>
 <body>
 <div class="topbar"><div class="topbar-in">
@@ -40,7 +41,7 @@
   <section class="card chunk-card" aria-labelledby="uploadTitle">
     <div class="chunk-step"><span>1</span><div><h2 id="uploadTitle">Abra seu mundo</h2><p class="sub">Use um arquivo <b>.mcworld</b>, <b>.mctemplate</b> ou <b>.zip</b> exportado pelo Minecraft Bedrock. Faça uma cópia do original antes.</p></div></div>
     <label id="drop" class="drop" for="file" tabindex="0">
-      <input id="file" type="file" accept=".mcworld,.mctemplate,.zip" hidden>
+      <input id="file" type="file" accept=".mcworld,.mctemplate,.mctemplet,.zip" hidden>
       <span class="drop-icon" aria-hidden="true">↓</span>
       <span class="drop-title">Toque para escolher o seu mundo</span>
       <span class="drop-sub">O mapa e a análise rodam no seu aparelho.</span>
@@ -113,20 +114,20 @@
 <script src="vendor/jszip.min.js?v=14"></script>
 <script src="vendor/leveldb-reader.js?v=3"></script>
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
-<script src="config.js?v=28"></script>
+<script src="config.js?v=20260929c"></script>
 
-<script src="world-format.js?v=1"></script>
-<script src="converter.js?v=16"></script>
+<script src="world-format.js?v=20260929c"></script>
+<script src="converter.js?v=20260929c"></script>
 <script src="ferramentas-local.js?v=15"></script>
-<script src="mapa-2d.js?v=7"></script>
+<script src="mapa-2d.js?v=20260929c"></script>
 <script src="mapa-terreno.js?v=3"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
-<script src="db-common.js?v=8"></script>
+<script src="db-common.js?v=20260929c"></script>
 <script src="chunks.js?v=11"></script>
-<script src="firebase-config.js?v=14"></script>
+<script src="firebase-config.js?v=20260929c"></script>
 <script src="auth.js?v=16"></script>
-<script src="pagamento.js?v=32"></script>
+<script src="pagamento.js?v=20260929c"></script>
 <script src="entitlements.js?v=3"></script>
 <script>
 (function () {
@@ -138,6 +139,6 @@
   refresh();
 })();
 </script>
-<script src="guia-site.js?v=5"></script>
+<script src="guia-site.js?v=20260929c"></script>
 </body>
 </html>
