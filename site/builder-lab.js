@@ -447,7 +447,11 @@
     $("result").hidden = true;
     $("structureFile").disabled = true;
   }
-  function loadWorld(file) {
+  async function loadWorld(file) {
+    var normalizationRequest = ++state.worldGeneration;
+    try { file = await window.RC_worldFormat.normalize(file); }
+    catch (error) { if (normalizationRequest === state.worldGeneration) $("status").textContent = "Não consegui abrir o modelo: " + (error.message || error); return; }
+    if (normalizationRequest !== state.worldGeneration) return;
     if (!file || !window.RC_entitlements) { $("status").textContent = "Nao foi possivel verificar seu plano agora. Tente novamente."; return; }
     var requestGeneration = ++state.worldGeneration;
     clearWorldForEntitlementCheck();

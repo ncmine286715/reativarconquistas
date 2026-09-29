@@ -38,9 +38,9 @@
   </header>
 
   <section class="card chunk-card" aria-labelledby="uploadTitle">
-    <div class="chunk-step"><span>1</span><div><h2 id="uploadTitle">Abra seu mundo</h2><p class="sub">Use um arquivo <b>.mcworld</b> ou <b>.zip</b> exportado pelo Minecraft Bedrock. Faça uma cópia do original antes.</p></div></div>
+    <div class="chunk-step"><span>1</span><div><h2 id="uploadTitle">Abra seu mundo</h2><p class="sub">Use um arquivo <b>.mcworld</b>, <b>.mctemplate</b> ou <b>.zip</b> exportado pelo Minecraft Bedrock. Faça uma cópia do original antes.</p></div></div>
     <label id="drop" class="drop" for="file" tabindex="0">
-      <input id="file" type="file" accept=".mcworld,.zip" hidden>
+      <input id="file" type="file" accept=".mcworld,.mctemplate,.zip" hidden>
       <span class="drop-icon" aria-hidden="true">↓</span>
       <span class="drop-title">Toque para escolher o seu mundo</span>
       <span class="drop-sub">O mapa e a análise rodam no seu aparelho.</span>
@@ -115,6 +115,7 @@
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=28"></script>
 
+<script src="world-format.js?v=1"></script>
 <script src="converter.js?v=16"></script>
 <script src="ferramentas-local.js?v=15"></script>
 <script src="mapa-2d.js?v=7"></script>
@@ -122,7 +123,7 @@
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
 <script src="db-common.js?v=8"></script>
-<script src="chunks.js?v=10"></script>
+<script src="chunks.js?v=11"></script>
 <script src="firebase-config.js?v=14"></script>
 <script src="auth.js?v=16"></script>
 <script src="pagamento.js?v=32"></script>

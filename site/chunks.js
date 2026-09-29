@@ -14,13 +14,18 @@
   var MAX_CHUNKS = 4000;
   window.RC_sel = new Set();
   window.RC_MAX_CHUNKS = MAX_CHUNKS;
-  var curFile = null, analysis = null, analysisRun = 0;
+  var curFile = null, analysis = null, analysisRun = 0, fileRequest = 0;
 
   function $(id) { return document.getElementById(id); }
   function esc(s) { return window.RC_dbx ? window.RC_dbx.esc(s) : String(s); }
   function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
 
-  function trackFile(f) { ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); curFile = f; window.RC_file = f; window.RC_sel.clear(); analysis = null; paintSelUI(); }
+  async function trackFile(f) {
+    var request = ++fileRequest;
+    try { f = await window.RC_worldFormat.normalize(f); }
+    catch (e) { if (request === fileRequest) status(esc(e.message || e)); return; }
+    if (request !== fileRequest) return;
+    ++analysisRun; if (analyzeTimer) clearTimeout(analyzeTimer); curFile = f; window.RC_file = f; window.RC_sel.clear(); analysis = null; paintSelUI(); }
   function selCount() { return window.RC_sel.size; }
 
   function status(html) {
