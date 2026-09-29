@@ -379,6 +379,8 @@ export async function reconcileRecentDepixCheckouts(env) {
     const id = String(checkout.id || "").trim().slice(0, 180);
     if (!id || !isDepixReleasableStatus(checkout.status) || seen.has(id)) continue;
     seen.add(id);
+    const reconciledKey = "depix:reconciled:" + encodeURIComponent(id);
+    if (await env.PREMIUM_KV.get(reconciledKey).catch(() => null)) continue;
     let metadata = checkout.metadata || {};
     if (typeof metadata === "string") { try { metadata = JSON.parse(metadata); } catch { metadata = {}; } }
     const email = String(metadata.email || "").trim().toLowerCase();
@@ -393,6 +395,7 @@ export async function reconcileRecentDepixCheckouts(env) {
     await env.PREMIUM_KV.delete(receipt.key);
     await recordPaidCheckout(env, { id, email, uid, plan, provider: "depix", source: "automatic_reconcile" });
     await env.PREMIUM_KV.delete(pendKey(id)).catch(() => {});
+    await env.PREMIUM_KV.put(reconciledKey, "1", { expirationTtl: 400 * 86400 }).catch(() => {});
     results.push({ id, paid: true, status: String(checkout.status || ""), email, plan, ...grant });
   }
   return { checked: seen.size, recovered: results.length, results };
@@ -951,26 +954,32 @@ export async function getUserEntitlements(env, firebaseUid, user = {}) {
   if (legacyRecord && +legacyRecord.until > +uidState.premium_until_ms) {
     const legacyPlan = normalizeDepixPlan(legacyRecord.plan);
     if (!legacyPlan || PLAN_LIMITS[legacyPlan].kind !== "time") {
+      // Old credit records may carry an unrelated expiry. They cannot grant a
+      // time pass, but must not block valid credit and purchase records.
       await metric(env, "entitlement_load_error", { reason: "invalid_legacy_plan" });
-      throw new Error("ENTITLEMENT_UNAVAILABLE");
+    } else {
+      const migrated = await uidStub.fetch("https://entitlements/migrate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ premium_until_ms: +legacyRecord.until, plan: legacyPlan })
+      });
+      if (!migrated.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
     }
-    const migrated = await uidStub.fetch("https://entitlements/migrate", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ premium_until_ms: +legacyRecord.until, plan: legacyPlan })
-    });
-    if (!migrated.ok) throw new Error("ENTITLEMENT_UNAVAILABLE");
   }
 
   const state = await readObjectState(uidStub);
   const now = Date.now();
   const reward = isSecurityResearcherReward(env, email);
-  const timeUntil = Math.max(+state.premium_until_ms || 0, reward ? now + SECURITY_REWARD_DAYS * 86400000 : 0);
-  const activeProjects = (state.world_projects || []).filter((project) => +project.expires_at > now);
-  const storedTimePlan = timeUntil > now ? normalizeDepixPlan(state.plan) : "";
-  if (timeUntil > now && !reward && (!storedTimePlan || PLAN_LIMITS[storedTimePlan].kind !== "time")) {
+  const candidateTimePlan = normalizeDepixPlan(state.plan);
+  const hasTimePlan = !!(candidateTimePlan && PLAN_LIMITS[candidateTimePlan].kind === "time");
+  const storedUntil = hasTimePlan ? (+state.premium_until_ms || 0) : 0;
+  if (!hasTimePlan && +state.premium_until_ms > now) {
+    // A legacy credit/unknown plan can carry a future timestamp. Never grant
+    // time access from it, and do not make the account unreadable.
     await metric(env, "entitlement_load_error", { reason: "invalid_active_plan" });
-    throw new Error("ENTITLEMENT_UNAVAILABLE");
   }
+  const timeUntil = Math.max(storedUntil, reward ? now + SECURITY_REWARD_DAYS * 86400000 : 0);
+  const activeProjects = (state.world_projects || []).filter((project) => +project.expires_at > now);
+  const storedTimePlan = timeUntil > now && hasTimePlan ? candidateTimePlan : "";
   const timePlan = reward ? "creator" : storedTimePlan;
   const worldCredits = Math.max(0, +state.world_credits || 0);
   const plan = timePlan || ((worldCredits || activeProjects.length) ? "world1" : "free");
@@ -1926,13 +1935,14 @@ export class EntitlementDO {
       const revision = Math.max(0, +body.revision || 0);
       if (!source || !revision) return json({ error: "Invalid import source." }, 400);
       const result = await run((data) => {
-        const importedUntil = +snapshot.premium_until_ms || 0;
         const importedPlan = normalizeDepixPlan(snapshot.plan);
-        if (importedUntil > Date.now() && (!importedPlan || PLAN_LIMITS[importedPlan].kind !== "time")) {
-          return { persist: false, status: 400, value: { error: "Active legacy entitlement requires a known time plan." } };
-        }
         const previous = data.imports[source] || { revision: 0, credits: 0 };
         if (revision <= previous.revision) return { persist: false, value: publicState(data) };
+        // Some pre-credit records stored a future expiry alongside a world
+        // credit or unknown plan. Import the credit/project only; a timestamp
+        // never turns into a time pass without an exact time-plan identity.
+        const importedUntil = importedPlan && PLAN_LIMITS[importedPlan].kind === "time"
+          ? (+snapshot.premium_until_ms || 0) : 0;
         const delta = Math.max(0, (+snapshot.world_credits || 0) - (+previous.credits || 0));
         data.world_credits = (+data.world_credits || 0) + delta;
         if (importedUntil > +data.premium_until_ms) {

@@ -1,7 +1,7 @@
 /* ReativaConquistas — Service Worker do site e do Construtor 3D.
    Páginas HTML sempre revalidam online para evitar servir conteúdo antigo.
    Recursos com ?v= podem usar cache-first; sem rede, usamos o cache local. */
-var CACHE = 'rc-focus-20260929c';
+var CACHE = 'rc-focus-20260929d';
 var CORE = ['index.html', 'importar.html', 'style.css?v=29', 'focus.css?v=20260929c', 'compatibility.js?v=20260929c', 'focus.js?v=20260929c', 'logo.png', 'mc/item/grass_block.png'];
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));

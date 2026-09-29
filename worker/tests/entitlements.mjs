@@ -116,8 +116,36 @@ const dobj = new worker.EntitlementDO(objectState);
 const legacyDO = new worker.EntitlementDO({ storage: new Storage() });
 assert.equal((await legacyDO.fetch(doReq("/migrate", { premium_until_ms: now + 86400000, plan: "unknown_paid_plan" }))).status, 400, "legacy timestamps without a recognized plan are not migrated as VIP30");
 assert.equal((await legacyDO.fetch(doReq("/migrate", { premium_until_ms: now + 86400000, plan: "world1" }))).status, 400, "a world credit cannot be migrated as a time pass");
-const legacyImport = await legacyDO.fetch(doReq("/import", { source: "legacy-test", revision: 1, state: { premium_until_ms: now + 86400000, plan: "unknown_paid_plan" } }));
-assert.equal(legacyImport.status, 400, "legacy imports with a timestamp but no exact time plan are rejected for manual reconciliation");
+const legacyImport = await legacyDO.fetch(doReq("/import", { source: "legacy-test", revision: 1, state: { premium_until_ms: now + 86400000, plan: "unknown_paid_plan", world_credits: 2 } }));
+assert.equal(legacyImport.status, 200, "legacy credit records remain readable despite an invalid time timestamp");
+const repairedLegacy = await json(await legacyDO.fetch(doReq("/state")));
+assert.equal(repairedLegacy.world_credits, 2, "valid credits survive the legacy import");
+assert.equal(repairedLegacy.premium_until_ms, 0, "invalid legacy timestamp never grants a time pass");
+await legacyDO.fetch(doReq("/import", { source: "legacy-test", revision: 1, state: { premium_until_ms: now + 86400000, plan: "unknown_paid_plan", world_credits: 2 } }));
+assert.equal((await json(await legacyDO.fetch(doReq("/state")))).world_credits, 2, "reloading an old record cannot double credits");
+const oldAccountEnv = { ENTITLEMENTS: new Namespace(), PREMIUM_KV: new KV() };
+const oldEmail = "old-credit@example.test";
+await oldAccountEnv.ENTITLEMENTS.get(oldEmail).state.storage.put("entitlement", {
+  world_credits: 2, premium_until_ms: now + 86400000, plan: "world1", revision: 1
+});
+await oldAccountEnv.PREMIUM_KV.put("prem:" + oldEmail, JSON.stringify({ until: now + 86400000, plan: "world1" }));
+const oldAccount = await worker.getUserEntitlements(oldAccountEnv, "old-credit-uid", { email: oldEmail });
+assert.equal(oldAccount.plan, "world1", "a malformed legacy expiry cannot block benefit loading");
+assert.equal(oldAccount.world_credits, 2, "valid old credit balance is retained");
+assert.equal(oldAccount.premium_until_ms, 0, "malformed expiry cannot grant time access");
+assert.equal((await worker.getUserEntitlements(oldAccountEnv, "old-credit-uid", { email: oldEmail })).world_credits, 2, "account refresh cannot double imported credits");
+const corruptUidEnv = { ENTITLEMENTS: new Namespace(), PREMIUM_KV: new KV() };
+await corruptUidEnv.ENTITLEMENTS.get("old-uid-with-credit").state.storage.put("entitlement", {
+  world_credits: 1, premium_until_ms: now + 86400000, plan: "world1", revision: 1
+});
+const corruptUid = await worker.getUserEntitlements(corruptUidEnv, "old-uid-with-credit", { email: "old-uid@example.test" });
+assert.equal(corruptUid.plan, "world1", "a malformed account timestamp does not block its credit");
+assert.equal(corruptUid.premium_until_ms, 0, "credit timestamp is never reinterpreted as a time pass");
+await corruptUidEnv.ENTITLEMENTS.get("old-uid-unknown").state.storage.put("entitlement", {
+  world_credits: 0, premium_until_ms: now + 86400000, plan: "unknown_paid_plan", revision: 1
+});
+const corruptUnknown = await worker.getUserEntitlements(corruptUidEnv, "old-uid-unknown", { email: "unknown-uid@example.test" });
+assert.equal(corruptUnknown.plan, "free", "an unknown legacy plan gets no paid benefits");
 let result = await json(await dobj.fetch(doReq("/grant", { plan: "world1", billing_id: "depix:pay-world-1" })));
 assert.equal(result.world_credits, 1);
 result = await json(await dobj.fetch(doReq("/grant", { plan: "world1", billing_id: "depix:pay-world-1" })));
@@ -420,6 +448,7 @@ reconcileFixtures.push(
 const reconciliation = await worker.reconcileRecentDepixCheckouts(env);
 assert.equal(reconciliation.recovered, 1, "scheduled reconciliation grants only explicitly confirmed payments");
 assert.deepEqual(reconcileStatusCalls, ["approved", "completed"], "scheduled reconciliation does not request the processing bucket");
+assert.equal((await worker.reconcileRecentDepixCheckouts(env)).recovered, 0, "scheduled runs do not repeat settled legacy grants");
 const reconciledD = await worker.getUserEntitlements(env, "firebase-uid-d", identities.tokenD);
 assert.equal(reconciledD.plan, "vip7");
 assert.equal(reconciledD.world_credits, 0, "a processing one-world payment cannot grant a credit");

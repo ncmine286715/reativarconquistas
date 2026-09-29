@@ -31,7 +31,7 @@
 
 <script src="firebase-config.js?v=20260929c"></script>
 <script src="auth.js?v=16"></script>
-<script src="pagamento.js?v=20260929c"></script>
+<script src="pagamento.js?v=20260929d"></script>
 <script src="entitlements.js?v=3"></script>
 <script>
 (function () {
@@ -100,8 +100,9 @@
         if (resume) resume.onclick = function () { resume.disabled = true; if (window.RC_pay) window.RC_pay.checkout(ent.pending_payment.plan, null); };
         var refresh = document.getElementById("refreshBenefits");
         if (refresh) refresh.onclick = function () { refresh.disabled = true; window.RC_entitlements.refresh().then(render).catch(render); };
-      }).catch(function () {
-        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>Não foi possível verificar seus benefícios agora. Tente novamente.</p><p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>");
+      }).catch(function (error) {
+        var message = window.RC_entitlements.messageForError(error);
+        show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p><p class='sub'>" + esc(message) + "</p><p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>");
         var refresh = document.getElementById("refreshBenefits");
         if (refresh) refresh.onclick = function () { window.RC_entitlements.refresh().then(render).catch(render); };
       });

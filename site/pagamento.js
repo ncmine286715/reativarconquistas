@@ -653,12 +653,15 @@
       entitlements().then(function (ent) {
         if (ent.active && document.getElementById("payModal") && !vipOverride) { setCheckoutBusy(false); closeContextCheckoutWindow(contextCheckoutWindow); showActiveBenefits(ent); return; }
         attempt(1);
-      }).catch(function () {
+      }).catch(function (error) {
         closeContextCheckoutWindow(contextCheckoutWindow);
         setCheckoutBusy(false);
         go.disabled = false;
         go.textContent = checkoutCta(selPlan());
-        payStatus("Não foi possível verificar os benefícios desta conta. Nenhuma nova cobrança foi criada. Atualize a conta e tente novamente.", "err");
+        var message = window.RC_entitlements && window.RC_entitlements.messageForError
+          ? window.RC_entitlements.messageForError(error)
+          : "Não foi possível verificar os benefícios desta conta. Tente novamente.";
+        payStatus(message + " Nenhuma nova cobrança foi criada.", "err");
       });
       function attempt(n) {
         var name = buyerName;
