@@ -4,6 +4,11 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const accountHtml = fs.readFileSync(path.join(__dirname, "..", "minha-conta.html"), "utf8");
+const { JSDOM } = require("jsdom");
+const accountDom = new JSDOM(accountHtml);
+assert.equal(accountDom.window.document.compatMode, "CSS1Compat", "account keeps its valid HTML doctype");
+assert.ok(accountDom.window.document.querySelector(".card .wf-account-help[href='suporte.html']"), "ticket shortcut is a real link inside the account card");
+accountDom.window.close();
 const inlineScripts = Array.from(accountHtml.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((match) => match[1])
   .filter((source) => source.trim());
