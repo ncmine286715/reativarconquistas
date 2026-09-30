@@ -440,13 +440,7 @@
     var w = bd ? (bd.maxCx - bd.minCx + 1) : 0;
     var h = bd ? (bd.maxCz - bd.minCz + 1) : 0;
     var parts = dims.map(function (d) { return (DIM_NAMES[d] || d) + ": <b>" + state.counts[d] + "</b>"; });
-    setStats(
-      "<b>" + total + " chunks</b> em " + esc(state.fileName) +
-      " · " + parts.join(" · ") +
-      (bd ? "<br>Visão: <b>" + (DIM_NAMES[state.activeDim] || state.activeDim) + "</b> " + w + "×" + h + " chunks (~" + (w * 16) + "×" + (h * 16) + " blocos)" : "") +
-      (state.spawnChunk ? " · spawn no chunk <b>" + state.spawnChunk.cx + ", " + state.spawnChunk.cz + "</b> <span style='color:#b91c1c'>●</span>" : "") +
-      "<br><span style='font-size:12px'>Arraste p/ mover e use roda/pinça p/ zoom. O mapa é somente visualização: nenhum chunk é apagado ou alterado.</span>"
-    );
+    setStats("<b>" + (DIM_NAMES[state.activeDim] || state.activeDim) + "</b> · " + total + " chunks" + (bd ? " · " + (w*16) + "×" + (h*16) + " blocos" : ""));
   }
 
   function resetState() {
@@ -611,9 +605,9 @@
     var h = $("mapHint");
     if (!h) return;
     h.textContent = state.mode === "select"
-      ? "Toque num chunk p/ alternar · arraste p/ área · arraste com 2 dedos move o mapa"
-      : state.mode === "pin" ? "Toque ou clique no mapa para colocar um pin; arraste para cancelar"
-        : "Arraste p/ mover · roda/pinça = zoom · passe o mouse p/ ver coordenadas";
+      ? "Toque para selecionar · dois dedos para mover"
+      : state.mode === "pin" ? "Toque para marcar um lugar"
+        : "Arraste para mover · pinça para ampliar";
   }
   function paintModes() {
     var sb = $("mapSpawnBtn");
@@ -805,14 +799,10 @@
       button.onclick = function () { button.remove(); renderMap(file); };
       if (drop) drop.parentNode.insertBefore(button, drop.nextSibling);
     }
-    if (input) input.addEventListener("change", function () {
-      var f = (input.files && input.files[0]) || null;
+    document.addEventListener("wf-world-selected", function (event) {
+      var f = event.detail && event.detail.file;
       if (f) preview(f);
       else { var b = $("mapPreview"); if (b) b.hidden = true; if (drop) drop.classList.remove("drop-loaded"); seq++; }
-    });
-    if (drop) drop.addEventListener("drop", function (e) {
-      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) preview(f);
     });
     bindCanvas();
     var bp = $("mapModePan"), bs = $("mapModeSel");

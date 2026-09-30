@@ -2,3 +2,11 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Sitemap: https://worldify.com.br/sitemap.xml
+
+# Automated reuse of the Worldify brand and original illustrations is not licensed.
+User-agent: CCBot
+Disallow: /
+User-agent: GPTBot
+Disallow: /
+User-agent: Bytespider
+Disallow: /

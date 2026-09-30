@@ -21,3 +21,11 @@
 - npm test em worker: autorizado/preço/UID/idempotência, casos legados, tickets, acesso administrativo e limitação atômica aprovados.
 - 21st review: sem falhas determinísticas; 10 informações sobre cores da direção visual solicitada.
 - Não realizada compra real. Não validado dentro do cliente Minecraft nem em hardware de 2014. Mundos criptografados e APIs ausentes continuam sujeitos a limites do navegador.
+
+## Revisão da interface e marca
+- Superfícies translúcidas com fallback, transições de abertura/fechamento, respostas ao toque e respeito a modo leve/movimento reduzido.
+- Um painel por vez com pictogramas originais. Depois do envio: mapa e navegação compacta, detalhes e comparação recolhidos; ajustes preservados na troca de painéis.
+- Marca original portal W pixelado, metadados/brand.json/aviso de uso e regras de rastreamento. Proteção efetiva dos recursos pagos permanece no servidor, sem promessa de impedir toda cópia.
+- Modelar mundo substitui Pintar mundo; prévia gratuita e exportação com passe, conforme autorização existente.
+- Faixa YouTube/texturas/guia rápido: o vídeo específico e a textura antiga de exportação não foram encontrados; botão aponta para os tutoriais do canal Ncmine e catálogo existente.
+- Teste de navegação com mundo carregado, retenção dos ajustes e preservação dos controles incluído em npm test. Prévia com fixture Bedrock válida inspecionada no celular; fixtures e páginas de QA excluídas do deploy.
