@@ -97,7 +97,7 @@
     if (!bd) return;
     var cv = $("mapCanvas");
     var W = (cv && cv.clientWidth) || 520, H = (cv && cv.parentElement && cv.parentElement.clientHeight) || (W > 700 ? 480 : 420);
-    H = Math.max(240, Math.min(680, H));
+    H = Math.max(140, Math.min(680, H));
     var bw = (bd.maxCx - bd.minCx + 1) * 16, bh = (bd.maxCz - bd.minCz + 1) * 16;
     var z = Math.min(W / bw, H / bh) * 0.98;
     z = Math.max(0.05, Math.min(24, z));
@@ -133,7 +133,7 @@
     var box = $("mapPreview");
     if (box && box.hidden) return;
     var W = cv.clientWidth || 520, H = (cv.parentElement && cv.parentElement.clientHeight) || (W > 700 ? 480 : 420);
-    H = Math.max(240, Math.min(680, H));
+    H = Math.max(140, Math.min(680, H));
     if (W < 50) return;
     var set = state.chunksByDim[state.activeDim];
     var bd = state.boundsByDim[state.activeDim];
@@ -180,7 +180,7 @@
       }
     }
     // grade de chunks (cara de ChunkBase)
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.strokeStyle = hasTerrain && state.mode === "pan" ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.14)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     var lx0 = Math.max(bd.minCx, Math.floor(x0 / 16)), lx1 = Math.min(bd.maxCx, Math.floor(x1 / 16));
@@ -571,7 +571,7 @@
         state.view = null; // fitView() calcula no draw
         if (window.RC_sel) window.RC_sel.clear();
         try { if (window.RC_selChanged) window.RC_selChanged(); } catch (e) {}
-        paintDims(); paintModes(); paintPins(); paintStats(); requestAnimationFrame(function () { draw(); });
+        paintDims(); paintModes(); paintPins(); paintStats(); requestAnimationFrame(function () { draw(); window.dispatchEvent(new CustomEvent("rc-map-ready")); });
       });
     }).catch(function (err) {
       if (my !== seq) return;

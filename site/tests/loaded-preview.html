@@ -6,7 +6,7 @@
 <button type="button" id="rulesQA" style="position:fixed;bottom:36px;left:4px;z-index:9999">Abrir regras de teste</button>
 <script>
 document.getElementById('preview').onload=function(){document.getElementById('load').disabled=false;};
-document.getElementById('load').onclick=async function(){var frame=document.getElementById('preview'),w=frame.contentWindow,bytes=await fetch('preview-world.mcworld').then(r=>r.arrayBuffer()),file=new w.File([bytes],'Minha ilha.mcworld',{type:'application/zip'}),data=new w.DataTransfer();data.items.add(file);w.document.getElementById('file').files=data.files;w.document.getElementById('file').dispatchEvent(new w.Event('change',{bubbles:true}));this.hidden=true;};
+document.getElementById('load').onclick=async function(){var frame=document.getElementById('preview'),w=frame.contentWindow,bytes=await fetch('preview-world.mcworld').then(r=>r.arrayBuffer()),file=new w.File([bytes],'Minha ilha.mcworld',{type:'application/zip'}),data=new w.DataTransfer();data.items.add(file);w.document.getElementById('file').files=data.files;w.document.getElementById('file').dispatchEvent(new w.Event('change',{bubbles:true}));this.hidden=true;document.getElementById('panel').parentElement.hidden=true;document.getElementById('rulesQA').hidden=true;};
 document.getElementById('panel').onchange=function(){var d=document.getElementById('preview').contentDocument,b=d.querySelector('.wf-editor-tool[aria-label="'+this.value+'"]');if(b){b.click();d.querySelector('.wf-panel-tray').scrollIntoView({block:'start'});}};
 document.getElementById('rulesQA').onclick=function(){document.getElementById('panel').value='Regras';document.getElementById('panel').dispatchEvent(new Event('change'));this.hidden=true;};
 </script>

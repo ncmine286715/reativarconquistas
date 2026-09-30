@@ -748,6 +748,8 @@
 
   var ACCEPT = /\.(mcworld|mctemplate|mctemplet|zip|dat)$/i;
 
+  var DIFFS = ["Pacífico", "Fácil", "Normal", "Difícil"];
+  function diffName(v) { return DIFFS[v] || ("nível " + v); }
   var GM_NAMES = ["Sobrevivência", "Criativo", "Aventura"];
   function gmName(v) { return GM_NAMES[v] || ("modo " + v); }
   function paintWorldInfo(rep, multi) {
@@ -831,7 +833,9 @@
     var pc = packCount(rep);
     if (pc > 0) st += " · " + pc + " addon(s) — bloqueiam conquistas!";
     if (multi) st += " (1º de " + multi + ")";
-    $("wiStatus").textContent = st;
+    $("wiStatus").title = st;
+    $("wiStatus").setAttribute("data-clean", String(rep.alreadyClean && pc === 0));
+    $("wiStatus").textContent = rep.alreadyClean && pc === 0 ? "Configuração pronta" : "Revisar bloqueios";
   }
   var passportButton = $("passportDownload"), originalButton = $("originalDownload"), reportDownloadButton = $("reportDownload");
   if (passportButton) passportButton.addEventListener("click", function () {
@@ -903,7 +907,7 @@
       if (pc0 > 0) t += " · " + pc0 + " addon(s) ativo(s) — BLOQUEIAM conquistas!";
       if (selectedList.length > 1) t += " (1º de " + selectedList.length + ")";
       box.textContent = t;
-    }).catch(function () { if (my === raioXSeq) { box.hidden = true; paintWorldInfo(null); } });
+    }).catch(function (error) { console.warn("Worldify diagnosis:", error); if (my === raioXSeq) { box.hidden = true; paintWorldInfo(null); } });
   }
   var pickRequest = 0;
   async function pick(list) {
@@ -1487,8 +1491,6 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
-    var DIFFS = ["Pacífico", "Fácil", "Normal", "Difícil"];
-  function diffName(v) { return DIFFS[v] || ("nível " + v); }
   function summarizeChanges(changes) {
     var list = changes || [];
     var out = [];

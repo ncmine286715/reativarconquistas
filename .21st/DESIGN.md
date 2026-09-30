@@ -13,3 +13,5 @@ Revisão solicitada: transparência moderada, entrada e saída suaves, ícones p
 Ícones de interface: pretos, pixelados, grade de 24 px e recortes transparentes; brancos no tema escuro. Tutorial exato e textura oficial em dois cartões; ícone da textura fornecido pelo usuário. Detalhes de cada função aparecem apenas no painel selecionado.
 
 Checkout: marca Worldify, conta identificada, planos em cartões com seleção nativa, total destacado e ação laranja persistente. Não bloquear links InfinitePay por consultas opcionais de benefícios; preços e confirmação continuam no servidor.
+
+Referência do usuário: cartão escuro de mundo com terreno real em formato horizontal, dados do arquivo abaixo e ações ilustradas de conquistas, construtor e chunks. Suporte e tickets visíveis no cabeçalho e na conta. Badges seguem os limites reais, sem transformar recursos gratuitos em VIP.
