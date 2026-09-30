@@ -66,4 +66,4 @@ html[data-light-mode=true] .wf-learning-strip .wf-learn-card{transition:none}
 #payModal .pay-planpick label.wf-selected{border-color:var(--orange);background:var(--orange-soft);box-shadow:0 0 0 1px var(--orange)}
 #payModal{z-index:1500;padding:8px}#payModal .pay-modal{background:rgba(255,255,255,.94)}html[data-theme=dark] #payModal .pay-modal{background:rgba(31,40,48,.94)}#payModal button{font-family:var(--font)}
 body.wf-payment-open{overflow:hidden}
-#payModal .pay-planpick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+#payModal .pay-planpick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important}
