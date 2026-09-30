@@ -26,7 +26,7 @@
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
-<link rel="stylesheet" href="worldify-shell.css?v=20260930f"><script defer src="worldify-shell.js?v=20260930f"></script>
+<link rel="stylesheet" href="worldify-shell.css?v=20260930i"><link rel="stylesheet" href="worldify-glass.css?v=20260930i"><script defer src="worldify-shell.js?v=20260930i"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -116,25 +116,20 @@
     <picture><source srcset="assets/worldify-hero.webp" type="image/webp"><img src="assets/worldify-hero.jpg" width="1280" height="720" alt="Um mundo de blocos com rio, florestas e montanhas ao amanhecer" fetchpriority="high"></picture>
     <div class="wf-hero-overlay"><p>WORLDIFY</p><h1>Seu mundo.<br>Do seu jeito.</h1><div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo ↗</a><a class="btn-ghost hero-btn" href="#guia-envio">Como enviar</a></div></div>
   </header>
-  <details id="guia-envio" class="upload-guide"><summary><img src="mc/item/book.png" width="24" height="24" alt=""> Nunca fiz isso. Como envio meu mundo?</summary>
-    <div class="guide-columns"><div><h2>No computador</h2><ol><li>No Minecraft Bedrock, abra <b>Jogar</b> e o lápis ao lado do mundo.</li><li>Nas configurações do mundo, procure <b>Exportar mundo</b> e salve o arquivo.</li><li>Volte aqui e escolha <b>Enviar meu mundo</b>. Selecione o arquivo salvo.</li></ol></div>
-    <div><h2>No celular</h2><ol><li>Se o jogo oferecer <b>Exportar mundo</b>, salve em Downloads ou Arquivos.</li><li>Se essa opção não aparecer, veja o <a href="importar.html">guia de exportação e importação</a> para seu sistema. O acesso às pastas varia com a versão do Android/iOS.</li><li>Toque em <b>Enviar meu mundo</b> e selecione o arquivo no aplicativo Arquivos.</li></ol></div></div>
-    <p>Aceitamos <b>.mcworld</b>, <b>.mctemplate</b> (também .mctemplet) e ZIP de mundo. Não envie o aplicativo Minecraft. Depois da edição, abra o <b>.mcworld</b> baixado com o Minecraft Bedrock.</p>
-    <a class="primary" href="#converter">Já tenho o arquivo — enviar</a>
-  </details>
+  <section id="guia-envio" class="wf-learning-strip" aria-label="Tutorial e textura"><a href="https://www.youtube.com/@Ncmine/search?query=exportar%20mundo" target="_blank" rel="noopener"><img src="assets/icons/video.svg" width="28" height="28" alt=""><span>YouTube<small>Tutoriais do Ncmine ↗</small></span></a><a href="importar.html#texturas"><img src="assets/icons/addon.svg" width="28" height="28" alt=""><span>Texturas<small>Baixar .mcpack ↗</small></span></a><a href="importar.html"><img src="assets/icons/info.svg" width="28" height="28" alt=""><span>Como enviar<small>Guia rápido ↗</small></span></a></section>
   <p id="compatibilityNotice" class="warn" hidden role="status"></p>
-  <div class="light-mode-control"><label><input type="checkbox" id="lightMode"> Modo leve: menos efeitos e prévias sob demanda</label><span>Útil em celulares antigos</span></div>
+  <div class="light-mode-control"><label><input type="checkbox" id="lightMode"> Modo leve</label></div>
   <div id="quotaBar" class="quota">
     <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>
     <span id="quotaText">Verificando seu plano…</span>
   </div>
 
   <main class="card" id="converter">
-    <div class="wf-workspace-heading"><div><p class="kicker">SEU ESPAÇO DE CRIAÇÃO</p><h2>Vamos começar?</h2></div><a class="wf-help" href="importar.html" aria-label="Aprender a enviar meu mundo">?</a></div>
-    <p class="sub">Envie um mundo ou escolha o que deseja criar.</p>
+    <div class="wf-workspace-heading"><div><h2 id="wfWorldTitle">Seu próximo mundo.</h2></div><a class="wf-help" href="importar.html" aria-label="Aprender a enviar meu mundo">?</a></div>
 
 
-    <div class="wf-tool-dock" aria-label="Escolher ferramenta"><button type="button" data-workspace="edit" aria-pressed="true"><img src="mc/item/grass_block.png" alt="">Editar mundo</button><button type="button" data-workspace="paint" aria-pressed="false"><img src="mc/item/painting.png" alt="">Pintar mundo</button><button type="button" data-workspace="chunks" aria-pressed="false"><img src="mc/item/diamond_pickaxe.png" alt="">Apagar chunks</button><button type="button" data-workspace="convert" aria-pressed="false"><img src="mc/block/structure_block.png" alt="">Converter</button></div>
+
+    <div class="wf-tool-dock" aria-label="Escolher ferramenta"><button type="button" data-workspace="edit" aria-pressed="true"><img src="assets/icons/world.svg" alt="">Editar</button><button type="button" data-workspace="paint" aria-pressed="false"><img src="assets/icons/model.svg" alt="">Modelar</button><button type="button" data-workspace="chunks" aria-pressed="false"><img src="assets/icons/chunks.svg" alt="">Chunks</button><button type="button" data-workspace="convert" aria-pressed="false"><img src="assets/icons/convert.svg" alt="">Converter</button></div>
     <div id="wfExtraWorkspace" hidden></div>
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
@@ -142,11 +137,9 @@
         <div class="acc-body">
       <label id="drop" class="drop" for="file" tabindex="0">
         <input id="file" type="file" name="mcworld" accept=".mcworld,.mctemplate,.mctemplet,.zip,.dat" multiple hidden>
-        <span class="drop-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
-        </span>
-        <span class="drop-title">Selecione ou solte seu mundo</span>
-        <span class="drop-sub">.mcworld, modelos e ZIP de mundo · original preservado</span>
+        <span class="drop-icon" aria-hidden="true"><img src="assets/icons/upload.svg" width="44" height="44" alt=""></span>
+        <span class="drop-title">Toque ou solte seu mundo</span>
+        <span class="drop-sub">.mcworld · .mctemplate · ZIP</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
         <span class="drop-replace" aria-hidden="true">Trocar mundo</span>
@@ -156,23 +149,23 @@
       <p id="toolIntent" class="tool-intent" hidden></p>
       <label class="opt achievements-main" id="achievementsOpt">
         <input type="checkbox" id="reactivateAchievements" checked>
-        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Sobrevivência sem cheats e experimentos. Remove addons somente na cópia.</em></span>
+        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Sobrevivência sem cheats. Addons removidos na cópia.</em></span>
       </label>
 
       <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
-        <div class="wi-title">Mapa do mundo</div>
+        <div class="wi-title">Seu mapa</div>
         <div id="mapStats" class="map-stats" role="status" aria-live="polite">Lendo o mundo…</div>
         <div id="mapDims" class="map-dims" aria-label="Dimensão" hidden></div>
         <div class="map-canvas-wrap" id="mapWrap">
           <canvas id="mapCanvas" aria-label="Mapa do mundo; arraste para mover e use os botões para ampliar"></canvas>
           <div class="map-icon-tools" role="toolbar" aria-label="Ferramentas do mapa">
-            <button type="button" class="map-dim on" id="mapModePan" aria-label="Mover mapa" title="Mover mapa"><img src="mc/item/filled_map.png" alt=""></button>
-            <button type="button" class="map-dim" id="mapModeSel" aria-label="Selecionar área" title="Selecionar área"><img src="mc/item/map.png" alt=""></button>
-            <button type="button" class="map-dim" id="mapModePin" aria-label="Colocar marcador" title="Colocar marcador"><img src="mc/item/name_tag.png" alt=""></button>
-            <button type="button" class="map-dim" id="mapSpawnBtn" aria-label="Ir para o spawn" title="Ir para o spawn" hidden><img src="mc/item/ender_eye.png" alt=""></button>
+            <button type="button" class="map-dim on" id="mapModePan" aria-label="Mover mapa" title="Mover mapa"><img src="assets/icons/info.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapModeSel" aria-label="Selecionar área" title="Selecionar área"><img src="assets/icons/chunks.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapModePin" aria-label="Colocar marcador" title="Colocar marcador"><img src="assets/icons/player.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapSpawnBtn" aria-label="Ir para o spawn" title="Ir para o spawn" hidden><img src="assets/icons/world.svg" alt=""></button>
             <button type="button" class="map-dim" id="mapZoomIn" aria-label="Aproximar mapa" title="Aproximar mapa"><span aria-hidden="true">+</span></button>
             <button type="button" class="map-dim" id="mapZoomOut" aria-label="Afastar mapa" title="Afastar mapa"><span aria-hidden="true">−</span></button>
-            <button type="button" class="map-dim" id="mapTerrainBtn" aria-label="Alternar vista do terreno" title="Alternar vista do terreno" hidden><img src="mc/item/grass_block.png" alt=""></button>
+            <button type="button" class="map-dim" id="mapTerrainBtn" aria-label="Alternar vista do terreno" title="Alternar vista do terreno" hidden><img src="assets/icons/model.svg" alt=""></button>
           </div>
           <div id="mapTip" class="map-tip" hidden></div>
         </div>
@@ -206,7 +199,7 @@
 
 
       <div id="worldInfo" class="worldinfo" hidden>
-        <div class="wi-title">Resumo do mundo <span class="wi-sub">lido do level.dat — <span id="wiSize">tamanho indisponível</span> — nada foi alterado</span></div>
+        <div class="wi-title">Resumo <span class="wi-sub"><span id="wiSize">—</span></span></div>
         <div class="wi-grid">
           <div class="wi-row"><span>Nome</span><b id="wiName">—</b></div>
           <div class="wi-row"><span>Seed</span><span class="wi-seed"><code id="wiSeed">—</code><button type="button" class="btn-ghost btn-mini" id="seedCopy" hidden>Copiar</button></span></div>
@@ -246,7 +239,7 @@
 
       <details class="wf-edit-menu" id="wfEditMenu"><summary>☰ Ajustes e ferramentas <span>Escolha o que editar</span></summary><div class="wf-edit-menu-body">
 <details class="acc" id="accFree">
-        <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · nome, dificuldade e coordenadas</summary>
+        <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo</summary>
         <div class="acc-body">
 
       <label class="opt" id="diffOpt">
@@ -299,7 +292,7 @@
 
 
       <details class="acc" id="accPrem">
-        <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · modo, regras, clima e aparência</summary>
+        <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Regras</summary>
         <div class="acc-body">
 
       <label class="opt locked" id="keepOpt">
@@ -334,7 +327,7 @@
       <label class="opt locked" id="hardcoreOpt">
         <input type="checkbox" id="recoverHardcore">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">VIP</span></b>
+          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">Pago</span></b>
           <em>Desativa IsHardcore e, se existir, limpa o estado de morte. O jogo valida o mundo exportado.</em>
         </span>
       </label>
@@ -361,7 +354,7 @@
       <label class="opt" id="rulesOpt">
         <span style="flex:1">
           <b>Regras de sobrevivência</b>
-          <em>Altera somente gamerules existentes no <code>level.dat</code></em>
+          <em>Personalize sua sobrevivência.</em>
           <span class="icon-row" style="margin-top:10px">
             <select id="immediaterespawn" style="flex:1;min-width:180px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
               <option value="-1">Renascimento: manter</option><option value="1">Renascimento imediato</option><option value="0">Tela de morte normal</option>
@@ -376,7 +369,7 @@
         </span>
       </label>
 
-      <details class="extra-world-rules"><summary>Mais 10 ajustes para o seu mundo</summary>
+      <details class="extra-world-rules"><summary>Outras regras</summary>
         <p>Escolha apenas o que quer mudar. “Manter” preserva o original. Regras ausentes nesta versão do mundo não são adicionadas.</p>
         <div class="world-rules-grid"><label class="world-rule" for="rule-falldamage"><span><img src="mc/item/feather.png" width="24" height="24" alt="" loading="lazy"><b>Dano de queda</b></span><small>Desligue para explorar alturas sem dano de queda.</small><select id="rule-falldamage"><option value="-1">Manter como está</option><option value="1">Ligar</option><option value="0">Desligar</option></select></label>
 <label class="world-rule" for="rule-firedamage"><span><img src="mc/item/blaze_powder.png" width="24" height="24" alt="" loading="lazy"><b>Dano de fogo</b></span><small>Controla o dano causado por fogo e lava.</small><select id="rule-firedamage"><option value="-1">Manter como está</option><option value="1">Ligar</option><option value="0">Desligar</option></select></label>
@@ -390,7 +383,7 @@
 <label class="world-rule" for="rule-showdeathmessages"><span><img src="mc/item/paper.png" width="24" height="24" alt="" loading="lazy"><b>Mensagens de morte</b></span><small>Escolha se o chat mostra as mortes de jogadores.</small><select id="rule-showdeathmessages"><option value="-1">Manter como está</option><option value="1">Ligar</option><option value="0">Desligar</option></select></label></div>
       </details>
       <div class="rule-preset-box">
-        <label for="rulePreset"><b>Presets rápidos de regras</b></label>
+        <label for="rulePreset"><b>Presets</b></label>
         <p>Escolha um estilo para preencher os controles acima. Confira as mudanças antes de converter. Congelar o ciclo mantém a hora atual; não força meio-dia.</p>
         <div class="rule-preset-controls">
           <select id="rulePreset" aria-label="Preset de regras">
@@ -430,7 +423,7 @@
 
       <h3 class="editor-group-heading">Jogador e addons</h3>
       <details class="acc" id="accPlayer">
-        <summary><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Jogador · inventário e equipamento</summary>
+        <summary><img class="mc-ic" src="mc/item/netherite_sword.png" alt="" aria-hidden="true"> Jogador</summary>
         <div class="acc-body">
           <p class="sub" style="margin:6px 0 10px">Toque no item, depois no slot. Grátis: hotbar 2/dia.</p>
           <div class="map-actions" style="margin-top:0">
@@ -519,7 +512,7 @@
 
 
       <details class="acc" id="accChunks">
-        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Apagar e regenerar chunks <span class="lock">VIP</span></summary>
+        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Apagar e regenerar chunks <span class="lock">Pago</span></summary>
         <div class="acc-body">
           <p class="sub" style="margin:6px 0 10px">Selecione uma área do mapa para apagar suas chunks. Construções e entidades dessa área são removidas na cópia; o Minecraft recria o terreno pela seed.</p>
           <div class="map-actions" style="margin-top:0">
@@ -551,18 +544,18 @@
       </div></details>
       <label class="accept">
         <input type="checkbox" id="accept">
-        <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. O mundo é meu. Sem garantia da Mojang. <b>Obrigatório.</b></span>
+        <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. </span>
       </label>
 
-      <button id="submit" class="primary" type="submit" disabled>Gerar e baixar meu mundo</button>
-      <p class="cta-sub">Aplica tudo marcado acima · 1 arquivo só</p>
-      <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Só diagnosticar</button>
+      <button id="submit" class="primary" type="submit" disabled>Baixar .mcworld</button>
+      <button type="button" id="wfChanges" class="wf-change-summary">Conquistas ativadas · revisar</button>
+      <button id="diagnose" class="btn-ghost" type="button" disabled style="width:100%;margin-top:8px">Diagnóstico</button>
 </form>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
   </main>
 
-<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui pintar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui pintura</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
+<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui modelar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui pintura</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
@@ -582,10 +575,10 @@
     <details class="faq"><summary>Vale o VIP?</summary><p>Ele libera arquivos maiores, lote, modo de jogo, foto, clima e recursos avançados de inventário. Se você não precisa disso, use o grátis.</p></details>
     <details class="faq"><summary>Como é o gemado?</summary><p>Monte hotbar/armadura/ender e baixe equipado. <b>Grátis: hotbar 2/dia.</b></p></details>
     <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Não. Os créditos de 1 ou 2 mundos não expiram até o uso; cada mundo iniciado pode ser reeditado por 30 dias. Os passes dão acesso por 7 ou 30 dias e não renovam sozinhos. Você só paga novamente se escolher fazer outra compra.</p></details>
-    <details class="faq"><summary>Qual plano escolher?</summary><p>Para mundos separados no seu ritmo, use créditos. Para vários mundos ou arquivos acima de 150 MB, escolha um passe. Em 7 dias, até 5 mundos por lote; em 30 dias, até 10.</p></details>
+    <details class="faq"><summary>Como escolher meu plano?</summary><p>Para mundos separados no seu ritmo, use créditos. Para vários mundos ou arquivos acima de 150 MB, escolha um passe. Em 7 dias, até 5 mundos por lote; em 30 dias, até 10.</p></details>
     <details class="faq"><summary>Como compro?</summary><p>Escolha a opção, entre com sua conta Google e pague no checkout InfinitePay. O acesso é liberado após a confirmação.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Teste no Survival, sem behavior packs e guarde o original. Se houver falha técnica do serviço, envie o arquivo original, o resultado e o comprovante ao suporte; os pedidos são tratados conforme a <a href="reembolso.html">Política de Reembolso</a>.</p></details>
-    <details class="faq"><summary>Onde acho o .mcworld?</summary><p>Consulte o <a href="#guia-envio">passo a passo para celular e computador</a>. A opção de exportar e o acesso às pastas dependem da plataforma.</p></details>
+    <details class="faq"><summary>Onde acho o .mcworld?</summary><p>Consulte o <a href="#guia-envio">guia rápido</a>. A opção de exportar e o acesso às pastas dependem da plataforma.</p></details>
   </section>
 
   <footer class="foot">
@@ -616,7 +609,7 @@
 <script src="converter.js?v=20260929c"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=17"></script>
-<script src="mapa-2d.js?v=20260929c"></script>
+<script src="mapa-2d.js?v=20260930i"></script>
 <script src="mapa-terreno.js?v=5"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
@@ -624,7 +617,7 @@
 <script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=20260930"></script>
+<script src="app.js?v=20260930i"></script>
 <script src="firebase-config.js?v=20260929c"></script>
 <script src="auth.js?v=worldify-20260930"></script>
 <script src="pagamento.js?v=worldify-20260930"></script>
@@ -634,5 +627,6 @@
 <script src="focus.js?v=20260929c"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 <script src="audit.js?v=20260930"></script>
+<script src="worldify-editor.js?v=20260930i"></script>
 </body>
 </html>

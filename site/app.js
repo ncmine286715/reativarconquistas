@@ -196,7 +196,7 @@
     var target = $(targetId);
     if (!target) return;
     var detail = target.closest ? target.closest("details.acc") : null;
-    if (detail) detail.open = true;
+    if (detail) { detail.open = true; if (window.WF_editor) window.WF_editor.open(detail.id); }
     toolIntentRouted = true;
     if (blockedByPacks) {
       setStatus("ok", "Encontramos " + packCount(activeWorldDiagnosis) + " addon(s) que podem bloquear conquistas. A seção Addons foi aberta para revisão.");
@@ -525,34 +525,14 @@
     if (vip) {
       quotaBar.classList.add("premium");
       var activePlan = serverEntitlement.plan_label || serverEntitlement.plan || "Plano pago";
-      var planState = serverEntitlement.plan === "world1"
-        ? " · <strong>" + (+serverEntitlement.world_credits || 0) + " crédito(s) de mundo</strong> · " + (+serverEntitlement.active_world_projects || 0) + " projeto(s) ativo(s)"
-        : " até <strong>" + new Date(serverEntitlement.expires_at || remotePremUntil()).toLocaleDateString("pt-BR") + "</strong>";
-      quotaText.innerHTML = "<strong>" + escapeHtml(activePlan) + " ativo</strong>" +
-        (remotePremEmail() ? " em <strong>" + escapeHtml(remotePremEmail()) + "</strong>" : "") + planState +
-        " — benefícios desbloqueados. " +
-        "<a href='minha-conta.html'>Minha conta</a> · " +
-        "<a href='#' id='vipRefresh'>Verificar de novo</a>";
+      var credits = +serverEntitlement.world_credits || 0;
+      quotaText.innerHTML = "<strong>" + escapeHtml(activePlan) + "</strong> · " + credits + " crédito(s) · <a href='minha-conta.html'>Conta</a> · <a href='#' id='vipRefresh'>Atualizar</a>";
+      if (!credits && serverEntitlement.expires_at) quotaText.innerHTML = "<strong>" + escapeHtml(activePlan) + "</strong> · até " + new Date(serverEntitlement.expires_at).toLocaleDateString("pt-BR") + " · <a href='minha-conta.html'>Conta</a> · <a href='#' id='vipRefresh'>Atualizar</a>";
     } else {
       quotaBar.classList.remove("premium");
-      if (serverEntitlement.pending_payment) {
-        var pendingMessage = window.RC_entitlements && window.RC_entitlements.messageForPending
-          ? window.RC_entitlements.messageForPending(serverEntitlement.pending_payment)
-          : "Seu pagamento ainda está em confirmação. Não faça outra compra.";
-        quotaText.innerHTML = escapeHtml(pendingMessage) + " <a href='minha-conta.html'><b>Minha conta</b></a> · " +
-          "<a href='#' id='vipRefresh'><b>Atualizar benefícios</b></a>";
-      } else {
-        var fl = freeLeft();
-        var lim = freeLimitMB();
-        quotaText.innerHTML = "Mundos de até <strong>" + lim + " MB: grátis</strong> (<b>" + fl + " de " + freeDailyLimit() + " hoje</b>)" +
-          (fl <= 0 ? " — <b>limite de hoje usado</b>, <a href='#planos'><b>libere o uso extra com um plano</b></a>"
-            : ". Mundos maiores que " + lim + " MB — <a href='#planos'><b>ver planos</b></a>") + "<br>" +
-          "<span style='font-size:12.5px'>Pagou e continua bloqueado? <a href='#' id='vipRefresh'><b>Verificar de novo</b></a>. Use a mesma conta Google da compra.</span>";
-      }
+      quotaText.innerHTML = serverEntitlement.pending_payment ? "Pagamento em confirmação · <a href='minha-conta.html'>Ver conta</a>" : "<strong>Até " + freeLimitMB() + " MB grátis</strong> · " + freeLeft() + "/" + freeDailyLimit() + " hoje · <a href='#planos'>Planos</a>";
     }
-    // Desbloqueio visual: sem VIP os blocos seguem tracejados; com VIP ficam normais
-    var r1 = $("vipRefresh");
-    if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(true); });
+    var r1 = $("vipRefresh"); if (r1) r1.addEventListener("click", function (e) { e.preventDefault(); refreshRemotePrem(true); });
     updateSubmit();
   }
 
@@ -781,6 +761,7 @@
       return;
     }
     box.hidden = false;
+    document.dispatchEvent(new CustomEvent("wf-world-diagnosed", { detail: { name: rep.worldName && rep.worldName[0] || "" } }));
     var sourceFile = selectedList.length ? selectedList[0] : selected;
     var packTotal = packCount(rep);
     activeWorldDiagnosis = rep;
@@ -933,7 +914,7 @@
     files = files.filter(function (f) { return ACCEPT.test(f.name || ""); });
     if (!files.length) {
       var got = Array.prototype.slice.call(list || []).map(function (f) { return f.name || "?"; }).slice(0, 3).join(", ");
-      selected = null; selectedList = [];
+      selected = null; selectedList = []; document.dispatchEvent(new CustomEvent("wf-world-selected", { detail: { file: null } }));
       if (compareRunButton) compareRunButton.disabled = true;
       clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
@@ -942,7 +923,7 @@
     }
     var empty = files.filter(function (f) { return !f.size; });
     if (empty.length) {
-      selected = null; selectedList = [];
+      selected = null; selectedList = []; document.dispatchEvent(new CustomEvent("wf-world-selected", { detail: { file: null } }));
       if (compareRunButton) compareRunButton.disabled = true;
       clearComparison();
       fileName.hidden = true; paintWorldInfo(null); setBadge(); updateSubmit();
@@ -957,13 +938,14 @@
       }
     } catch (error) {
       if (request !== pickRequest) return;
-      selected = null; selectedList = []; updateSubmit();
+      selected = null; selectedList = []; document.dispatchEvent(new CustomEvent("wf-world-selected", { detail: { file: null } })); updateSubmit();
       setStatus("err", "Não consegui abrir o modelo: " + escapeHtml(error.message || String(error)));
       return;
     }
     if (request !== pickRequest) return;
     selectedList = files;
     selected = files[0];
+    document.dispatchEvent(new CustomEvent("wf-world-selected", { detail: { file: selected } }));
     fileAccessReady = false;
     worldDiagnosisReady = false;
     activeWorldDiagnosis = null;
@@ -1016,7 +998,7 @@
         }
         return;
       }
-      setStatus("ok", "Mundo detectado: <b>" + (selected.size / 1048576).toFixed(1) + " MB</b><br>Seu plano: <b>" + escapeHtml(ent.plan_label || (ent.status === "ready" ? ent.plan : "Plano gratuito")) + "</b><br>Limite do seu plano: <b>" + (maxBytes === null ? "sem limite comercial" : limit) + "</b><br>✓ Arquivo permitido");
+      setStatus("ok", "Arquivo pronto · " + fmtSize(selected.size));
       fileAccessReady = true;
       maybeRouteToToolIntent();
     }).catch(function () {
