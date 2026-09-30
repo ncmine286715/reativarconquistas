@@ -1,9 +1,9 @@
-# Direção de interface — ReativaConquistas
+# Direção de interface — Worldify
 
-Editor local de mundos Bedrock em HTML, CSS e JavaScript nativos. A abertura prioriza enviar o mundo ou aprender a exportá-lo. Ferramentas avançadas ficam abaixo, em grupos recolhíveis.
+Editor local de mundos Bedrock em HTML, CSS e JavaScript nativos. Priorizar enviar um mundo ou aprender a exportá-lo. Pintura, chunks e conversores ficam em abas; ações e navegação em menus recolhíveis.
 
-Reutilizar tokens de site/style.css, controles nativos e assets pequenos de site/mc/item/. A busca 21st por file uploader orientou a hierarquia; a implementação preserva a stack existente.
+Direção solicitada: superfícies suaves, fontes do sistema, ritmo consistente, animações discretas, fundo com profundidade e hero voxel original. Reutilizar controles existentes e assets de Minecraft em site/mc/item; tokens compartilhados em site/worldify-shell.css.
 
-Controles de toque de pelo menos 44 px, uma coluna no celular e foco visível. Modo leve sem efeitos e com mapa opcional. Sem modal automático de apresentação. O original do mundo é preservado.
+Controles de toque de pelo menos 44 px, foco visível, movimento reduzido e modo leve. Dependências de pintura/conversores carregam sob demanda. O original do mundo é preservado.
 
-A compatibilidade depende das APIs do navegador e memória do aparelho. Não prometer edição em todos os navegadores de 2014.
+Não prometer edição em todos os navegadores de 2014, em mundos criptografados ou conquistas garantidas em addons externos. Conversores e pintura sinalizados beta.

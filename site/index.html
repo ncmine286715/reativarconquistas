@@ -8,24 +8,25 @@
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://worldify.com.br/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="ReativaConquistas">
-<meta property="og:title" content="ReativaConquistas — edite mundos Minecraft Bedrock no navegador">
+<meta property="og:site_name" content="Worldify">
+<meta property="og:title" content="Worldify — edite mundos Minecraft Bedrock no navegador">
 <meta property="og:description" content="Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia.">
 <meta property="og:url" content="https://worldify.com.br/">
-<meta property="og:image" content="https://worldify.com.br/hero.png">
-<meta property="og:image:width" content="666">
-<meta property="og:image:height" content="375">
+<meta property="og:image" content="https://worldify.com.br/assets/worldify-hero.jpg">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="720">
 <meta name="twitter:card" content="summary_large_image">
-<title>ReativaConquistas — edite mundos Minecraft Bedrock no navegador</title>
-<link rel="icon" type="image/png" href="logo.png">
-<link rel="apple-touch-icon" href="logo.png">
+<title>Worldify — edite mundos Minecraft Bedrock no navegador</title>
+<link rel="icon" type="image/svg+xml" href="assets/worldify-mark.svg">
+<link rel="apple-touch-icon" href="assets/worldify-mark.svg">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#5EBB2B">
+<meta name="theme-color" content="#f4f5f7">
 <link rel="stylesheet" href="style.css?v=29">
 <link rel="stylesheet" href="focus.css?v=20260929c">
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"ReativaConquistas","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"ReativaConquistas","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"ReativaConquistas","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
+<link rel="stylesheet" href="worldify-shell.css?v=20260930d"><script defer src="worldify-shell.js?v=20260930d"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -59,8 +60,8 @@
       <span></span><span></span><span></span>
     </button>
     <a class="brand" href="index.html">
-      <img src="logo.png" width="34" height="34" alt="ReativaConquistas" style="border-radius:9px;display:block">
-      <span>ReativaConquistas<small>Minecraft Bedrock &middot; .mcworld</small></span>
+      <img src="assets/worldify-mark.svg" width="34" height="34" alt="Worldify" style="border-radius:9px;display:block">
+      <span>Worldify<small>Minecraft Bedrock &middot; .mcworld</small></span>
     </a>
     <nav class="nav">
       <a class="hide-m" href="ferramentas.html">Ferramentas</a>
@@ -111,15 +112,10 @@
 <div class="page page-wide">
   <div class="page" style="padding-left:0;padding-right:0;max-width:760px">
 
-  <header class="hero hero-focused">
-    <div class="hero-copy"><p class="kicker">SEU MUNDO. SUAS CONQUISTAS.</p>
-      <h1>Volte a conquistar.<br><span>Comece pelo seu mundo.</span></h1>
-      <p class="tagline">Envie o arquivo do Minecraft Bedrock, escolha os ajustes e baixe uma nova cópia <b>.mcworld</b>.</p>
-      <div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo</a><a class="btn-ghost hero-btn" href="#guia-envio">Como encontrar o arquivo</a></div>
-      <p class="hero-assurance">Processamento no seu aparelho · Original preservado · Até 10 MB grátis</p>
-    </div><img class="hero-minecraft" src="mc/item/grass_block.png" width="112" height="112" alt="Bloco de grama do Minecraft">
+  <header class="wf-hero" aria-label="Worldify: seu mundo, do seu jeito">
+    <picture><source srcset="assets/worldify-hero.webp" type="image/webp"><img src="assets/worldify-hero.jpg" width="1280" height="720" alt="Um mundo de blocos com rio, florestas e montanhas ao amanhecer" fetchpriority="high"></picture>
+    <div class="wf-hero-overlay"><p>WORLDIFY</p><h1>Seu mundo.<br>Do seu jeito.</h1><div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo ↗</a><a class="btn-ghost hero-btn" href="#guia-envio">Como enviar</a></div></div>
   </header>
-  <ol class="workflow" aria-label="Como editar"><li><b>1</b> Envie o mundo</li><li><b>2</b> Escolha os ajustes</li><li><b>3</b> Baixe e abra no Minecraft</li></ol>
   <details id="guia-envio" class="upload-guide"><summary><img src="mc/item/book.png" width="24" height="24" alt=""> Nunca fiz isso. Como envio meu mundo?</summary>
     <div class="guide-columns"><div><h2>No computador</h2><ol><li>No Minecraft Bedrock, abra <b>Jogar</b> e o lápis ao lado do mundo.</li><li>Nas configurações do mundo, procure <b>Exportar mundo</b> e salve o arquivo.</li><li>Volte aqui e escolha <b>Enviar meu mundo</b>. Selecione o arquivo salvo.</li></ol></div>
     <div><h2>No celular</h2><ol><li>Se o jogo oferecer <b>Exportar mundo</b>, salve em Downloads ou Arquivos.</li><li>Se essa opção não aparecer, veja o <a href="importar.html">guia de exportação e importação</a> para seu sistema. O acesso às pastas varia com a versão do Android/iOS.</li><li>Toque em <b>Enviar meu mundo</b> e selecione o arquivo no aplicativo Arquivos.</li></ol></div></div>
@@ -134,10 +130,12 @@
   </div>
 
   <main class="card" id="converter">
-    <h2>1. Envie seu mundo</h2>
-    <p class="sub">Depois do envio, confira o diagnóstico e abra somente as ferramentas que precisar.</p>
+    <div class="wf-workspace-heading"><div><p class="kicker">SEU ESPAÇO DE CRIAÇÃO</p><h2>Vamos começar?</h2></div><a class="wf-help" href="importar.html" aria-label="Aprender a enviar meu mundo">?</a></div>
+    <p class="sub">Envie um mundo ou escolha o que deseja criar.</p>
 
 
+    <div class="wf-tool-dock" aria-label="Escolher ferramenta"><button type="button" data-workspace="edit" aria-pressed="true"><img src="mc/item/grass_block.png" alt="">Editar mundo</button><button type="button" data-workspace="paint" aria-pressed="false"><img src="mc/item/painting.png" alt="">Pintar mundo</button><button type="button" data-workspace="chunks" aria-pressed="false"><img src="mc/item/diamond_pickaxe.png" alt="">Apagar chunks</button><button type="button" data-workspace="convert" aria-pressed="false"><img src="mc/block/structure_block.png" alt="">Converter</button></div>
+    <div id="wfExtraWorkspace" hidden></div>
     <form id="form" novalidate>
       <details class="acc" id="accFile" open>
         <summary><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true"> Enviar mundo e ver diagnóstico <span class="acc-badge" id="badgeFile">aguardando</span></summary>
@@ -148,16 +146,17 @@
           <svg viewBox="0 0 24 24" width="32" height="32"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7zm-7 15h14v2H5z"/></svg>
         </span>
         <span class="drop-title">Selecione ou solte seu mundo</span>
-        <span class="drop-sub">Formatos aceitos: .mcworld, .mctemplate, .mctemplet, .zip ou .dat · o limite depende do seu plano</span>
+        <span class="drop-sub">.mcworld, modelos e ZIP de mundo · original preservado</span>
         <span id="fileName" class="file-name" hidden></span>
         <span id="filex" class="file-x" hidden></span>
         <span class="drop-replace" aria-hidden="true">Trocar mundo</span>
       </label>
+<details class="wf-folder-input"><summary>Tenho uma pasta de mundo</summary><label>Selecione a pasta com level.dat e db<input id="wfFolder" type="file" webkitdirectory directory multiple></label><p id="wfFolderStatus" role="status"></p></details>
 
       <p id="toolIntent" class="tool-intent" hidden></p>
       <label class="opt achievements-main" id="achievementsOpt">
         <input type="checkbox" id="reactivateAchievements" checked>
-        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Coloca a cópia em Sobrevivência, desliga cheats e experimentos e remove addons existentes. Ao escolher um pacote para instalar, esta opção é desmarcada. O original fica intacto.</em></span>
+        <span><b>Reativar conquistas <span class="acc-badge">Principal</span></b><em>Sobrevivência sem cheats e experimentos. Remove addons somente na cópia.</em></span>
       </label>
 
       <section id="mapPreview" class="mappreview world-map-hero" aria-label="Mapa do mundo enviado" hidden>
@@ -244,8 +243,9 @@
         </div>
       </details>
 
-      <h3 class="editor-group-heading">Mundo <small>Configurações e regras</small></h3>
-      <details class="acc" id="accFree">
+
+      <details class="wf-edit-menu" id="wfEditMenu"><summary>☰ Ajustes e ferramentas <span>Escolha o que editar</span></summary><div class="wf-edit-menu-body">
+<details class="acc" id="accFree">
         <summary><img class="mc-ic" src="mc/item/experience_bottle.png" alt="" aria-hidden="true"> Mundo · nome, dificuldade e coordenadas</summary>
         <div class="acc-body">
 
@@ -296,7 +296,7 @@
         </div>
       </details>
 
-      
+
 
       <details class="acc" id="accPrem">
         <summary><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true"> Mundo · modo, regras, clima e aparência</summary>
@@ -518,10 +518,10 @@
 
 
 
-      <details class="acc" id="accChunks" open>
-        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Restaurar chunks corrompidas <span class="lock">VIP</span></summary>
+      <details class="acc" id="accChunks">
+        <summary><span class="acc-n">5</span><img class="mc-ic" src="mc/item/map.png" alt="" aria-hidden="true"> Apagar e regenerar chunks <span class="lock">VIP</span></summary>
         <div class="acc-body">
-          <p class="sub" style="margin:6px 0 10px">Selecione no mapa as áreas com problema. A restauração recria o terreno pela seed e baixa um novo mundo; o original fica intacto.</p>
+          <p class="sub" style="margin:6px 0 10px">Selecione uma área do mapa para apagar suas chunks. Construções e entidades dessa área são removidas na cópia; o Minecraft recria o terreno pela seed.</p>
           <div class="map-actions" style="margin-top:0">
             <button type="button" class="btn-ghost" id="selModeBtn">🖌 Selecionar no mapa</button>
             <button type="button" class="btn-ghost btn-mini" id="selClearBtn">Limpar</button>
@@ -540,14 +540,15 @@
         </div>
       </details>
 
-      
 
 
-    
+
+
       <div class="operation-heading" id="operationActions">
         <h3>Conquistas e arquivo final</h3>
         <p>Confira os ajustes e baixe uma nova cópia do mundo.</p>
       </div>
+      </div></details>
       <label class="accept">
         <input type="checkbox" id="accept">
         <span>Aceito <a href="termos.html" target="_blank" rel="noopener">Termos</a>, <a href="privacidade.html" target="_blank" rel="noopener">Privacidade</a> e <a href="reembolso.html" target="_blank" rel="noopener">Reembolso</a>. O mundo é meu. Sem garantia da Mojang. <b>Obrigatório.</b></span>
@@ -561,76 +562,7 @@
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
   </main>
 
-  <!-- PLANOS -->
-  <section class="section" id="planos">
-    <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Escolha pelo tamanho do mundo e pela frequência de uso. Pagamento único, sem renovação automática.</p>
-    <div class="plan-decision" id="planDecision"><label for="planUse"><b>Qual opção faz sentido para você?</b></label><select id="planUse"><option value="single">Só preciso resolver um mundo</option><option value="week">Vou editar vários mundos nesta semana</option><option value="month">Quero usar durante o mês</option><option value="batch">Trabalho com 11 a 20 mundos por lote</option><option value="flexible">Tenho 3 mundos para editar no meu ritmo</option></select><p id="planRecommendation" aria-live="polite">Carregando opções e preços…</p><button type="button" class="btn-plan" id="recommendedPlan" disabled>Carregando…</button><p>Todos os planos usam InfinitePay. Pagamento único, sem renovação automática.</p></div>
-    <div class="plan-groups">
-      <div class="plan-group plan-free-group">
-        <h3>Comece grátis</h3>
-        <div class="plans plans-free">
-          <div class="plan plan-free">
-            <h3><img class="mc-ic" src="mc/item/grass_block.png" alt="" aria-hidden="true">Grátis</h3>
-            <div class="price">R$ 0<small> · para sempre</small></div>
-            <ul><li class="yes">Até <b>10 MB</b> por mundo e 3 operações/dia</li><li class="yes">Renomear, dificuldade e coordenadas</li><li class="yes">Raio-X e <b>mapa 2D</b></li><li class="yes">Processamento no navegador</li></ul>
-            <a class="btn-plan btn-free" href="#converter">Começar grátis</a>
-          </div>
-        </div>
-      </div>
-      <div class="plan-group">
-        <div class="plan-group-heading"><h3>Créditos por mundo</h3><p>Sem validade até usar · cada crédito cobre um mundo de até 150 MB, com reedições por 30 dias após começar.</p></div>
-        <div class="plans plans-3 credit-plans">
-          <div class="plan plan-world1 plan-credit">
-            <h3><img class="mc-ic" src="mc/item/iron_ingot.png" alt="" aria-hidden="true">Ferro</h3>
-            <div class="price">R$ 5,99<small> · 1 crédito</small></div>
-            <p class="plan-fit">Para resolver um mundo agora</p><ul><li class="yes">1 mundo · até <b>150 MB</b></li><li class="yes">Reedite por 30 dias após começar</li><li class="yes">Crédito sem validade até o uso</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="world1">Comprar 1 crédito · R$ 5,99</button>
-          </div>
-          <div class="plan plan-credit">
-            <span class="vip-flag">Pacote com 3</span>
-            <h3><img class="mc-ic" src="mc/item/gold_ingot.png" alt="" aria-hidden="true">Ouro</h3>
-            <div class="price">R$ 14,99<small> · 3 créditos</small></div>
-            <p class="plan-fit">Para cuidar de alguns mundos</p><ul><li class="yes">3 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 5,00 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="ouro">Comprar 3 créditos · R$ 14,99</button>
-          </div>
-          <div class="plan plan-credit plan-diamond">
-            <span class="vip-flag">Pacote com 5</span>
-            <h3><img class="mc-ic" src="mc/item/diamond.png" alt="" aria-hidden="true">Diamante</h3>
-            <div class="price">R$ 22,90<small> · 5 créditos</small></div>
-            <p class="plan-fit">Menor preço por mundo</p><ul><li class="yes">5 mundos · até <b>150 MB</b> cada</li><li class="yes">R$ 4,58 por mundo</li><li class="yes">Cada crédito sem validade até o uso</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="diamante">Comprar 5 créditos · R$ 22,90</button>
-          </div>
-        </div>
-      </div>
-      <div class="plan-group">
-        <div class="plan-group-heading"><h3>Passes de tempo</h3><p>Melhor para trabalhar em vários mundos durante a mesma semana ou mês.</p></div>
-        <div class="plans plans-3">
-          <div class="plan plan-weekly">
-            <span class="vip-flag">Mais liberdade por R$ 2 a mais que Ferro</span>
-            <h3><img class="mc-ic" src="mc/item/filled_map.png" alt="" aria-hidden="true">Passe 7 dias</h3>
-            <div class="price">R$ 7,99<small> · até 500 MB</small></div>
-            <p class="plan-fit">Para usar bastante nesta semana</p><ul><li class="yes">Até <b>5 mundos por lote</b></li><li class="yes">Até <b>500 MB por mundo</b></li><li class="yes">Recursos avançados por 7 dias</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="vip7">Comprar passe · R$ 7,99</button>
-          </div>
-          <div class="plan plan-vip">
-            <span class="vip-flag">Mais tempo</span>
-            <h3><img class="mc-ic" src="mc/item/netherite_chestplate.png" alt="" aria-hidden="true">Passe 30 dias</h3>
-            <div class="price" id="price-monthly">R$ 24,90<small> · compra única</small></div>
-            <p class="plan-fit">Para trabalhar o mês inteiro</p><ul><li class="yes">Até <b>10 mundos por lote</b></li><li class="yes">Sem limite comercial de tamanho*</li><li class="yes">Recursos avançados por 30 dias</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="vip30">Comprar passe · R$ 24,90</button>
-          </div>
-          <div class="plan plan-creator">
-            <h3><img class="mc-ic" src="mc/item/diamond_chestplate.png" alt="" aria-hidden="true">Criador</h3>
-            <div class="price">R$ 39,90<small> · 30 dias</small></div>
-            <p class="plan-fit">Para lotes maiores</p><ul><li class="yes">Até <b>20 mundos por lote</b></li><li class="yes">Arquivos grandes, sujeitos ao navegador</li><li class="yes">Recursos avançados por 30 dias</li></ul>
-            <button type="button" class="btn-plan btn-pay" data-pay="creator">Comprar Criador · R$ 39,90</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <p class="pay-note">*Arquivos grandes dependem da memória e capacidade do navegador. Pix confirmado libera o acesso; créditos não expiram antes do uso e passes são compras únicas, sem renovação automática. <b>Use o mesmo e-mail da sua conta Google.</b></p>
-  </section>
+<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui pintar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui pintura</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
@@ -649,8 +581,8 @@
     <details class="faq"><summary>Arquivo vai p/ servidor?</summary><p>Não. Tudo no navegador.</p></details>
     <details class="faq"><summary>Vale o VIP?</summary><p>Ele libera arquivos maiores, lote, modo de jogo, foto, clima e recursos avançados de inventário. Se você não precisa disso, use o grátis.</p></details>
     <details class="faq"><summary>Como é o gemado?</summary><p>Monte hotbar/armadura/ender e baixe equipado. <b>Grátis: hotbar 2/dia.</b></p></details>
-    <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Não. Os créditos Ferro, Ouro e Diamante não expiram até o uso; cada mundo iniciado pode ser reeditado por 30 dias. Os passes dão acesso por 7 ou 30 dias e não renovam sozinhos. Você só paga novamente se escolher fazer outra compra.</p></details>
-    <details class="faq"><summary>Qual plano escolher?</summary><p>Para mundos separados no seu ritmo, use créditos. Para vários mundos ou arquivos acima de 150 MB, escolha um passe. Em 7 dias, até 5 mundos por lote; em 30 dias, até 10. O Criador aceita até 20 mundos por lote.</p></details>
+    <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Não. Os créditos de 1 ou 2 mundos não expiram até o uso; cada mundo iniciado pode ser reeditado por 30 dias. Os passes dão acesso por 7 ou 30 dias e não renovam sozinhos. Você só paga novamente se escolher fazer outra compra.</p></details>
+    <details class="faq"><summary>Qual plano escolher?</summary><p>Para mundos separados no seu ritmo, use créditos. Para vários mundos ou arquivos acima de 150 MB, escolha um passe. Em 7 dias, até 5 mundos por lote; em 30 dias, até 10.</p></details>
     <details class="faq"><summary>Como compro?</summary><p>Escolha a opção, entre com sua conta Google e pague no checkout InfinitePay. O acesso é liberado após a confirmação.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Teste no Survival, sem behavior packs e guarde o original. Se houver falha técnica do serviço, envie o arquivo original, o resultado e o comprovante ao suporte; os pedidos são tratados conforme a <a href="reembolso.html">Política de Reembolso</a>.</p></details>
     <details class="faq"><summary>Onde acho o .mcworld?</summary><p>Consulte o <a href="#guia-envio">passo a passo para celular e computador</a>. A opção de exportar e o acesso às pastas dependem da plataforma.</p></details>
@@ -667,8 +599,8 @@
       <a href="minha-conta.html">Minha conta</a>
       <a href="mailto:ncmine75@gmail.com">Contato</a>
     </nav>
-    <p><b>ReativaConquistas</b> é um utilitário independente. <b>Não afiliado, endossado ou patrocinado por Mojang Studios, Microsoft ou Minecraft.</b> MINECRAFT é marca registrada da Mojang Synergies AB.<br>
-    Operador: <b>ReativaConquistas</b> · <span id="opCity">Terra Roxa/PR</span> · <span id="supEmail">ncmine75@gmail.com</span><br>
+    <p><b>Worldify</b> é um utilitário independente. <b>Não afiliado, endossado ou patrocinado por Mojang Studios, Microsoft ou Minecraft.</b> MINECRAFT é marca registrada da Mojang Synergies AB.<br>
+    Operador: <b>Worldify</b> · <span id="opCity">Terra Roxa/PR</span> · <span id="supEmail">ncmine75@gmail.com</span><br>
     Preços em BRL. © 2026 — Todos os direitos reservados.</p>
   </footer>
 
@@ -680,7 +612,7 @@
 <script>try { if (typeof RC_leveldb !== "undefined") window.RC_leveldb = RC_leveldb; } catch (e) {}</script>
 <script src="config.js?v=20260929c"></script>
 
-<script src="world-format.js?v=20260929c"></script>
+<script src="world-format.js?v=20260930b"></script>
 <script src="converter.js?v=20260929c"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=17"></script>
@@ -692,13 +624,15 @@
 <script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=20260929c"></script>
+<script src="app.js?v=20260930"></script>
 <script src="firebase-config.js?v=20260929c"></script>
-<script src="auth.js?v=16"></script>
-<script src="pagamento.js?v=20260929d"></script>
-<script src="entitlements.js?v=4"></script>
+<script src="auth.js?v=worldify-20260930"></script>
+<script src="pagamento.js?v=worldify-20260930"></script>
+<script src="entitlements.js?v=20260930"></script>
 <script src="guia-site.js?v=20260929c"></script>
+<script src="world-folder.js?v=20260930"></script>
 <script src="focus.js?v=20260929c"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
+<script src="audit.js?v=20260930"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* ReativaConquistas — icones pixel-art 100% locais (sem upload).
+/* Worldify — icones pixel-art 100% locais (sem upload).
    Trofeu, espada e bloco de grama desenhados via canvas -> JPEG
    (world_icon.jpeg do mundo Bedrock — o jogo ignora pack_icon.png).
    Expõe window.RC_icons: { list, make(id)->Promise<Uint8Array>, preview(canvas,id) }.

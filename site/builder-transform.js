@@ -1,4 +1,4 @@
-/* ReativaConquistas Builder -- a única fonte de verdade para posição e rotação.
+/* Worldify Builder -- a única fonte de verdade para posição e rotação.
    Tanto o preview quanto a escrita no LevelDB chamam este módulo. */
 (function () {
   "use strict";

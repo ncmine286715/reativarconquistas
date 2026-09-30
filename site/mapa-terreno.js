@@ -1,4 +1,4 @@
-/* ReativaConquistas — Vista de blocos do mapa 2D (grátis, 100% local).
+/* Worldify — Vista de blocos do mapa 2D (grátis, 100% local).
    Decodifica os subchunks paletizados (v8/v9, inspirado nos renderizadores
    open-source: Amulet/MCA Selector/prismarine) e desenha o topo de cada
    coluna (x,z) com a cor do bloco + sombreamento por altura. Água sem sombra.

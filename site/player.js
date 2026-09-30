@@ -1,4 +1,4 @@
-/* ReativaConquistas — Editor de player (VIP, 100% local).
+/* Worldify — Editor de player (VIP, 100% local).
    Edita o `~local_player` (ou player_*): hotbar 9 + inventário 27 +
    armadura 4 + ender chest 27 (+ offhand se existir), nível de XP,
    encantamentos (até 255), nome custom, inquebrável e keep_on_death.

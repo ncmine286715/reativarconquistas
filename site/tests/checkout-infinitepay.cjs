@@ -1,8 +1,8 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
 const source=fs.readFileSync(path.join(__dirname,'../pagamento.js'),'utf8');
-const ids=['world1','ouro','diamante','vip7','vip30','creator'];
-const plans=Object.fromEntries(ids.map((id,i)=>[id,{id,label:id,price_cents:[599,1499,2290,799,2490,3990][i],kind:i<3?'world_credit':'time',credit_count:[1,3,5,0,0,0][i],max_file_mb:500,max_batch:20,duration_days:i<3?0:7}]));
+const ids=['world1','worlds2v1','vip7','vip30'];
+const plans=Object.fromEntries(ids.map((id,i)=>[id,{id,label:id,price_cents:[599,1190,799,2490][i],kind:i<2?'world_credit':'time',credit_count:[1,2,0,0][i],max_file_mb:500,max_batch:20,duration_days:i<2?0:7}]));
 const settle=()=>new Promise(r=>setTimeout(r,15));
 (async()=>{
  for(const id of ids){
@@ -23,7 +23,7 @@ const settle=()=>new Promise(r=>setTimeout(r,15));
    }
    return {ok:true,status:200,text:async()=>JSON.stringify(payload),json:async()=>payload};
   };
-  w.eval(source);await w.RC_pay.planCatalog();
+  w.eval(source);assert.equal(typeof w.RC_pay.completeOperation,'function');assert.equal(typeof w.RC_pay.releaseOperation,'function');await w.RC_pay.planCatalog();
   w.RC_pay.checkout(id,null,{preserve_context:true});await settle();
   const doc=w.document;
   assert.equal(doc.querySelector('input[name="payplan"]:checked').value,id);

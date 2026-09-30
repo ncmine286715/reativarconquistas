@@ -1,4 +1,4 @@
-/* Guia do ReativaConquistas: explicação inicial + acesso permanente em todas as páginas públicas. */
+/* Guia do Worldify: explicação inicial + acesso permanente em todas as páginas públicas. */
 (function () {
   "use strict";
 
@@ -71,7 +71,7 @@
   var mascot = document.createElement("img");
   mascot.className = "rc-guide-mascot";
   mascot.src = "assets/null-apresenta.png";
-  mascot.alt = "Null, o guia do ReativaConquistas";
+  mascot.alt = "Null, o guia do Worldify";
   var balloon = document.createElement("div");
   balloon.className = "rc-guide-balloon";
   var heading = document.createElement("div");

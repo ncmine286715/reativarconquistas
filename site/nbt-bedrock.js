@@ -1,4 +1,4 @@
-/* ReativaConquistas — NBT little-endian (Bedrock) com parse + encode.
+/* Worldify — NBT little-endian (Bedrock) com parse + encode.
    Usado para ler e reescrever o `~local_player` (inventário, armadura,
    ender chest) e a Pos dos atores (reset de chunks). 100% local.
    Cada nó guarda offset+len (__o/__l) para permitir splice cirúrgico:

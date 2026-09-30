@@ -1,15 +1,20 @@
 {
-  "name": "ReativaConquistas",
-  "short_name": "Reativa",
+  "name": "Worldify",
+  "short_name": "Worldify",
   "description": "Ferramentas para analisar, ajustar e construir em mundos Minecraft Bedrock.",
   "start_url": "/",
   "scope": ".",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#fff7ef",
-  "theme_color": "#fff7ef",
+  "background_color": "#f4f5f7",
+  "theme_color": "#f4f5f7",
   "lang": "pt-BR",
   "icons": [
-    { "src": "logo.png", "sizes": "500x500", "type": "image/png", "purpose": "any" }
+    {
+      "src": "assets/worldify-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ]
 }

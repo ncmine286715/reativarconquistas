@@ -61,13 +61,13 @@ export function corsHeaders(req, env) {
 function securityHeaders() {
   return {
     "X-Content-Type-Options": "nosniff",
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": "SAMEORIGIN",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
     "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; frame-src https://*.firebaseapp.com https://accounts.google.com;",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;",
   };
 }
 
@@ -100,7 +100,14 @@ export const PLAN_LIMITS = Object.freeze({
     }
   }),
   world1: Object.freeze({
-    label: "Créditos de mundo", catalog_label: "Ferro · 1 crédito", duration_days: 0, price_cents: 599, credit_count: 1,
+    label: "Créditos de mundo", catalog_label: "1 mundo", duration_days: 0, price_cents: 599, credit_count: 1,
+    max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
+    kind: "world_credit", project_window_days: 30,
+    allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    capabilities: { premium_features: true, repeated_operations_same_world: true }
+  }),
+  worlds2v1: Object.freeze({
+    label: "2 mundos", duration_days: 0, price_cents: 1190, credit_count: 2,
     max_file_mb: 150, max_file_bytes: 150 * 1024 * 1024, max_batch: 1,
     kind: "world_credit", project_window_days: 30,
     allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
@@ -129,22 +136,23 @@ export const PLAN_LIMITS = Object.freeze({
   vip7: Object.freeze({
     label: "Passe 7 dias", duration_days: 7, price_cents: 799,
     max_file_mb: 500, max_file_bytes: 500 * 1024 * 1024, max_batch: 5,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder", "world_paint"],
     capabilities: { premium_features: true }
   }),
   vip30: Object.freeze({
     label: "Passe 30 dias", duration_days: 30, price_cents: 2490,
     max_file_mb: null, max_file_bytes: null, max_batch: 10,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder", "world_paint"],
     capabilities: { premium_features: true }
   }),
   creator: Object.freeze({
     label: "Criador", duration_days: 30, price_cents: 3990,
     max_file_mb: null, max_file_bytes: null, max_batch: 20,
-    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder"],
+    kind: "time", allowed_tools: ["convert", "world_map", "world_analysis", "chunks_restore", "player_basic", "builder", "world_paint"],
     capabilities: { premium_features: true }
   })
 });
+// New SKU: existing receipts keep their original price and credit count.
 const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
 const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
   id, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
@@ -152,9 +160,9 @@ const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
-}]).filter(([id]) => id !== "vip24h")));
+}]).filter(([id]) => ["free", "world1", "worlds2v1", "vip7", "vip30"].includes(id))));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const PURCHASABLE_PLAN_IDS = new Set(["world1", "ouro", "diamante", "vip7", "vip30", "creator"]);
+const PURCHASABLE_PLAN_IDS = new Set(["world1", "worlds2v1", "vip7", "vip30"]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -220,6 +228,141 @@ async function adminList(env, key) {
   return Array.isArray(value) ? value : [];
 }
 
+const AUDIT_CLIENT_TYPES = new Set(["session_started", "page_viewed", "tool_viewed", "pricing_viewed", "checkout_opened", "file_selected", "file_validation_started", "file_validation_failed", "file_accepted", "file_analysis_started", "file_analysis_completed", "file_analysis_failed", "tool_opened", "operation_configured", "operation_started", "operation_completed", "operation_failed", "operation_cancelled", "result_generated", "download_requested", "download_response_completed", "download_failed", "refund_form_opened", "refund_form_submitted", "support_opened", "client_error"]);
+const AUDIT_SERVER_TYPES = new Set(["payment_created", "payment_confirmed", "plan_granted", "operation_authorized", "credit_used", "benefit_validation_failed", "refund_request_created", "refund_review_started", "refund_approved", "refund_denied", "refund_completed", "refund_decision_changed", "support_status_changed"]);
+const AUDIT_METADATA_FIELDS = new Set(["plan", "provider", "source", "tool", "page", "status", "phase", "settings", "file_name", "file_extension", "file_size_bytes", "file_hash", "file_id", "operation_id", "result_size_bytes", "error_code", "error_category", "error_message", "http_status", "browser", "browser_version", "os", "device_type", "screen_resolution", "language", "timezone", "app_version", "frontend_version", "reason", "refund_kind", "description", "expected", "actual", "selected_chunk_count", "world_size_mb", "worlds", "amount_cents"]);
+function auditText(value, max = 240) {
+  return String(value == null ? "" : value).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max);
+}
+function auditIndexTime(ms = Date.now()) { return String(Math.max(0, 9999999999999 - (+ms || Date.now()))).padStart(13, "0"); }
+function auditMetadata(value) {
+  const out = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const [key, raw] of Object.entries(value)) {
+    if (!AUDIT_METADATA_FIELDS.has(key)) continue;
+    if (key === "settings") {
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        const clean = {};
+        for (const [k, v] of Object.entries(raw).slice(0, 20)) if (/^[a-zA-Z0-9_-]{1,40}$/.test(k) && !/(token|secret|password|senha|email|cookie|clipboard|content|payload|key)/i.test(k) && ["string", "number", "boolean"].includes(typeof v)) clean[k] = typeof v === "string" ? auditText(v, 100) : v;
+        out.settings = clean;
+      }
+      continue;
+    }
+    if (typeof raw === "number" && Number.isFinite(raw)) out[key] = Math.max(0, raw);
+    else if (typeof raw === "boolean") out[key] = raw;
+    else if (typeof raw === "string") {
+      let clean = auditText(raw, key.includes("description") || key === "expected" || key === "actual" ? 800 : 240);
+      if (["error_message", "description", "expected", "actual"].includes(key)) clean = clean
+        .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi, "Bearer [redacted]")
+        .replace(/(api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|senha|authorization|cookie)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
+        .replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, "[token redigido]");
+      out[key] = clean;
+    }
+  }
+  return out;
+}
+async function auditWriteEvent(env, input) {
+  try {
+    const uid = auditText(input.uid, 160);
+    const type = auditText(input.type, 50);
+    if (!uid || !type || (!AUDIT_CLIENT_TYPES.has(type) && !AUDIT_SERVER_TYPES.has(type))) return null;
+    // Page impressions create far more writes than useful user activity.
+    // Keep meaningful actions and errors for the admin timeline.
+    if (["session_started", "page_viewed", "tool_viewed", "pricing_viewed"].includes(type)) return null;
+    const now = +input.timestamp || Date.now();
+    const eventId = (type === "client_error" ? "ERR_" : "EVT_") + crypto.randomUUID().replace(/-/g, "").slice(0, 20).toUpperCase();
+    const event = {
+      event_id: eventId, event_type: type, timestamp: now, uid,
+      session_id: auditText(input.session_id, 100), purchase_id: auditText(input.purchase_id, 180),
+      operation_id: auditText(input.operation_id, 120), file_id: auditText(input.file_id, 100),
+      refund_request_id: auditText(input.refund_request_id, 80), page: auditText(input.page, 120),
+      tool: auditText(input.tool, 60), app_version: auditText(input.app_version || "worldify-static-v1", 80),
+      status: auditText(input.status, 40), trust: input.trust === "server" ? "server" : "client",
+      metadata: auditMetadata(input.metadata)
+    };
+    const expires = type === "client_error" ? 90 * 86400 : 400 * 86400;
+    const timeKey = auditIndexTime(now) + ":" + eventId;
+    // Store the event in its user timeline directly. This replaces two to
+    // four KV writes with one while preserving the old event-ID format on read.
+    await env.PREMIUM_KV.put("audit:user:" + uid + ":" + timeKey, JSON.stringify(event), { expirationTtl: expires });
+    return event;
+  } catch (error) { return null; }
+}
+async function auditList(env, prefix, limit = 500) {
+  const events = [];
+  let cursor;
+  do {
+    const page = await env.PREMIUM_KV.list({ prefix, cursor, limit: Math.min(100, Math.max(1, limit - events.length)) });
+    const records = await Promise.all((page.keys || []).map(async (item) => {
+      const raw = await env.PREMIUM_KV.get(item.name).catch(() => null);
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && parsed.event_type) return parsed;
+      } catch {}
+      // Legacy indexes contain only event IDs.
+      return env.PREMIUM_KV.get("audit:event:" + raw, "json").catch(() => null);
+    }));
+    events.push(...records.filter(Boolean));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor && events.length < limit);
+  return events.sort((a, b) => b.timestamp - a.timestamp).slice(0, limit);
+}
+async function supportList(env, prefix, limit = 200) {
+  const rows = [];
+  let cursor;
+  do {
+    const page = await env.PREMIUM_KV.list({ prefix, cursor, limit: Math.min(100, Math.max(1, limit - rows.length)) });
+    const ids = (page.keys || []).map((item) => item.name.split(":").pop());
+    const batch = await Promise.all(ids.map((id) => env.PREMIUM_KV.get("support:case:" + id, "json").catch(() => null)));
+    rows.push(...batch.filter(Boolean));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor && rows.length < limit);
+  return rows.sort((a, b) => b.created_at - a.created_at).slice(0, limit);
+}
+function supportPurchaseForUser(purchase, user) {
+  if (!purchase || !user) return false;
+  const emailMatches = String(purchase.email || "").trim().toLowerCase() === String(user.email || "").trim().toLowerCase();
+  const uidMatches = !purchase.uid || String(purchase.uid) === String(user.uid);
+  return emailMatches && uidMatches;
+}
+function supportFilesShape(files) {
+  if (!Array.isArray(files) || files.length > 3) throw new Error("Anexe até 3 imagens por solicitação.");
+  let total = 0;
+  return files.map((file) => {
+    const mime = String(file && file.mime || "").toLowerCase();
+    const name = auditText(file && file.name, 100).replace(/[\\/:*?"<>|]/g, "_");
+    const dataUrl = String(file && file.data_url || "");
+    const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!match || match[1] !== mime) throw new Error("Os anexos devem ser imagens PNG, JPG ou WebP.");
+    let decoded;
+    try { decoded = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0)); } catch { throw new Error("Um dos anexos não é uma imagem válida."); }
+    const isPng = mime === "image/png" && decoded.length >= 8 && [137, 80, 78, 71, 13, 10, 26, 10].every((byte, i) => decoded[i] === byte);
+    const isJpeg = mime === "image/jpeg" && decoded.length >= 3 && decoded[0] === 255 && decoded[1] === 216 && decoded[2] === 255;
+    const isWebp = mime === "image/webp" && decoded.length >= 12 && String.fromCharCode(...decoded.slice(0, 4)) === "RIFF" && String.fromCharCode(...decoded.slice(8, 12)) === "WEBP";
+    if (!(isPng || isJpeg || isWebp)) throw new Error("Um dos anexos não corresponde ao formato de imagem informado.");
+    const bytes = decoded.length;
+    if (bytes < 1 || bytes > 1024 * 1024) throw new Error("Cada imagem pode ter no máximo 1 MB.");
+    total += bytes;
+    if (total > 2 * 1024 * 1024) throw new Error("O total dos anexos pode ter no máximo 2 MB.");
+    return { id: "ATT_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase(), name, mime, size_bytes: bytes, data: match[2] };
+  });
+}
+function supportStatusOpen(status) { return ["received", "in_review", "waiting_customer", "problem_resolved", "refund_approved"].includes(status); }
+function supportTags(item, events) {
+  const tags = new Set();
+  if (item && item.payment_confirmed && !item.benefit_granted) tags.add("PAYMENT_NOT_GRANTED");
+  if (!events.length) tags.add("NO_USAGE");
+  if (events.some((event) => event.event_type === "operation_failed" || event.event_type === "client_error" || event.event_type === "file_analysis_failed")) tags.add("TECHNICAL_FAILURE");
+  if (events.some((event) => event.event_type === "download_failed")) tags.add("DOWNLOAD_FAILURE");
+  if (events.filter((event) => event.event_type === "operation_completed").length >= 5) tags.add("HEAVY_USAGE");
+  if (!tags.size) tags.add("UNKNOWN");
+  return Array.from(tags);
+}
+
+
+function browserVersion(ua) { const m=String(ua||"").match(/(?:Edg|Firefox|Chrome|CriOS|Version)\/([0-9.]+)/i); return m ? m[1].slice(0,24) : ""; }
+function operatingSystem(ua) { return /Android/i.test(ua) ? "Android" : /iPhone|iPad/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Mac/i.test(ua) ? "macOS" : "other"; }
 async function checkoutTelemetrySource(env, id) {
   const checkouts = await adminList(env, "admin:checkouts");
   const checkout = checkouts.find((item) => item.id === String(id || ""));
@@ -724,6 +867,7 @@ async function grantPurchase(env, email, billingId, plan, uid = "", provider = "
   const out = await r.json();
   const grant = { premium_until_ms: +out.premium_until_ms || 0, world_credits: +out.world_credits || 0, plan: out.plan || plan, duplicate: out.duplicate === true };
   if (!grant.duplicate && provider !== "manual") {
+    if (uid) await auditWriteEvent(env, { uid, type: "plan_granted", purchase_id: String(billingId || ""), trust: "server", status: "granted", metadata: { plan, provider } });
     const requestedSource = TELEMETRY_SOURCES.has(String(source || "")) ? String(source) : await checkoutTelemetrySource(env, billingId);
     const attribution = requestedSource || provider;
     await metric(env, "payment_paid", { plan, source: attribution });
@@ -1154,6 +1298,201 @@ export default {
         const { checked, recovered, results } = reconciliation;
         await recordAdminAction(env, { admin: admin.email, email: "reconcile", plan: "vip30", reason: "Reconciliação Depix: " + recovered + " pagamento(s)", billing_id: requestedId || "recentes" });
         return json({ ok: true, checked, recovered, results }, 200, cors);
+      }
+
+      if (url.pathname === "/api/audit/events" && req.method === "POST") {
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const type = String(body.event_type || "");
+        if (!AUDIT_CLIENT_TYPES.has(type)) return json({ error: "Tipo de evento não permitido." }, 400, cors);
+        if (["session_started", "page_viewed", "tool_viewed", "pricing_viewed"].includes(type)) return json({ accepted: false, event_id: "" }, 202, cors);
+        const auditRate = env.ENTITLEMENTS.get(env.ENTITLEMENTS.idFromName("audit-rate:" + fb.uid));
+        const permit = await auditRate.fetch("https://entitlements/audit-limit", { method: "POST" });
+        if (!permit.ok) return json({ error: "Aguarde antes de enviar novos eventos." }, 429, cors);
+        const purchaseId = auditText(body.purchase_id, 180);
+        if (purchaseId) {
+          const purchases = await adminList(env, "admin:purchases");
+          const purchase = purchases.find((item) => String(item.id) === purchaseId);
+          if (!purchase || !supportPurchaseForUser(purchase, fb)) return json({ error: "Compra não pertence a esta conta." }, 403, cors);
+        }
+        const metadata = auditMetadata(body.metadata);
+        const ua = String(req.headers.get("User-Agent") || "");
+        metadata.browser = browserType(ua);
+        metadata.browser_version = browserVersion(ua);
+        metadata.os = operatingSystem(ua);
+        metadata.device_type = deviceType(ua);
+        metadata.language = auditText(body.device && body.device.language, 40);
+        metadata.timezone = auditText(body.device && body.device.timezone, 60);
+        metadata.screen_resolution = auditText(body.device && body.device.screen_resolution, 24);
+        const event = await auditWriteEvent(env, {
+          uid: fb.uid, type, trust: "client", session_id: body.session_id, purchase_id: purchaseId,
+          operation_id: body.operation_id, file_id: body.file_id, page: body.page, tool: body.tool,
+          app_version: body.app_version, status: body.status, metadata
+        });
+        return json({ accepted: !!event, event_id: event && event.event_id || "" }, event ? 202 : 503, cors);
+      }
+
+      if (url.pathname === "/api/support/mine" && req.method === "GET") {
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Sessão Google inválida." }, 401, cors);
+        const purchases = await adminList(env, "admin:purchases");
+        const mine = purchases.filter((item) => supportPurchaseForUser(item, fb)).slice(0, 50).map((item) => ({
+          id: String(item.id || ""), plan: normalizeDepixPlan(item.plan), amount_cents: +item.amount_cents || 0,
+          provider: auditText(item.provider, 30), paid_at: +item.paid_at || +item.at || 0
+        }));
+        const cases = await supportList(env, "support:user:" + fb.uid + ":", 50);
+        const events = await auditList(env, "audit:user:" + fb.uid + ":", 300);
+        const usage = events.filter((event) => ["tool_opened", "operation_started", "operation_completed", "operation_failed", "file_analysis_failed", "download_failed"].includes(event.event_type))
+          .map((event) => ({ tool: event.tool, operation_id: event.operation_id, file_id: event.file_id, timestamp: event.timestamp, event_type: event.event_type, metadata: event.metadata }));
+        return json({ purchases: mine, usage, cases: cases.map(({ id, status, kind, reason, created_at, updated_at, public_message }) => ({ id, status, kind, reason, created_at, updated_at, public_message })) }, 200, cors);
+      }
+
+      if (url.pathname === "/api/support/submit" && req.method === "POST") {
+        const fb = await firebaseUser(req, env);
+        if (!fb) return json({ error: "Entre na mesma conta Google usada na compra." }, 401, cors);
+        if (!(await rlTake(env, "rl-support:" + fb.uid, 5, 86400))) return json({ error: "Você já enviou solicitações hoje. Atualize o caso existente ou aguarde." }, 429, cors);
+        if (+req.headers.get("Content-Length") > 3000000) return json({ error: "Anexos grandes demais." }, 413, cors);
+        let body = {};
+        try { const text = await req.text(); if (text.length > 3000000) return json({ error: "Anexos grandes demais." }, 413, cors); body = JSON.parse(text); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const kind = body.kind === "refund" ? "refund" : "support";
+        const purchaseId = auditText(body.purchase_id, 180);
+        const purchases = await adminList(env, "admin:purchases");
+        const purchase = purchaseId ? purchases.find((item) => String(item.id) === purchaseId) : { email: fb.email, uid: fb.uid, plan: "free", amount_cents: 0 };
+        if ((!purchaseId && kind === "refund") || !purchase || !supportPurchaseForUser(purchase, fb)) return json({ error: "Selecione uma compra vinculada à sua conta para solicitar reembolso." }, 403, cors);
+        const openKey = "support:open:" + (purchaseId || "user:" + fb.uid);
+        const reasons = new Set(["payment_not_granted", "tool_error", "incorrect_result", "download_failed", "file_rejected", "wrong_plan", "duplicate_purchase", "could_not_use", "cancel", "other"]);
+        const reason = reasons.has(String(body.reason || "")) ? String(body.reason) : "other";
+        const description = auditText(body.description, 2400);
+        if (description.length < 8) return json({ error: "Explique brevemente o que aconteceu (mínimo de 8 caracteres)." }, 400, cors);
+        let attachments;
+        try { attachments = supportFilesShape(body.attachments || []); }
+        catch (error) { return json({ error: String(error.message || error) }, 400, cors); }
+        const existingId = await env.PREMIUM_KV.get(openKey);
+        if (existingId) {
+          const existing = await env.PREMIUM_KV.get("support:case:" + existingId, "json").catch(() => null);
+          if (existing && supportStatusOpen(existing.status)) return json({ id: existing.id, duplicate: true, status: existing.status }, 200, cors);
+        }
+        const id = "REF_" + crypto.randomUUID().replace(/-/g, "").slice(0, 18).toUpperCase();
+        const createdAt = Date.now();
+        const caseItem = {
+          id, uid: fb.uid, email: fb.email, purchase_id: purchaseId,
+          purchase: { plan: normalizeDepixPlan(purchase.plan) || "free", amount_cents: +purchase.amount_cents || 0, provider: auditText(purchase.provider, 30), paid_at: +purchase.paid_at || +purchase.at || 0 },
+          kind, reason, description, expected: auditText(body.expected, 1200), actual: auditText(body.actual, 1200),
+          tool: auditText(body.tool, 60), operation_id: auditText(body.operation_id, 120),
+          status: "received", created_at: createdAt, updated_at: createdAt,
+          public_message: "Recebemos sua solicitação. Vamos analisar e responder por esta página.",
+          attachment_meta: attachments.map(({ id: attachmentId, name, mime, size_bytes }) => ({ id: attachmentId, name, mime, size_bytes })),
+          history: [{ at: createdAt, action: "submitted", actor: "user", uid: fb.uid, note: "Solicitação recebida" }]
+        };
+        const existingEvents = await auditList(env, "audit:user:" + fb.uid + ":", 500);
+        const related = existingEvents.filter((event) => (event.purchase_id === purchaseId || (!event.purchase_id && event.timestamp >= caseItem.purchase.paid_at)) && event.timestamp <= createdAt);
+        caseItem.evidence = {
+          event_count: related.length,
+          operations_completed: related.filter((event) => event.event_type === "operation_completed").length,
+          operations_failed: related.filter((event) => event.event_type === "operation_failed" || event.event_type === "file_analysis_failed" || event.event_type === "client_error").length,
+          results_generated: related.filter((event) => event.event_type === "result_generated").length,
+          downloads_requested: related.filter((event) => event.event_type === "download_requested" || event.event_type === "download_response_completed").length,
+          payment_confirmed: !!purchaseId,
+          benefit_granted: related.some((event) => event.event_type === "plan_granted" && event.purchase_id === purchaseId),
+          tags: supportTags({ payment_confirmed: !!purchaseId, benefit_granted: related.some((event) => event.event_type === "plan_granted" && event.purchase_id === purchaseId) }, related)
+        };
+        await env.PREMIUM_KV.put("support:case:" + id, JSON.stringify(caseItem), { expirationTtl: 400 * 86400 });
+        const index = auditIndexTime(createdAt) + ":" + id;
+        await env.PREMIUM_KV.put("support:admin:" + index, id, { expirationTtl: 400 * 86400 });
+        await env.PREMIUM_KV.put("support:user:" + fb.uid + ":" + index, id, { expirationTtl: 400 * 86400 });
+        await env.PREMIUM_KV.put(openKey, id, { expirationTtl: 400 * 86400 });
+        for (const file of attachments) await env.PREMIUM_KV.put("support:file:" + id + ":" + file.id, JSON.stringify({ id: file.id, name: file.name, mime: file.mime, size_bytes: file.size_bytes, data_url: "data:" + file.mime + ";base64," + file.data }), { expirationTtl: 90 * 86400 });
+        await auditWriteEvent(env, { uid: fb.uid, type: "refund_request_created", trust: "server", purchase_id: purchaseId, refund_request_id: id, status: "received", metadata: { refund_kind: kind, reason, tool: caseItem.tool } });
+        return json({ id, status: "received", duplicate: false }, 201, cors);
+      }
+
+      if (url.pathname === "/api/admin/support" && req.method === "GET") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Acesso restrito." }, 403, cors);
+        const status = auditText(url.searchParams.get("status"), 32);
+        const cases = await supportList(env, "support:admin:", 200);
+        return json({ cases: cases.filter((item) => !status || item.status === status).map((item) => ({
+          id: item.id, email: item.email, purchase_id: item.purchase_id, purchase: item.purchase,
+          kind: item.kind, reason: item.reason, tool: item.tool, status: item.status,
+          evidence: item.evidence, created_at: item.created_at, updated_at: item.updated_at
+        })) }, 200, cors);
+      }
+
+      if (url.pathname === "/api/admin/customer/activity" && req.method === "POST") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Acesso restrito." }, 403, cors);
+        if (!(await rlTake(env, "rl-admin-activity:" + admin.uid, 120, 3600))) return json({ error: "Muitas consultas de atividade. Aguarde alguns minutos." }, 429, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "Solicitação inválida." }, 400, cors); }
+        const email = String(body.email || "").trim().toLowerCase();
+        if (!validEmail(email)) return json({ error: "Informe um e-mail válido." }, 400, cors);
+        const allPurchases = await adminList(env, "admin:purchases");
+        const userPurchases = allPurchases.filter((item) => String(item.email || "").trim().toLowerCase() === email);
+        const purchases = userPurchases
+          .sort((a, b) => (+b.paid_at || +b.at || 0) - (+a.paid_at || +a.at || 0))
+          .slice(0, 50)
+          .map((item) => ({ id: item.id, at: +item.paid_at || +item.at || 0, plan: item.plan, amount_cents: +item.amount_cents || 0, provider: item.provider || "", source: item.source || "" }));
+        const uids = [...new Set(userPurchases
+          .map((item) => String(item.uid || "").trim()).filter(Boolean))].slice(0, 3);
+        const events = (await Promise.all(uids.map((uid) => auditList(env, "audit:user:" + uid + ":", 100))))
+          .flat().sort((a, b) => b.timestamp - a.timestamp).slice(0, 100);
+        return json({ email, purchases, events, event_limit: 100, audit_retention_days: 400 }, 200, cors);
+      }
+
+      if (url.pathname === "/api/admin/support/detail" && req.method === "GET") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Acesso restrito." }, 403, cors);
+        const id = auditText(url.searchParams.get("id"), 80);
+        const item = await env.PREMIUM_KV.get("support:case:" + id, "json").catch(() => null);
+        if (!item) return json({ error: "Caso não encontrado." }, 404, cors);
+        const events = await auditList(env, "audit:user:" + item.uid + ":", 100);
+        const timeline = events.filter((event) => event.purchase_id === item.purchase_id || (!event.purchase_id && event.timestamp >= item.purchase.paid_at && event.timestamp <= item.created_at));
+        const attachments = await Promise.all((item.attachment_meta || []).map((file) => env.PREMIUM_KV.get("support:file:" + id + ":" + file.id, "json").catch(() => null)));
+        const history = [];
+        let cursor;
+        do {
+          const page = await env.PREMIUM_KV.list({ prefix: "support:history:" + id + ":", cursor, limit: 100 });
+          for (const row of page.keys || []) {
+            const entry = await env.PREMIUM_KV.get(row.name, "json").catch(() => null);
+            if (entry) history.push(entry);
+          }
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor && history.length < 100);
+        return json({ case: item, timeline, attachments: attachments.filter(Boolean), history: history.sort((a, b) => a.at - b.at) }, 200, cors);
+      }
+
+      if (url.pathname === "/api/admin/support/decision" && req.method === "POST") {
+        const admin = await adminUser(req, env);
+        if (!admin) return json({ error: "Acesso restrito." }, 403, cors);
+        let body = {};
+        try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
+        const id = auditText(body.id, 80);
+        const action = String(body.action || "");
+        const allowed = new Set(["in_review", "waiting_customer", "problem_resolved", "refund_approved", "refund_denied", "refund_completed"]);
+        const reason = auditText(body.reason, 1000);
+        if (!allowed.has(action) || reason.length < 3) return json({ error: "Escolha uma ação e informe a justificativa obrigatória." }, 400, cors);
+        const item = await env.PREMIUM_KV.get("support:case:" + id, "json").catch(() => null);
+        if (!item) return json({ error: "Caso não encontrado." }, 404, cors);
+        const oldStatus = item.status;
+        item.status = action;
+        item.updated_at = Date.now();
+        item.public_message = auditText(body.public_message || "Atualizamos sua solicitação. Consulte esta página para ver a resposta.", 500);
+        if (["refund_approved", "refund_completed"].includes(action)) {
+          item.refund_decision = { decision: action, admin: admin.email, at: item.updated_at, reason, public_message: item.public_message,
+            amount_refunded_cents: Math.min(+item.purchase.amount_cents || 0, Math.max(0, +body.amount_refunded_cents || (action === "refund_completed" ? +item.purchase.amount_cents || 0 : 0))),
+            fee_loss_cents: Math.max(0, +body.fee_loss_cents || 0) };
+        }
+        const history = { id: "HIS_" + crypto.randomUUID().replace(/-/g, "").slice(0, 18), at: item.updated_at, action, actor: admin.email, reason, previous_status: oldStatus, public_message: item.public_message };
+        item.history = Array.isArray(item.history) ? item.history : [];
+        item.history.push(history);
+        await env.PREMIUM_KV.put("support:case:" + id, JSON.stringify(item), { expirationTtl: 400 * 86400 });
+        await env.PREMIUM_KV.put("support:history:" + id + ":" + auditIndexTime(item.updated_at) + ":" + history.id, JSON.stringify(history), { expirationTtl: 400 * 86400 });
+        if (!supportStatusOpen(action)) await env.PREMIUM_KV.delete("support:open:" + (item.purchase_id || "user:" + item.uid)).catch(() => {});
+        const eventType = action === "refund_approved" ? "refund_approved" : action === "refund_denied" ? "refund_denied" : action === "refund_completed" ? "refund_completed" : "support_status_changed";
+        await auditWriteEvent(env, { uid: item.uid, type: eventType, trust: "server", purchase_id: item.purchase_id, refund_request_id: id, status: action, metadata: { reason, refund_kind: item.kind } });
+        return json({ ok: true, id, status: action }, 200, cors);
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
@@ -1808,6 +2147,17 @@ export class EntitlementDO {
   constructor(state) { this.state = state; }
   async fetch(req) {
     const url = new URL(req.url);
+    if (url.pathname === "/audit-limit" && req.method === "POST") {
+      const allowed = await this.state.storage.transaction(async (txn) => {
+        const hour = Math.floor(Date.now() / 3600000);
+        const old = await txn.get("audit_rate");
+        const count = old && old.hour === hour ? old.count : 0;
+        if (count >= 80) return false;
+        await txn.put("audit_rate", { hour, count: count + 1 });
+        return true;
+      });
+      return json({ allowed }, allowed ? 200 : 429);
+    }
     let body = {};
     try { body = await req.json(); } catch { body = {}; }
     const fresh = () => ({ world_credits: 0, premium_until_ms: 0, plan: "", time_passes: [], revision: 0, purchases: {}, consumed: {}, world_projects: {}, world_fingerprints: {}, reservations: {}, completed_ops: {}, quotas: {}, imports: {}, checkouts: {} });
