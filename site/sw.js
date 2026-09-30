@@ -1,8 +1,8 @@
 /* Worldify — Service Worker do site e do Construtor 3D.
    Páginas HTML sempre revalidam online para evitar servir conteúdo antigo.
    Recursos com ?v= podem usar cache-first; sem rede, usamos o cache local. */
-var CACHE = 'worldify-20260930o';
-var CORE = ['index.html', 'importar.html', 'style.css?v=29', 'focus.css?v=20260929c', 'compatibility.js?v=20260929c', 'focus.js?v=20260929c', 'assets/worldify-mark.svg', 'worldify-editor.js?v=20260930o', 'worldify-glass.css?v=20260930o', 'mc/item/grass_block.png', 'worldify-shell.css?v=20260930o', 'worldify-shell.js?v=20260930o'];
+var CACHE = 'worldify-20260930p';
+var CORE = ['index.html', 'importar.html', 'style.css?v=29', 'focus.css?v=20260929c', 'compatibility.js?v=20260929c', 'focus.js?v=20260929c', 'assets/worldify-mark.svg', 'worldify-editor.js?v=20260930p', 'worldify-glass.css?v=20260930p', 'mc/item/grass_block.png', 'worldify-shell.css?v=20260930p', 'worldify-shell.js?v=20260930p'];
 self.addEventListener('install', function (event) {
   event.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE); }).then(function () { return self.skipWaiting(); }));
 });

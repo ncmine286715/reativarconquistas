@@ -582,7 +582,7 @@
       vipLockUntil = Date.now() + 60000;
       var text = "Esta conta já tem " + String(ent.plan_label || ent.plan || "benefícios ativos");
       if (ent.expires_at) text += " até " + new Date(ent.expires_at).toLocaleDateString("pt-BR");
-      if (+ent.world_credits > 0) text += " e " + (+ent.world_credits) + " crédito(s) de mundo";
+      if (+ent.world_credits > 0) text = ent.expires_at ? text + " e " + (+ent.world_credits) + " crédito(s)" : "Você tem " + (+ent.world_credits) + " crédito(s) de mundo disponível(is)";
       var m = document.getElementById("payMsg");
       if (m) { m.hidden = false; m.className = "status ok"; m.textContent = text + ". A compra adicional é opcional."; }
       var go = document.getElementById("payGo");
