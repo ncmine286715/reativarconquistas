@@ -26,7 +26,7 @@
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
-<link rel="stylesheet" href="worldify-shell.css?v=20260930i"><link rel="stylesheet" href="worldify-glass.css?v=20260930i"><script defer src="worldify-shell.js?v=20260930i"></script>
+<link rel="stylesheet" href="worldify-shell.css?v=20260930l"><link rel="stylesheet" href="worldify-glass.css?v=20260930l"><script defer src="worldify-shell.js?v=20260930l"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -116,7 +116,10 @@
     <picture><source srcset="assets/worldify-hero.webp" type="image/webp"><img src="assets/worldify-hero.jpg" width="1280" height="720" alt="Um mundo de blocos com rio, florestas e montanhas ao amanhecer" fetchpriority="high"></picture>
     <div class="wf-hero-overlay"><p>WORLDIFY</p><h1>Seu mundo.<br>Do seu jeito.</h1><div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo ↗</a><a class="btn-ghost hero-btn" href="#guia-envio">Como enviar</a></div></div>
   </header>
-  <section id="guia-envio" class="wf-learning-strip" aria-label="Tutorial e textura"><a href="https://www.youtube.com/@Ncmine/search?query=exportar%20mundo" target="_blank" rel="noopener"><img src="assets/icons/video.svg" width="28" height="28" alt=""><span>YouTube<small>Tutoriais do Ncmine ↗</small></span></a><a href="importar.html#texturas"><img src="assets/icons/addon.svg" width="28" height="28" alt=""><span>Texturas<small>Baixar .mcpack ↗</small></span></a><a href="importar.html"><img src="assets/icons/info.svg" width="28" height="28" alt=""><span>Como enviar<small>Guia rápido ↗</small></span></a></section>
+  <section id="guia-envio" class="wf-learning-strip" aria-label="Exportar seu mundo">
+    <a class="wf-learn-card" href="https://youtu.be/Zf9EvVe2b-c?si=t-2kcBG1YdK5rEt1" target="_blank" rel="noopener noreferrer"><img src="assets/icons/video.svg" width="40" height="40" alt=""><span><small>PASSO A PASSO · YOUTUBE</small><strong>Como exportar seu mundo</strong><span class="wf-learn-action">Assistir tutorial <span aria-hidden="true">↗</span></span></span></a>
+    <a class="wf-learn-card" href="https://www.curseforge.com/minecraft-bedrock/texture-packs/import-export-button-unhider-for-mcpe" target="_blank" rel="noopener noreferrer"><img class="wf-texture-art" src="assets/export-button-unhider.png" width="64" height="64" alt="Ícone da textura: baú com seta de exportação"><span><small>IMPORT/EXPORT BUTTON UNHIDER</small><strong>Libere o botão de exportar</strong><span class="wf-learn-action">Baixar no CurseForge <span aria-hidden="true">↗</span></span></span></a>
+  </section>
   <p id="compatibilityNotice" class="warn" hidden role="status"></p>
   <div class="light-mode-control"><label><input type="checkbox" id="lightMode"> Modo leve</label></div>
   <div id="quotaBar" class="quota">
@@ -159,10 +162,10 @@
         <div class="map-canvas-wrap" id="mapWrap">
           <canvas id="mapCanvas" aria-label="Mapa do mundo; arraste para mover e use os botões para ampliar"></canvas>
           <div class="map-icon-tools" role="toolbar" aria-label="Ferramentas do mapa">
-            <button type="button" class="map-dim on" id="mapModePan" aria-label="Mover mapa" title="Mover mapa"><img src="assets/icons/info.svg" alt=""></button>
-            <button type="button" class="map-dim" id="mapModeSel" aria-label="Selecionar área" title="Selecionar área"><img src="assets/icons/chunks.svg" alt=""></button>
-            <button type="button" class="map-dim" id="mapModePin" aria-label="Colocar marcador" title="Colocar marcador"><img src="assets/icons/player.svg" alt=""></button>
-            <button type="button" class="map-dim" id="mapSpawnBtn" aria-label="Ir para o spawn" title="Ir para o spawn" hidden><img src="assets/icons/world.svg" alt=""></button>
+            <button type="button" class="map-dim on" id="mapModePan" aria-label="Mover mapa" title="Mover mapa"><img src="assets/icons/move.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapModeSel" aria-label="Selecionar área" title="Selecionar área"><img src="assets/icons/select.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapModePin" aria-label="Colocar marcador" title="Colocar marcador"><img src="assets/icons/pin.svg" alt=""></button>
+            <button type="button" class="map-dim" id="mapSpawnBtn" aria-label="Ir para o spawn" title="Ir para o spawn" hidden><img src="assets/icons/home.svg" alt=""></button>
             <button type="button" class="map-dim" id="mapZoomIn" aria-label="Aproximar mapa" title="Aproximar mapa"><span aria-hidden="true">+</span></button>
             <button type="button" class="map-dim" id="mapZoomOut" aria-label="Afastar mapa" title="Afastar mapa"><span aria-hidden="true">−</span></button>
             <button type="button" class="map-dim" id="mapTerrainBtn" aria-label="Alternar vista do terreno" title="Alternar vista do terreno" hidden><img src="assets/icons/model.svg" alt=""></button>
@@ -244,7 +247,7 @@
 
       <label class="opt" id="diffOpt">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/iron_sword.png" alt="" aria-hidden="true">Dificuldade</b>
+          <b><img class="mc-ic" src="assets/icons/sword.svg" alt="" aria-hidden="true">Dificuldade</b>
           <em>Grátis · não bloqueia conquistas</em>
           <span class="icon-row" style="margin-top:10px">
             <select id="difficulty" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -260,7 +263,7 @@
 
       <label class="opt" id="coordOpt">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/spyglass.png" alt="" aria-hidden="true">Coordenadas</b>
+          <b><img class="mc-ic" src="assets/icons/coords.svg" alt="" aria-hidden="true">Coordenadas</b>
           <em>Grátis · mostra o XYZ na tela</em>
           <span class="icon-row" style="margin-top:10px">
             <select id="showcoords" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -275,7 +278,7 @@
       <label class="opt" id="renameOpt">
         <input type="checkbox" id="wantRename">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/name_tag.png" alt="" aria-hidden="true">Renomear</b>
+          <b><img class="mc-ic" src="assets/icons/name.svg" alt="" aria-hidden="true">Renomear</b>
           <em>Grátis · use §+letra p/ colorir (§a)</em>
           <span class="icon-row" style="margin-top:10px">
             <input type="text" id="renameInput" maxlength="60" placeholder="Ex.: Minha base principal"
@@ -297,7 +300,7 @@
 
       <label class="opt locked" id="keepOpt">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Manter inventário</b>
+          <b><img class="mc-ic" src="assets/icons/inventory.svg" alt="" aria-hidden="true">Manter inventário</b>
           <em>Não perde itens ao morrer · <a href="#planos" class="unlock">desbloquear</a></em>
           <span class="icon-row" style="margin-top:10px">
             <select id="keepinv" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -327,14 +330,14 @@
       <label class="opt locked" id="hardcoreOpt">
         <input type="checkbox" id="recoverHardcore">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/totem_of_undying.png" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">Pago</span></b>
+          <b><img class="mc-ic" src="assets/icons/inventory.svg" alt="" aria-hidden="true">Recuperar mundo Hardcore <span class="lock">Pago</span></b>
           <em>Desativa IsHardcore e, se existir, limpa o estado de morte. O jogo valida o mundo exportado.</em>
         </span>
       </label>
 
       <label class="opt locked" id="timeOpt">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/lantern.png" alt="" aria-hidden="true">Dia/noite + clima</b>
+          <b><img class="mc-ic" src="assets/icons/weather.svg" alt="" aria-hidden="true">Dia/noite + clima</b>
           <em>Trava tempo e clima · <a href="#planos" class="unlock">desbloquear</a></em>
           <span class="icon-row" style="margin-top:10px">
             <select id="daycycle" style="flex:1;min-width:200px;border:1.5px solid var(--line-strong);border-radius:10px;padding:10px 12px;font-size:14px">
@@ -403,7 +406,7 @@
       <label class="opt locked" id="iconOpt">
         <input type="checkbox" id="wantIcon">
         <span style="flex:1">
-          <b><img class="mc-ic" src="mc/item/painting.png" alt="" aria-hidden="true">Foto do mundo</b>
+          <b><img class="mc-ic" src="assets/icons/image.svg" alt="" aria-hidden="true">Foto do mundo</b>
           <em>Envie imagem ou use ícone pronto</em>
           <span class="icon-row" id="presetRow" style="margin-top:10px"></span>
           <span class="icon-row" style="margin-top:10px">
@@ -490,7 +493,7 @@
           <p class="sub" id="packCompatibilityHint" style="margin:6px 0 10px">Pacotes de textura e comportamento de um .mcaddon são adicionados juntos. Behavior packs podem bloquear conquistas no Minecraft.</p>
           <label class="opt" id="packOpt">
             <span style="flex:1">
-              <b><img class="mc-ic" src="mc/item/enchanted_book.png" alt="" aria-hidden="true">Colocar addons</b>
+              <b><img class="mc-ic" src="assets/icons/addon.svg" alt="" aria-hidden="true">Colocar addons</b>
               <em>.mcpack/.mcaddon/.zip · detecta pacotes de textura e comportamento</em>
               <span class="icon-row" style="margin-top:10px">
                 <input type="file" id="packFiles" accept=".mcpack,.mcaddon,.zip" multiple hidden>
@@ -502,7 +505,7 @@
       <label class="opt" id="stripOpt">
         <input type="checkbox" id="stripPacks">
         <span style="flex:1">
-              <b><img class="mc-ic" src="mc/item/barrier.png" alt="" aria-hidden="true">Remover add-ons de comportamento</b>
+              <b><img class="mc-ic" src="assets/icons/remove.svg" alt="" aria-hidden="true">Remover add-ons de comportamento</b>
           <em>Também pode ser usado sem marcar a reativação acima.</em>
         </span>
       </label>
@@ -555,7 +558,7 @@
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
   </main>
 
-<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui modelar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui pintura</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
+<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui modelar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui modelagem</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
@@ -609,7 +612,7 @@
 <script src="converter.js?v=20260929c"></script>
 <script src="pixel-icons.js?v=14"></script>
 <script src="ferramentas-local.js?v=17"></script>
-<script src="mapa-2d.js?v=20260930i"></script>
+<script src="mapa-2d.js?v=20260930l"></script>
 <script src="mapa-terreno.js?v=5"></script>
 <script src="nbt-bedrock.js?v=3"></script>
 <script src="leveldb-write.js?v=2"></script>
@@ -617,9 +620,9 @@
 <script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=1"></script>
-<script src="app.js?v=20260930i"></script>
+<script src="app.js?v=20260930l"></script>
 <script src="firebase-config.js?v=20260929c"></script>
-<script src="auth.js?v=worldify-20260930"></script>
+<script src="auth.js?v=worldify-20260930l"></script>
 <script src="pagamento.js?v=worldify-20260930"></script>
 <script src="entitlements.js?v=20260930"></script>
 <script src="guia-site.js?v=20260929c"></script>
@@ -627,6 +630,6 @@
 <script src="focus.js?v=20260929c"></script>
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 <script src="audit.js?v=20260930"></script>
-<script src="worldify-editor.js?v=20260930i"></script>
+<script src="worldify-editor.js?v=20260930l"></script>
 </body>
 </html>
