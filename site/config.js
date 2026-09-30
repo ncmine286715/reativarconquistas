@@ -1,4 +1,4 @@
-/* Configuração PÚBLICA do ReativaConquistas.
+/* Configuração PÚBLICA do Worldify.
    NÃO coloque chaves, tokens ou secrets neste arquivo.
 
    O navegador acessa somente o Cloudflare Worker.
@@ -9,11 +9,11 @@
 window.RC_CONFIG = {
 
   /* Marca e integrações públicas. SITE_URL deve ser o único domínio canônico. */
-  SITE_NAME: "ReativaConquistas",
+  SITE_NAME: "Worldify",
   SITE_URL: "https://worldify.com.br",
   SITE_DESCRIPTION: "Edite mundos Minecraft Bedrock no navegador e baixe uma cópia do resultado.",
-  SITE_LOGO: "/logo.png",
-  SITE_OG_IMAGE: "/hero.png",
+  SITE_LOGO: "/assets/worldify-mark.svg",
+  SITE_OG_IMAGE: "/assets/worldify-hero.jpg",
   GOOGLE_ANALYTICS_ID: "G-NK8ZN0XFJM",
   GOOGLE_TAG_MANAGER_ID: "",
   GOOGLE_SITE_VERIFICATION: "",
@@ -44,7 +44,7 @@ window.RC_CONFIG = {
 
   SUPPORT_EMAIL: "ncmine75@gmail.com",
 
-  OPERATOR_NAME: "ReativaConquistas",
+  OPERATOR_NAME: "Worldify",
 
   // Preencha somente se realmente quiser exibir documento publicamente.
   OPERATOR_DOC: "",

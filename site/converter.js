@@ -1,4 +1,4 @@
-/* ReativaConquistas — conversor 100% local (sem servidor)
+/* Worldify — conversor 100% local (sem servidor)
    Porta de reativar_conquistas.py: abre .mcworld (zip), acha level.dat,
    zera cheatsEnabled/commandsEnabled/hasBeenLoadedInCreative (byte->0),
    ajusta GameType (0 survival / 1 creative), valida e devolve novo zip.

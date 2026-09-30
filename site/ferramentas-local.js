@@ -1,4 +1,4 @@
-/* ReativaConquistas — ferramentas 100% locais (port das funções úteis do .py)
+/* Worldify — ferramentas 100% locais (port das funções úteis do .py)
    Sem Python, sem servidor. Requer converter.js (window.RC_convert + RC_nbt)
    e JSZip (vendor local ou CDN) carregados antes deste arquivo.
 

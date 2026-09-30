@@ -1,4 +1,4 @@
-/* ReativaConquistas — pagamento AbacatePay 100% em JS, SEM segredo no navegador.
+/* Worldify — pagamento AbacatePay 100% em JS, SEM segredo no navegador.
    A chave abc_* fica SÓ no Cloudflare Worker (worker/): o site chama o Worker,
    o Worker chama o AbacatePay. Ativação: WORKER_URL em config.js.
    Fluxo: [data-pay] -> modal (e-mail + status visível) -> POST /api/abacate/create ->
@@ -69,6 +69,7 @@
   } catch (e) { telemetryId = "anonymous"; }
   function track(event, data) {
     try {
+      if (window.WorldifyAudit) window.WorldifyAudit.record(event, data);
       if (window.RC_analytics && window.RC_analytics.track) window.RC_analytics.track(event, data);
       var tool = "";
       try {
@@ -145,7 +146,7 @@
     });
   }
 
-  var PLAN_IDS = ["world1", "ouro", "diamante", "vip7", "vip30", "creator"];
+  var PLAN_IDS = ["world1", "worlds2v1", "vip7", "vip30"];
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var paymentServerConfig = null;
@@ -209,7 +210,7 @@
   function updateRecommendation() {
     var select = document.getElementById("planUse"), text = document.getElementById("planRecommendation"), button = document.getElementById("recommendedPlan");
     if (!select || !text || !button) return;
-    var choice = { single: "world1", week: "vip7", month: "vip30", batch: "creator", flexible: "ouro" }[select.value] || "world1";
+    var choice = { single: "world1", week: "vip7", month: "vip30", batch: "vip30", flexible: "worlds2v1" }[select.value] || "world1";
     var p = PUBLIC_PLANS[choice];
     if (!p) { text.textContent = "Carregando opções e preços…"; button.disabled = true; return; }
     var description = {
@@ -962,7 +963,7 @@
     checkout: checkout,
     kiwifyUrl: kiwifyUrl,
     checkReturn: checkReturn,
-    track: track, entitlements: fetchEntitlementPayload, planCatalog: ensurePlanCatalog, freeQuota: freeQuota, authorizeOperation: authorizeOperation, consumeOperation: consumeOperation
+    track: track, entitlements: fetchEntitlementPayload, planCatalog: ensurePlanCatalog, freeQuota: freeQuota, authorizeOperation: authorizeOperation, consumeOperation: consumeOperation, completeOperation: completeOperation, releaseOperation: releaseOperation
   };
   try { document.dispatchEvent(new Event("rc-pay-ready")); } catch (e) {}
   ensurePlanCatalog().catch(function () {});

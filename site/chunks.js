@@ -1,4 +1,4 @@
-/* ReativaConquistas — Reset de chunks (VIP, 100% local).
+/* Worldify — Reset de chunks (VIP, 100% local).
    1) seleciona chunks no mapa 2D (clique alterna, arrastar = retângulo);
    2) ANÁLISE GRÁTIS: saúde de cada chunk (versão, finalização, fantasmas,
       formato antigo), tipo de mundo (Infinito/Plano/Antigo), vínculos

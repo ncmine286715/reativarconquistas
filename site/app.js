@@ -1,4 +1,4 @@
-/* ReativaConquistas — frontend (conversão 100% local + conta + AbacatePay).
+/* Worldify — frontend (conversão 100% local + conta + AbacatePay).
    Limites e recursos vêm do catálogo público do Worker.
    O pagamento entra quando o usuário precisa de mais volume, tamanho ou uma operação avançada.
 */
@@ -686,7 +686,7 @@
       var exceedsWorldCredit = oneWorld.max_file_bytes !== null && sizeBytes > +oneWorld.max_file_bytes;
       var exceedsWorldBatch = +worlds > +oneWorld.max_batch;
       var requirement = { worlds: worlds, world_size_mb: +(sizeBytes / 1048576).toFixed(1), world_size_bytes: sizeBytes };
-      var eligible = toolIntentApi ? toolIntentApi.eligiblePlanIds(["world1", "vip7", "vip30", "creator"], catalog, requirement) : ["world1", "vip7", "vip30", "creator"];
+      var eligible = toolIntentApi ? toolIntentApi.eligiblePlanIds(["world1", "vip7", "vip30", "vip30"], catalog, requirement) : ["world1", "vip7", "vip30", "creator"];
       if (!eligible.length) {
         setStatus("err", escapeHtml(message) + " Nenhum produto atual cobre este tamanho e quantidade de mundos. Divida o lote ou exporte um arquivo menor.");
         return;
@@ -1390,6 +1390,7 @@
       lockedHint("Seu acesso permite até " + batchLimit() + " mundos por lote. Escolha um plano maior para processar mais arquivos.", remotePlan() === "vip7" ? "vip30" : "creator");
       return;
     }
+    if (selectedList.some(function(f){ return /\.dat$/i.test(f.name || ''); })) { setStatus("err", "Um level.dat avulso não é um mundo completo. Envie o .mcworld, modelo ou ZIP com a pasta db para baixar uma cópia .mcworld. Você ainda pode usar Só diagnosticar."); return; }
     // tamanho vale na hora do clique (o VIP pode ter expirado depois da seleção)
     var maxB = sizeLimitMB() * 1024 * 1024;
     var tooBig = selectedList.filter(function (f) { return f.size > maxB; });

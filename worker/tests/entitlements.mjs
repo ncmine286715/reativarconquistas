@@ -259,9 +259,9 @@ const env = {
 const catalogResponse = await worker.default.fetch(apiRequest("/api/config", { token: "" }), env);
 const publicCatalog = await catalogResponse.json();
 assert.equal(publicCatalog.plans.vip24h, undefined, "legacy 24h is not offered as a new plan");
-assert.deepEqual([publicCatalog.plans.world1.credit_count, publicCatalog.plans.ouro.credit_count, publicCatalog.plans.diamante.credit_count], [1, 3, 5], "public checkout catalog advertises exact credit counts");
-assert.deepEqual([publicCatalog.plans.world1.price_cents, publicCatalog.plans.ouro.price_cents, publicCatalog.plans.diamante.price_cents], [599, 1499, 2290], "public checkout catalog advertises the server-authoritative prices");
-assert.deepEqual([publicCatalog.plans.world1.label, publicCatalog.plans.ouro.label, publicCatalog.plans.diamante.label], ["Ferro · 1 crédito", "Ouro · 3 créditos", "Diamante · 5 créditos"], "checkout labels distinguish the tier from the account credit balance");
+assert.deepEqual([publicCatalog.plans.world1.credit_count, publicCatalog.plans.worlds2v1.credit_count], [1, 2], "public checkout catalog advertises exact credit counts");
+assert.deepEqual([publicCatalog.plans.world1.price_cents, publicCatalog.plans.worlds2v1.price_cents], [599, 1190], "public checkout catalog advertises the server-authoritative prices");
+assert.deepEqual([publicCatalog.plans.world1.label, publicCatalog.plans.worlds2v1.label], ["1 mundo", "2 mundos"], "checkout labels distinguish the tier from the account credit balance");
 const testCpf = "52998224725";
 const testEmail = "private-test@example.com";
 await worker.default.fetch(apiRequest("/api/client-log", { method: "POST", token: "", body: { step: "depix-create", message: "CPF " + testCpf + " failed for " + testEmail, href: "https://app.example/sucesso.html?checkout_id=private-payment-id" } }), env);
@@ -614,13 +614,13 @@ assert.equal(worker.corsHeaders(new Request("https://api.example", { headers: { 
 // The package checkout accepts the new SKU and charges its server catalog amount.
 const ouroCheckout = await worker.default.fetch(apiRequest("/api/depix/create", {
   token: "tokenH", method: "POST", ip: "192.0.2.18",
-  body: { plan: "ouro", payer_tax_number: "52998224725", payer_email: "buyer-h@example.com", source: "pricing_card", terms_accepted: true, terms_version: "test", request_id: "bundle-order-ouro-001" }
+  body: { plan: "worlds2v1", payer_tax_number: "52998224725", payer_email: "buyer-h@example.com", source: "pricing_card", terms_accepted: true, terms_version: "test", request_id: "bundle-order-ouro-001" }
 }), env);
-assert.equal(ouroCheckout.status, 200, "Ouro package can create a Depix checkout");
+assert.equal(ouroCheckout.status, 200, "Current two-world package can create a Depix checkout");
 const ouroCheckoutBody = await ouroCheckout.json();
-assert.equal(ouroCheckoutBody.plan, "ouro");
-assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.amount, 1499, "Depix amount comes from the server catalog and cannot be replaced by a client price");
-assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.metadata.plan, "ouro");
+assert.equal(ouroCheckoutBody.plan, "worlds2v1");
+assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.amount, 1190, "Depix amount comes from the server catalog and cannot be replaced by a client price");
+assert.equal(checkoutRecords.get(ouroCheckoutBody.id).checkout.metadata.plan, "worlds2v1");
 assert.ok(depixStatusCalls > 0, "status lookup reached the payment provider");
 console.log("Entitlement/payment tests passed.");
 
@@ -644,7 +644,7 @@ for (const provider of ["depix", "abacate"]) {
   const closed = await worker.default.fetch(apiRequest("/api/" + provider + "/create", { method: "POST", body: {} }), migrated);
   assert.equal(closed.status, 410, "legacy creation is closed, old receipt routes remain available");
 }
-for (const [i, plan] of ["world1", "ouro", "diamante", "vip7", "vip30", "creator"].entries()) {
+for (const [i, plan] of ["world1", "worlds2v1", "vip7", "vip30"].entries()) {
   const token = "infinite-" + plan;
   identities[token] = { localId: token, email: token + "@example.com", displayName: "Fixture Buyer" };
   const body = { plan, price: 1, terms_accepted: true, request_id: "infinite-fixture-order-" + plan };
@@ -670,7 +670,41 @@ for (const [i, plan] of ["world1", "ouro", "diamante", "vip7", "vip30", "creator
   if (worker.PLAN_LIMITS[plan].kind === "world_credit") assert.equal(account.world_credits, worker.PLAN_LIMITS[plan].credit_count, "racing webhook grants credit once");
   else assert.equal((await migrated.ENTITLEMENTS.get(token).state.storage.get("entitlement")).time_passes.length, 1, "racing webhook grants pass once");
 }
-assert.equal(ipCreates, 6, "all six plans create exactly one InfinitePay checkout each");
+assert.equal(ipCreates, 4, "all four plans create exactly one InfinitePay checkout each");
 const noConfig = { ...migrated, INFINITEPAY_HANDLE: "" };
 assert.equal((await worker.default.fetch(apiRequest("/api/infinitepay/create", { method: "POST", body: {} }), noConfig)).status, 503);
-console.log("PASS: InfinitePay all six SKUs, authoritative prices, pending/wrong amount, account ownership, retry and webhook idempotency, no legacy fallback.");
+console.log("PASS: InfinitePay all four SKUs, authoritative prices, pending/wrong amount, account ownership, retry and webhook idempotency, no legacy fallback.");
+
+// Recovered tickets remain account-owned and cannot mutate payments or balances.
+const supportToken = "infinite-world1";
+const supportPurchase = (await migrated.PREMIUM_KV.get("admin:purchases", "json")).find(p => p.email === supportToken + "@example.com");
+assert.ok(supportPurchase, "verified InfinitePay purchase is available to support");
+assert.equal((await worker.default.fetch(apiRequest('/api/support/mine', { token: '' }), migrated)).status, 401);
+assert.equal((await worker.default.fetch(apiRequest('/api/support/submit', { token: 'tokenB', method: 'POST', body: { purchase_id: supportPurchase.id, description: 'Outro usuário tentou abrir um ticket.' } }), migrated)).status, 403);
+const supportRequest = { purchase_id: supportPurchase.id, kind: 'refund', reason: 'download_failed', description: 'O download não terminou no navegador de teste.' };
+const submitted = await worker.default.fetch(apiRequest('/api/support/submit', { token: supportToken, method: 'POST', body: supportRequest }), migrated);
+assert.equal(submitted.status, 201); const supportCase = await submitted.json();
+const repeated = await (await worker.default.fetch(apiRequest('/api/support/submit', { token: supportToken, method: 'POST', body: supportRequest }), migrated)).json();
+assert.equal(repeated.id, supportCase.id); assert.equal(repeated.duplicate, true);
+const strangerCases = await (await worker.default.fetch(apiRequest('/api/support/mine', { token: 'tokenB' }), migrated)).json();
+assert.equal(strangerCases.cases.length, 0);
+assert.equal((await worker.default.fetch(apiRequest('/api/admin/support/detail?id=' + supportCase.id, { token: 'tokenB' }), migrated)).status, 403);
+const supportAdminEnv = { ...migrated, ADMIN_EMAILS: supportToken + '@example.com' };
+const originalBenefits = await worker.getUserEntitlements(migrated, supportToken, { uid: supportToken, email: supportToken + '@example.com' });
+assert.equal((await worker.default.fetch(apiRequest('/api/admin/support/decision', { token: supportToken, method: 'POST', body: { id: supportCase.id, action: 'refund_approved', reason: 'Análise manual de teste.' } }), supportAdminEnv)).status, 200);
+const afterDecision = await worker.getUserEntitlements(migrated, supportToken, { uid: supportToken, email: supportToken + '@example.com' });
+assert.equal(afterDecision.world_credits, originalBenefits.world_credits, 'a ticket decision does not silently revoke or grant credits');
+assert.equal((await worker.default.fetch(apiRequest('/api/audit/events', { token: supportToken, method: 'POST', body: { event_type: 'payment_confirmed', purchase_id: supportPurchase.id } }), migrated)).status, 400, 'client cannot forge server payment evidence');
+const freeTicket = await worker.default.fetch(apiRequest('/api/support/submit', { token: 'tokenG', method: 'POST', body: { kind: 'support', reason: 'tool_error', description: 'Preciso de ajuda com uma ferramenta gratuita.' } }), migrated);
+assert.equal(freeTicket.status, 201, 'free users can request support');
+assert.equal((await worker.default.fetch(apiRequest('/api/support/submit', { token: 'tokenG', method: 'POST', body: { kind: 'refund', description: 'Não há compra nesta solicitação.' } }), migrated)).status, 403);
+for (const id of ['ouro', 'diamante', 'creator']) assert.equal((await worker.default.fetch(apiRequest('/api/infinitepay/create', { token: supportToken, method: 'POST', body: { plan: id, terms_accepted: true, request_id: 'retired-plan-' + id } }), migrated)).status, 400, 'retired plans cannot create new purchases');
+assert.equal(worker.checkEntitlement({ plan: 'vip7', premium_until_ms: Date.now() + 86400000 }, 1, 1000, Date.now(), { tool: 'world_paint' }).allowed, true);
+assert.equal(worker.checkEntitlement({ plan: 'world1', premium_until_ms: 0, world_credits: 1 }, 1, 1000, Date.now(), { tool: 'world_paint' }).allowed, false);
+console.log('PASS: ticket account ownership, duplicate submissions, free support, refund linkage, admin authorization, no automatic money/credit mutation, trusted audit types and painting pass permissions.');
+const auditLimiterState = { storage: new Storage() }, auditLimiter = new worker.EntitlementDO(auditLimiterState);
+for (let i = 0; i < 80; i++) assert.equal((await auditLimiter.fetch(doReq('/audit-limit', {}))).status, 200);
+assert.equal((await auditLimiter.fetch(doReq('/audit-limit', {}))).status, 429);
+assert.equal(await auditLimiterState.storage.get('entitlement'), undefined, 'audit limiter never touches credit records');
+assert.equal((await worker.default.fetch(apiRequest('/api/audit/events', { token: supportToken, method: 'POST', body: { event_type: 'operation_failed', metadata: { error_message: 'Fixture failure' } } }), migrated)).status, 202);
+console.log('PASS: audit limits are atomic, bounded and separated from balances without a KV counter per event.');

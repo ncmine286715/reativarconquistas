@@ -2,7 +2,8 @@
 (function () {
   "use strict";
   async function normalize(file) {
-    if (!file || !/\.(?:mctemplate|mctemplet)$/i.test(file.name || "")) return file;
+    if (!file || !/\.(?:mcworld|mctemplate|mctemplet|zip)$/i.test(file.name || "")) return file;
+    var template = /\.(?:mctemplate|mctemplet)$/i.test(file.name || "");
     if (typeof JSZip === "undefined") throw new Error("JSZip não carregou. Recarregue a página.");
     var zip = await JSZip.loadAsync(file);
     var levels = [];
@@ -15,6 +16,7 @@
     var levelPath = levels[0].replace(/\\/g, "/");
     var prefix = levelPath.slice(0, -"level.dat".length);
     if (!zip.file(levels[0])) throw new Error("level.dat não encontrado no modelo.");
+    if (!template && !prefix && /\.mcworld$/i.test(file.name || "")) return file;
     var entries = [];
     zip.forEach(function (path, entry) {
       if (entry.dir) return;
@@ -22,7 +24,7 @@
       if (normalized.slice(0, prefix.length) !== prefix) return;
       var relative = normalized.slice(prefix.length);
       // manifest.json e texts/ pertencem ao pacote de template, não ao mundo.
-      if (!relative || relative === "manifest.json" || /^texts\//i.test(relative)) return;
+      if (!relative || (template && (relative === "manifest.json" || /^texts\//i.test(relative)))) return;
       if (relative.split("/").some(function (part) { return !part || part === "." || part === ".."; })) throw new Error("O modelo contém um caminho de arquivo inválido.");
       entries.push({ path: relative, entry: entry });
     });
@@ -36,7 +38,7 @@
       out.files[item.path] = copy;
     });
     var blob = await out.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 1 }, streamFiles: true });
-    var name = file.name.replace(/\.(?:mctemplate|mctemplet)$/i, ".mcworld");
+    var name = file.name.replace(/\.(?:mcworld|mctemplate|mctemplet|zip)$/i, ".mcworld");
     try { return new File([blob], name, { type: "application/octet-stream", lastModified: file.lastModified }); }
     catch (e) { blob.name = name; blob.lastModified = file.lastModified; return blob; }
   }

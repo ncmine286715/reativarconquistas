@@ -1,4 +1,4 @@
-/* ReativaConquistas Builder — inserção segura de .mcstructure em mundos Bedrock.
+/* Worldify Builder — inserção segura de .mcstructure em mundos Bedrock.
    V1 deliberadamente conservadora:
    - apenas Overworld e chunks já visitadas;
    - apenas subchunks v8/v9 com paleta NBT local;

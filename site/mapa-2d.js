@@ -1,4 +1,4 @@
-/* ReativaConquistas — Mapa 2D do mundo (FREE universal, 100% local).
+/* Worldify — Mapa 2D do mundo (FREE universal, 100% local).
    Lê a pasta db/ (LevelDB Mojang) dentro do .mcworld via mcbe-leveldb-reader
    (MIT, baseado em Mojang/minecraft-creator-tools, funciona no browser) e
    desenha o mapa de chunks ocupados em canvas. Somente LEITURA: nada é

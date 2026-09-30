@@ -1,4 +1,4 @@
-/* ReativaConquistas — escrita LevelDB Bedrock (100% local).
+/* Worldify — escrita LevelDB Bedrock (100% local).
    Estratégia (a mesma do próprio LevelDB, sem reescrever SSTs):
    1) anexa um NOVO arquivo db/NNNNNN.log com um WriteBatch
       (puts + deletes com sequence contínua);

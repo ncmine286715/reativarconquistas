@@ -1,4 +1,4 @@
-/* ReativaConquistas — página de retorno do pagamento (InfinitePay; pagamentos anteriores continuam válidos) */
+/* Worldify — página de retorno do pagamento (InfinitePay; pagamentos anteriores continuam válidos) */
 (function () {
   "use strict";
   function $(id) { return document.getElementById(id); }

@@ -1,4 +1,4 @@
-/* ReativaConquistas — configuração do Firebase (PÚBLICA, sem segredo).
+/* Worldify — configuração do Firebase (PÚBLICA, sem segredo).
    A apiKey do Firebase NÃO é segredo (vai no JS mesmo): a segurança vem das
    regras + domínios autorizados no console do Firebase.
    No console, falta só: Authentication -> Sign-in method -> Google (ativar) e

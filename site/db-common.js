@@ -1,4 +1,4 @@
-/* ReativaConquistas — base compartilhada do editor avançado (100% local).
+/* Worldify — base compartilhada do editor avançado (100% local).
    - usa o leitor LevelDB vendorizado (vendor/leveldb-reader.js, MIT/Mojang) — sem CDN
    - abre o mundo UMA vez e guarda em cache (chunks.js + player.js usam junto)
    - parse estrito de chave de chunk (qualquer tag; exclui chaves ASCII globais)
