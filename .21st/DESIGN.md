@@ -9,3 +9,5 @@ Controles de toque de pelo menos 44 px, foco visível, movimento reduzido e modo
 Não prometer edição em todos os navegadores de 2014, em mundos criptografados ou conquistas garantidas em addons externos. Conversores e pintura sinalizados beta.
 
 Revisão solicitada: transparência moderada, entrada e saída suaves, ícones pixelados originais do Worldify e um painel por vez. Após o envio, mapa sem controles por cima; ferramentas logo abaixo. Marca portal W e aviso de uso dos assets originais; sem promessa de DRM.
+
+Ícones de interface: pretos, pixelados, grade de 24 px e recortes transparentes; brancos no tema escuro. Tutorial exato e textura oficial em dois cartões; ícone da textura fornecido pelo usuário. Detalhes de cada função aparecem apenas no painel selecionado.

@@ -7,6 +7,15 @@
     var byId = function (id) { return document.getElementById(id); };
     var oldMenu = byId('wfEditMenu'), fileSection = byId('accFile');
     var panels = [], active = '', loaded = false;
+    var descriptions = {
+      'Conquistas': 'Prepare uma cópia em Sobrevivência, sem cheats, para voltar a conquistar.',
+      'Mundo': 'Ajuste o nome, a dificuldade e a identidade da sua cópia.',
+      'Regras': 'Escolha como o mundo funciona: criaturas, clima, ciclos e inventário.',
+      'Jogador': 'Revise seus itens, armadura, experiência e Ender Chest.',
+      'Addons': 'Veja os pacotes do mundo e escolha quais manter na cópia.',
+      'Chunks': 'Selecione a área no mapa. O Minecraft regenera os chunks apagados pela seed.',
+      'Detalhes': 'Confira o diagnóstico do arquivo, os marcadores e as opções do mapa.'
+    };
     var nav = document.createElement('nav');
     nav.className = 'wf-editor-dock'; nav.setAttribute('aria-label', 'Ferramentas do mundo');
     var tray = document.createElement('section'); tray.className = 'wf-panel-tray'; tray.hidden = true;
@@ -20,12 +29,14 @@
       var body = el.querySelector('.acc-body');
       if (!body) { body = document.createElement('div'); body.className = 'acc-body'; el.appendChild(body); }
       var head = document.createElement('header'); head.className = 'wf-panel-heading';
+      var glyph = document.createElement('img'); glyph.src = 'assets/icons/' + icon + '.svg'; glyph.width = 24; glyph.height = 24; glyph.alt = ''; head.appendChild(glyph);
       var title = document.createElement('h3'); title.textContent = label;
       var hint = document.createElement('span'); hint.textContent = note; hint.className = 'wf-access-note';
       var close = document.createElement('button'); close.type = 'button'; close.className = 'wf-panel-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Fechar ' + label); close.onclick = function () { choose(''); button.focus(); };
       head.appendChild(title); head.appendChild(hint); head.appendChild(close); body.insertBefore(head, body.firstChild);
+      var description = document.createElement('p'); description.className = 'wf-panel-description'; description.textContent = descriptions[label]; body.insertBefore(description, head.nextSibling);
       tray.appendChild(el); el.hidden = true;
-      var button = document.createElement('button'); button.type = 'button'; button.className = 'wf-editor-tool'; button.setAttribute('aria-label', label); button.setAttribute('aria-controls', el.id); button.setAttribute('aria-expanded', 'false'); button.title = label;
+      var button = document.createElement('button'); button.type = 'button'; button.className = 'wf-editor-tool'; button.setAttribute('aria-label', label); button.setAttribute('aria-controls', el.id); button.setAttribute('aria-expanded', 'false'); button.title = label + ' · ' + descriptions[label];
       var img = document.createElement('img'); img.src = 'assets/icons/' + icon + '.svg'; img.width = 32; img.height = 32; img.alt = '';
       var text = document.createElement('span'); text.textContent = label;
       button.appendChild(img); button.appendChild(text); nav.appendChild(button);
