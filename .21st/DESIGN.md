@@ -11,3 +11,5 @@ Não prometer edição em todos os navegadores de 2014, em mundos criptografados
 Revisão solicitada: transparência moderada, entrada e saída suaves, ícones pixelados originais do Worldify e um painel por vez. Após o envio, mapa sem controles por cima; ferramentas logo abaixo. Marca portal W e aviso de uso dos assets originais; sem promessa de DRM.
 
 Ícones de interface: pretos, pixelados, grade de 24 px e recortes transparentes; brancos no tema escuro. Tutorial exato e textura oficial em dois cartões; ícone da textura fornecido pelo usuário. Detalhes de cada função aparecem apenas no painel selecionado.
+
+Checkout: marca Worldify, conta identificada, planos em cartões com seleção nativa, total destacado e ação laranja persistente. Não bloquear links InfinitePay por consultas opcionais de benefícios; preços e confirmação continuam no servidor.

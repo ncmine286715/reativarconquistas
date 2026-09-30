@@ -174,6 +174,8 @@ const ADMIN_HISTORY_TTL = 400 * 86400;
 const ABANDONED_AFTER_MS = 20 * 60 * 1000;
 const ABACATE_PENDING_MS = 24 * 60 * 60 * 1000;
 function checkoutLockUntil(checkout) {
+  // Link creation is a short lease, not a day-long account purchase lock.
+  if (checkout && checkout.provider === "infinitepay" && checkout.status === "creating") return +((checkout.at || checkout.created_at) || 0) + 120000;
   const explicitExpiry = timestampMs(checkout && (checkout.expires_at || (checkout.result && checkout.result.expires_at)));
   if (explicitExpiry) return explicitExpiry;
   const startedAt = +((checkout && (checkout.at || checkout.created_at)) || 0);
@@ -1616,9 +1618,9 @@ export default {
           body: JSON.stringify({ request_id: requestId, plan, provider: "infinitepay" })
         });
         let beginData = await begin.json();
-        if (!begin.ok) return json({ error: beginData.error || "Este checkout já está em andamento.", pending: beginData.pending === true, existing_checkout: beginData.existing_checkout || null }, begin.status, cors);
+        if (!begin.ok) return json({ error: beginData.error || "Este checkout já está em andamento.", code: beginData.code, retry_after: beginData.retry_after, pending: beginData.pending === true, existing_checkout: beginData.existing_checkout || null }, begin.status, cors);
         if (!beginData.create) {
-          if (beginData.result && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
+          if (beginData.result && beginData.result.id && isValidInfinitePayCheckoutUrl(beginData.result.url)) return json(beginData.result, 200, cors);
           // A reusable checkout can outlive a failed/legacy provider response.
           // Invalidate only a result that cannot point to an official InfinitePay checkout.
           const staleRequestId = String(beginData.checkout_request_id || requestId);
@@ -1639,8 +1641,10 @@ export default {
         }
         try {
           const orderNsu = crypto.randomUUID();
-          const checkout = await infinitePayCreate(env, { orderNsu, plan, email: fb.email, name: fb.name, uid: fb.uid });
+          // Persist ownership before calling the provider, including when its
+          // response is lost or a webhook arrives before the link is returned.
           await saveInfinitePayOrder(env, { order_nsu: orderNsu, uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay", status: "pending" });
+          const checkout = await infinitePayCreate(env, { orderNsu, plan, email: fb.email, name: fb.name, uid: fb.uid });
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: requestId, plan, result: checkout })
@@ -2321,24 +2325,29 @@ export class EntitlementDO {
           if (currentCheckout) {
             if (currentCheckout.plan !== plan || (currentCheckout.provider && currentCheckout.provider !== provider)) return { persist: false, status: 409, value: { error: "Checkout request ID was already used for another plan or provider." } };
             if (["creating", "ready"].includes(currentCheckout.status) && !checkoutIsPending(currentCheckout)) {
-              return { persist: false, status: 409, value: { error: "Esta cobrança expirou ou não teve resposta confirmada. Reabra o checkout para iniciar uma nova tentativa." } };
+              return { persist: false, status: 409, value: { error: "O link anterior expirou. Vamos preparar uma nova tentativa.", code: "CHECKOUT_EXPIRED" } };
             }
-            if (currentCheckout.status === "ready") return { persist: false, value: { create: false, result: currentCheckout.result } };
+            if (currentCheckout.status === "ready") return { persist: false, value: { create: false, result: currentCheckout.result, checkout_request_id: requestId } };
+            if (currentCheckout.status === "creating" && provider === "infinitepay") return { persist: false, status: 409, value: { error: "Seu link está sendo preparado. Tente novamente em instantes para continuar o mesmo pedido.", code: "CHECKOUT_PREPARING", retry_after: 2, pending: true } };
             // DePix deduplicates POST /checkouts by idempotency_key. A retry
             // with this same request ID can safely recover the provider result.
             if (currentCheckout.status === "creating" && provider === "depix") return { persist: false, value: { create: true, retry: true } };
             return { persist: false, status: 409, value: { error: "Este checkout já foi iniciado ou está em verificação. Não será criada outra cobrança com o mesmo pedido.", pending: currentCheckout.status === "creating" } };
           }
-          const pendingCheckout = Object.entries(data.checkouts).filter(([, checkout]) => checkoutIsPending(checkout))
+          const pendingCheckout = Object.entries(data.checkouts).filter(([, checkout]) => checkoutIsPending(checkout) &&
+            // Each InfinitePay product may have its own unpaid link. Reopening
+            // reuses that product's order; changing products never charges a card.
+            (provider !== "infinitepay" || (checkout.provider === provider && checkout.plan === plan)))
             .sort((a, b) => (+b[1].at || 0) - (+a[1].at || 0))[0];
           if (pendingCheckout) {
             const [pendingRequestId, pending] = pendingCheckout;
-            if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.id) {
-              return { persist: false, value: { create: false, result: pending.result, duplicate: true } };
+            if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && (provider === "infinitepay" || (pending.result && pending.result.id))) {
+              return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
             }
             if (pending.status === "creating" && provider === "depix" && pending.provider === "depix" && pending.plan === plan) {
               return { persist: false, value: { create: true, retry: true, retry_request_id: pendingRequestId } };
             }
+            if (provider === "infinitepay") return { persist: false, status: 409, value: { error: "Seu link está sendo preparado. Tente novamente em instantes para continuar o mesmo pedido.", code: "CHECKOUT_PREPARING", retry_after: 2, pending: true } };
             return { persist: false, status: 409, value: { error: "Já existe uma cobrança em andamento nesta conta. Confira o pagamento ou aguarde até 20 minutos antes de iniciar outra, para evitar uma cobrança duplicada.", pending: true, pending_plan: pending.plan } };
           }
           data.checkouts[requestId] = { plan, provider, status: "creating", at: Date.now() };
@@ -2346,6 +2355,7 @@ export class EntitlementDO {
         }
         if (!currentCheckout || currentCheckout.plan !== plan) return { persist: false, status: 409, value: { error: "Checkout request not found." } };
         if (url.pathname === "/checkout-result") {
+          if (currentCheckout.status === "paid") return { persist: false, value: { saved: true, paid: true } };
           if (currentCheckout.status === "ready") return { persist: false, value: { saved: true, duplicate: true } };
           const safeResult = body.result && typeof body.result === "object" ? {
             id: String(body.result.id || "").slice(0, 180), url: String(body.result.url || "").slice(0, 1000), plan,
@@ -2358,7 +2368,8 @@ export class EntitlementDO {
         // A provider timeout is ambiguous: it may already have created a
         // charge. Keep the account lock until checkout expiry to avoid a retry
         // creating a second payment.
-        if (body.retryable === true && currentCheckout.status === "creating") { delete data.checkouts[requestId]; return { value: { saved: true } }; }
+        if (body.retryable === true && (currentCheckout.status === "creating" ||
+            (currentCheckout.provider === "infinitepay" && currentCheckout.status === "ready" && (!currentCheckout.result || !currentCheckout.result.id || !isValidInfinitePayCheckoutUrl(currentCheckout.result.url))))) { delete data.checkouts[requestId]; return { value: { saved: true } }; }
         currentCheckout.error = String(body.error || "Checkout result uncertain.").slice(0, 200);
         currentCheckout.last_error_at = Date.now();
         return { value: { saved: true } };

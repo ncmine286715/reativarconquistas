@@ -671,6 +671,39 @@ for (const [i, plan] of ["world1", "worlds2v1", "vip7", "vip30"].entries()) {
   else assert.equal((await migrated.ENTITLEMENTS.get(token).state.storage.get("entitlement")).time_passes.length, 1, "racing webhook grants pass once");
 }
 assert.equal(ipCreates, 4, "all four plans create exactly one InfinitePay checkout each");
+// Unpaid links for other products and legacy providers must not block sales.
+const recoveryToken = 'infinite-checkout-recovery';
+identities[recoveryToken] = { localId: recoveryToken, email: recoveryToken + '@example.com' };
+const recoveryStub = migrated.ENTITLEMENTS.get(recoveryToken);
+await recoveryStub.fetch(doReq('/checkout-begin', { request_id: 'legacy-pending-recovery-123', plan: 'vip7', provider: 'depix' }));
+let savedWorldLink;
+for (const plan of ['world1','worlds2v1','vip7','vip30']) {
+ const response = await worker.default.fetch(apiRequest('/api/infinitepay/create', { token: recoveryToken, method: 'POST', body: { plan, terms_accepted: true, request_id: 'recovery-first-product-' + plan } }), migrated);
+ const result = await response.json();
+ assert.equal(response.status, 200, 'a pending different product or legacy request must not block ' + plan + ': ' + JSON.stringify(result));
+ if (plan === 'world1') savedWorldLink = result;
+}
+const beforeReopen = ipCreates;
+const reopenedProduct = await worker.default.fetch(apiRequest('/api/infinitepay/create', { token: recoveryToken, method: 'POST', body: { plan: 'world1', terms_accepted: true, request_id: 'recovery-new-modal-world1' } }), migrated);
+assert.equal((await reopenedProduct.json()).id, savedWorldLink.id, 'reopening uses the same product link even when the latest link is another plan');
+assert.equal(ipCreates, beforeReopen, 'reopening never creates another provider order');
+assert.equal((await (await recoveryStub.fetch(doReq('/state'))).json()).world_credits, 0, 'preparing links does not grant credits');
+// Recovery invalidates the exact malformed saved request, not the new modal ID.
+const malformedToken='infinite-malformed-recovery';
+identities[malformedToken]={localId:malformedToken,email:malformedToken+'@example.com'};
+const malformedStub=migrated.ENTITLEMENTS.get(malformedToken);
+await malformedStub.fetch(doReq('/checkout-begin',{request_id:'malformed-original-link-123',plan:'world1',provider:'infinitepay'}));
+await malformedStub.fetch(doReq('/checkout-result',{request_id:'malformed-original-link-123',plan:'world1',result:{id:'invalid-old-order',url:'https://invalid.example/checkout'}}));
+assert.equal((await worker.default.fetch(apiRequest('/api/infinitepay/create',{token:malformedToken,method:'POST',body:{plan:'world1',terms_accepted:true,request_id:'malformed-new-modal-123'}}),migrated)).status,200,'invalid saved link is replaced without an account lock');
+const creatingStub=migrated.ENTITLEMENTS.get('infinite-creating-recovery');
+const busyBody={request_id:'creating-original-request-123',plan:'vip7',provider:'infinitepay'};
+assert.equal((await (await creatingStub.fetch(doReq('/checkout-begin',busyBody))).json()).create,true);
+const busyResponse=await creatingStub.fetch(doReq('/checkout-begin',{...busyBody,request_id:'creating-second-request-123'}));
+assert.equal(busyResponse.status,409);assert.equal((await busyResponse.json()).code,'CHECKOUT_PREPARING','simultaneous requests reuse a short creation lease');
+const creatingState=await creatingStub.state.storage.get('entitlement');creatingState.checkouts[busyBody.request_id].at=Date.now()-121000;await creatingStub.state.storage.put('entitlement',creatingState);
+assert.equal((await (await creatingStub.fetch(doReq('/checkout-begin',busyBody))).json()).code,'CHECKOUT_EXPIRED');
+assert.equal((await (await creatingStub.fetch(doReq('/checkout-begin',{...busyBody,request_id:'creating-fresh-request-123'}))).json()).create,true,'a lost link creation response does not lock the account for 24 hours');
+console.log('PASS: changing plans, legacy pending orders, exact-link reuse, malformed-link recovery and short creation leases; no unpaid credits.');
 const noConfig = { ...migrated, INFINITEPAY_HANDLE: "" };
 assert.equal((await worker.default.fetch(apiRequest("/api/infinitepay/create", { method: "POST", body: {} }), noConfig)).status, 503);
 console.log("PASS: InfinitePay all four SKUs, authoritative prices, pending/wrong amount, account ownership, retry and webhook idempotency, no legacy fallback.");
