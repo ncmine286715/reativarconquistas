@@ -56,10 +56,27 @@
     panel('', 'Chunks', 'chunks', 'accChunks', 'Até 8 chunks grátis por operação');
     var info = panel('wfInformation', 'Detalhes', 'info', '', 'Diagnóstico local');
     move('#worldInfo', info);
+    // Keep the actual diagnosis fields on the world card; technical reports
+    // remain in Details. Reparenting preserves seed copying and all IDs.
+    var mapPreview = byId('mapPreview');
+    var summary = document.createElement('section'); summary.className = 'wf-world-summary'; summary.setAttribute('aria-label', 'Dados do seu mundo');
+    var identity = document.createElement('div'); identity.className = 'wf-world-identity';
+    identity.innerHTML = '<img src="mc/item/grass_block.png" width="40" height="40" alt=""><div></div>';
+    identity.lastChild.appendChild(byId('wiName')); identity.lastChild.appendChild(byId('wiSize'));
+    summary.appendChild(identity); summary.appendChild(byId('worldInfo').querySelector('.wi-grid'));
+    var secondary = byId('mapSecondaryTools'); mapPreview.insertBefore(summary, secondary);
+    var mapTitle = mapPreview.querySelector('.wi-title'); mapTitle.innerHTML = 'Seu mundo <span id="wfMapLoaded" class="wf-map-loaded">Lendo mapa…</span>';
+    window.addEventListener('rc-map-ready', function () { byId('wfMapLoaded').textContent = '✓ Carregado'; });
+    var cards = document.createElement('nav'); cards.className = 'wf-world-actions'; cards.setAttribute('aria-label', 'Ações rápidas do mundo'); cards.hidden = true;
+    cards.innerHTML = '<button type="button" class="wf-world-action wf-action-achievements" id="wfRestoreAchievements"><img src="assets/actions/trophy.svg" width="64" height="64" alt=""><span><small>GRÁTIS ATÉ 10 MB</small><b>Reativar conquistas</b><em>Revise as configurações da sua cópia.</em></span><i aria-hidden="true">›</i></button><a class="wf-world-action" href="builder-lab.html"><img src="assets/actions/build.svg" width="64" height="64" alt=""><span><small>BETA</small><b>Construtor 3D</b><em>Posicione estruturas no seu mundo.</em></span><i aria-hidden="true">›</i></a><button type="button" class="wf-world-action" id="wfManageChunks"><img src="assets/actions/chunks.svg" width="64" height="64" alt=""><span><small>ATÉ 8 CHUNKS GRÁTIS</small><b>Regenerar chunks</b><em>O Minecraft recria a área pela seed.</em></span><i aria-hidden="true">›</i></button>';
+    form.insertBefore(cards, nav);
+    byId('wfRestoreAchievements').onclick = function () { choose('wfAchievements'); if (tray.scrollIntoView) tray.scrollIntoView({ block: 'nearest' }); };
+    byId('wfManageChunks').onclick = function () { choose('accChunks'); if (tray.scrollIntoView) tray.scrollIntoView({ block: 'nearest' }); };
     move('.map-export-tools', info);
     move('#mapPinsList', info);
     var mapTools = document.querySelector('.map-icon-tools'), mapWrap = byId('mapWrap');
     if (mapTools && mapWrap) mapWrap.parentNode.insertBefore(mapTools, mapWrap.nextSibling);
+    var zoom = document.createElement('div'); zoom.className = 'wf-map-zoom'; zoom.setAttribute('role','group'); zoom.setAttribute('aria-label','Zoom do mapa'); zoom.appendChild(byId('mapZoomIn')); zoom.appendChild(byId('mapZoomOut')); mapWrap.appendChild(zoom);
     var builder = document.createElement('a'); builder.className = 'wf-editor-tool'; builder.href = 'builder-lab.html'; builder.setAttribute('aria-label', 'Construtor 3D'); builder.title = 'Construtor 3D'; builder.innerHTML = '<img src="assets/icons/build.svg" width="32" height="32" alt=""><span>Construir ↗</span>'; nav.appendChild(builder);
     oldMenu.hidden = true;
     function choose(id) {
@@ -96,6 +113,11 @@
       loaded = !!e.detail.file;
       document.body.classList.toggle('wf-world-loaded', loaded);
       form.classList.toggle('wf-has-world', loaded);
+      cards.hidden = !loaded;
+      byId('wfMapLoaded').textContent = 'Lendo mapa…';
+      ['wiSeed','wiMode','wiDiff','wiStatus'].forEach(function (id) { byId(id).textContent = '—'; });
+      byId('seedCopy').hidden = true;
+      if (loaded) byId('wiName').textContent = e.detail.file.name;
       var dock = document.querySelector('.wf-tool-dock');
       if (loaded) {
         form.insertBefore(dock, nav);

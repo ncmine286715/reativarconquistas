@@ -326,7 +326,7 @@
       paintBtn();
       return;
     }
-    if (mode !== "blocks") return;
+    if (mode !== "blocks" || document.documentElement.getAttribute("data-light-mode") === "true") return;
     c.building = true;
     var st = $("mapStats");
     var oldMsg = st ? st.innerHTML : "";
