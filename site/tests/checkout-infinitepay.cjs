@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {JSDOM}=require('jsdom');
 const source=fs.readFileSync(path.join(__dirname,'../pagamento.js'),'utf8');
 const ids=['world1','worlds2v1','vip7','vip30'];
-const plans=Object.fromEntries(ids.map((id,i)=>[id,{id,label:id,price_cents:[599,1190,799,2490][i],kind:i<2?'world_credit':'time',credit_count:[1,2,0,0][i],max_file_mb:500,max_batch:20,duration_days:i<2?0:7}]));
+const plans=Object.fromEntries(ids.map((id,i)=>[id,{id,label:id,price_cents:[599,1190,799,2490][i],kind:i<2?'world_credit':'time',credit_count:[1,2,0,0][i],max_file_mb:500,max_file_bytes:500*1048576,allowed_tools:["convert","builder","world_paint"],max_batch:20,duration_days:i<2?0:7}]));
 const settle=()=>new Promise(r=>setTimeout(r,15));
 (async()=>{
  for(const id of ids){
@@ -24,7 +24,7 @@ const settle=()=>new Promise(r=>setTimeout(r,15));
    }
    return {ok:true,status:200,text:async()=>JSON.stringify(payload),json:async()=>payload};
   };
-  w.eval(source);assert.equal(typeof w.RC_pay.completeOperation,'function');assert.equal(typeof w.RC_pay.releaseOperation,'function');await w.RC_pay.planCatalog();
+  w.eval(fs.readFileSync(path.join(__dirname,'../tool-intents.js'),'utf8'));w.eval(source);assert.equal(typeof w.RC_pay.completeOperation,'function');assert.equal(typeof w.RC_pay.releaseOperation,'function');await w.RC_pay.planCatalog();
   w.RC_pay.checkout(id,null,{preserve_context:true});await settle();
   const doc=w.document;
   assert.equal(doc.querySelector('input[name="payplan"]:checked').value,id);
