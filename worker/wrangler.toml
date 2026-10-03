@@ -18,6 +18,10 @@ id = "acfc4981776e4dd0b8513722597f8f01"
 preview_id = "acfc4981776e4dd0b8513722597f8f01"
 
 [vars]
+ABACATEPAY_PRODUCT_ID_STUDIO30V4 = "prod_yfFhsWaGA1SpXQNHnERLcF3j"
+ABACATEPAY_PRODUCT_ID_CREATOR30V4 = "prod_Paue6teWHkz1J2jtNT4fdxaX"
+ABACATEPAY_PRODUCT_ID_ESSENTIAL7V4 = "prod_gqz5QbMGAq4ccuLR0NWU1gHw"
+ABACATEPAY_PRODUCT_ID_PRO7V4 = "prod_MmnMWAzZjN4S1JctedLrrW3J"
 # Firebase Web API key é pública e serve para validar o ID token Google no Worker.
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 # ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).
@@ -57,9 +61,11 @@ ALLOWED_ORIGINS = "https://worldify.com.br, https://reativarconquistas.pages.dev
 # continuação de [vars]
 # "1" = teste (site mostra aviso); "0"/vazio = produção.
 DEPIX_TEST_MODE = "0"
-PAYMENT_PROVIDER = "infinitepay"
+PAYMENT_PROVIDER = "abacate"
 PAYMENT_API_URL = "https://reativa-pay.rosidomingos032.workers.dev"
-INFINITEPAY_HANDLE = "fabio-rogerio-lhv"
+INFINITEPAY_HANDLE = ""
+# Somente consulta de pagamentos anteriores; novas compras estão bloqueadas.
+INFINITEPAY_LEGACY_HANDLE = "fabio-rogerio-lhv"
 SALES_ENABLED = "1"
 ADMIN_EMAILS = "ncmine75@gmail.com,rosidomingos032@gmail.com"
 

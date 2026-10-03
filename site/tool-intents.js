@@ -26,7 +26,7 @@
     addon: "addons", packs: "addons", construction: "builder", construcao: "builder",
     world: "mundo", settings: "mundo", converter: "upload", conversor: "upload"
   };
-  var PLAN_ORDER = ["world1", "worlds2v1", "worlds3plus", "worlds5", "worlds2", "worlds3v2", "pro7", "studio7", "creator30", "ouro", "vip7", "vip30", "creator"];
+  var PLAN_ORDER = ["essential7v4","pro7v4","creator30v4","studio30v4","world1", "worlds2v1", "worlds3plus", "worlds5", "worlds2", "worlds3v2", "pro7", "studio7", "creator30", "ouro", "vip7", "vip30", "creator"];
 
   function includesStudio(plan) {
     return !!plan && ((plan.allowed_tools || []).indexOf('world_paint') >= 0 || !!(plan.capabilities && plan.capabilities.world_studio));
@@ -74,9 +74,11 @@
     context = context || {};
     var size = Number(context.world_size_bytes || context.size_bytes || 0);
     var worlds = Math.max(1, Number(context.worlds || 1));
+    var daily = Math.max(0, Number(context.operations_per_day || 0));
     return ids.filter(function (id) {
       var plan = catalog[id];
       if (!plan) return false;
+      if (daily && plan.daily_operations && daily > plan.daily_operations) return false;
       if ((context.tool === "studio" || context.tool === "world_paint" || context.goal === "studio") && !includesStudio(plan)) return false;
       var maxBytes = plan.max_file_bytes;
       if (maxBytes === undefined && plan.max_file_mb !== null && plan.max_file_mb !== undefined) maxBytes = Number(plan.max_file_mb) * 1024 * 1024;
@@ -91,6 +93,7 @@
     if (ids.indexOf(selected) >= 0) return selected;
     context = context || {};
     var candidates = ids.slice();
+    if (context.goal === "several" && candidates.some(function(id){return catalog[id].daily_operations;})) candidates = candidates.filter(function(id){return catalog[id].daily_operations >= 12;});
     if (context.goal === 'several' || context.goal === 'continuous') {
       var passes = candidates.filter(function (id) { return catalog[id].kind === 'time' && (context.goal !== 'continuous' || catalog[id].duration_days >= 30); });
       if (passes.length) candidates = passes;

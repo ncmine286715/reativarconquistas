@@ -1,0 +1,151 @@
+{
+  "plans": {
+    "free": {
+      "id": "free",
+      "label": "Plano gratuito",
+      "duration_days": 0,
+      "price_cents": 0,
+      "kind": "time",
+      "credit_count": 0,
+      "max_file_mb": 10,
+      "max_file_bytes": 10485760,
+      "max_batch": 2,
+      "allowed_tools": [
+        "convert",
+        "world_map",
+        "world_analysis",
+        "chunks_restore",
+        "player_basic",
+        "builder"
+      ],
+      "capabilities": {
+        "restore_achievements": true,
+        "change_mode": false,
+        "hardcore": false,
+        "advanced_rules": true,
+        "change_difficulty": true,
+        "world_icon": true,
+        "rename": true,
+        "remove_behavior_packs": true,
+        "add_behavior_packs": 2,
+        "chunks_restore": {
+          "max_chunks": 8,
+          "daily_operations": 1
+        },
+        "player": {
+          "basic_inventory": true,
+          "armor": false,
+          "ender_chest": false,
+          "xp": false,
+          "max_enchantment": "vanilla",
+          "daily_operations": 2
+        },
+        "builder": {
+          "daily_operations": 3
+        },
+        "convert": {
+          "daily_operations": 3
+        }
+      },
+      "project_window_days": 0
+    },
+    "world1": {
+      "id": "world1",
+      "label": "1 mundo",
+      "duration_days": 0,
+      "price_cents": 599,
+      "kind": "world_credit",
+      "credit_count": 1,
+      "max_file_mb": 150,
+      "max_file_bytes": 157286400,
+      "max_batch": 1,
+      "allowed_tools": [
+        "convert",
+        "world_map",
+        "world_analysis",
+        "chunks_restore",
+        "player_basic",
+        "builder"
+      ],
+      "capabilities": {
+        "premium_features": true,
+        "repeated_operations_same_world": true
+      },
+      "project_window_days": 30
+    },
+    "worlds2v1": {
+      "id": "worlds2v1",
+      "label": "2 mundos",
+      "duration_days": 0,
+      "price_cents": 1190,
+      "kind": "world_credit",
+      "credit_count": 2,
+      "max_file_mb": 150,
+      "max_file_bytes": 157286400,
+      "max_batch": 1,
+      "allowed_tools": [
+        "convert",
+        "world_map",
+        "world_analysis",
+        "chunks_restore",
+        "player_basic",
+        "builder"
+      ],
+      "capabilities": {
+        "premium_features": true,
+        "repeated_operations_same_world": true
+      },
+      "project_window_days": 30
+    },
+    "vip7": {
+      "id": "vip7",
+      "label": "Passe 7 dias",
+      "duration_days": 7,
+      "price_cents": 799,
+      "kind": "time",
+      "credit_count": 0,
+      "max_file_mb": 500,
+      "max_file_bytes": 524288000,
+      "max_batch": 5,
+      "allowed_tools": [
+        "convert",
+        "world_map",
+        "world_analysis",
+        "chunks_restore",
+        "player_basic",
+        "builder",
+        "world_paint"
+      ],
+      "capabilities": {
+        "premium_features": true
+      },
+      "project_window_days": 0
+    },
+    "vip30": {
+      "id": "vip30",
+      "label": "Passe 30 dias",
+      "duration_days": 30,
+      "price_cents": 2490,
+      "kind": "time",
+      "credit_count": 0,
+      "max_file_mb": null,
+      "max_file_bytes": null,
+      "max_batch": 10,
+      "allowed_tools": [
+        "convert",
+        "world_map",
+        "world_analysis",
+        "chunks_restore",
+        "player_basic",
+        "builder",
+        "world_paint"
+      ],
+      "capabilities": {
+        "premium_features": true
+      },
+      "project_window_days": 0
+    }
+  },
+  "infinitepay_configured": true,
+  "sales_enabled": true
+}

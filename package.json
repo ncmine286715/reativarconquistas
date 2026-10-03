@@ -1,0 +1,10 @@
+{
+  "name": "worldify-live",
+  "private": true,
+  "scripts": {
+    "test": "node worker/tests/plans-v4.mjs && node worker/tests/purchase-v4.mjs && node tests/frontend/plan-comparison.cjs && node tests/frontend/worldify.cjs && node tests/frontend/payment-return.cjs"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}
