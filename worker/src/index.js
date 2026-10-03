@@ -85,10 +85,10 @@ const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
 // A única fonte de permissões, limites e preços. Os clientes recebem somente
 // a projeção pública deste catálogo; cada autorização usa estes mesmos dados.
 export const PLAN_LIMITS = Object.freeze({
-essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents":990,"max_file_mb":75,"max_file_bytes":78643200,"max_batch":1,"kind":"time","daily_operations":3,"fit":"Para resolver edições pontuais no seu mundo","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
-pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1990,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
-creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":3990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
-studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":6990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents":790,"max_file_mb":75,"max_file_bytes":78643200,"max_batch":1,"kind":"time","daily_operations":3,"fit":"Para resolver edições pontuais no seu mundo","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
+pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
+creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":4990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
   free: Object.freeze({
     label: "Plano gratuito", duration_days: 0, price_cents: 0,
     max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
@@ -2368,6 +2368,15 @@ export class EntitlementDO {
             const [pendingRequestId, pending] = pendingCheckout;
             if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && (provider === "infinitepay" || (pending.result && pending.result.id))) {
               return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
+            }
+            if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.url) {
+              return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
+            }
+            if (pending.provider === provider && pending.plan === plan && pending.status === "creating") {
+              pending.status = "failed";
+              pending.error = "Checkout anterior não recebeu um link; nova tentativa autorizada.";
+              pending.last_error_at = Date.now();
+              return { value: { create: true, retry: true, retry_request_id: pendingRequestId } };
             }
             if (pending.status === "creating" && provider === "depix" && pending.provider === "depix" && pending.plan === plan) {
               return { persist: false, value: { create: true, retry: true, retry_request_id: pendingRequestId } };

@@ -18,10 +18,10 @@ id = "acfc4981776e4dd0b8513722597f8f01"
 preview_id = "acfc4981776e4dd0b8513722597f8f01"
 
 [vars]
-ABACATEPAY_PRODUCT_ID_STUDIO30V4 = "prod_yfFhsWaGA1SpXQNHnERLcF3j"
-ABACATEPAY_PRODUCT_ID_CREATOR30V4 = "prod_Paue6teWHkz1J2jtNT4fdxaX"
-ABACATEPAY_PRODUCT_ID_ESSENTIAL7V4 = "prod_gqz5QbMGAq4ccuLR0NWU1gHw"
-ABACATEPAY_PRODUCT_ID_PRO7V4 = "prod_MmnMWAzZjN4S1JctedLrrW3J"
+ABACATEPAY_PRODUCT_ID_STUDIO30V4 = "prod_D20BaeaXFxjdcjU4CeTbTgNq"
+ABACATEPAY_PRODUCT_ID_CREATOR30V4 = "prod_shBHAzztHnAMkecUNwfyMa5h"
+ABACATEPAY_PRODUCT_ID_ESSENTIAL7V4 = "prod_KGWpQzunJhDF0wjsYbssKQGp"
+ABACATEPAY_PRODUCT_ID_PRO7V4 = "prod_sNSdPXdh1uFjE2uLGXCryQTZ"
 # Firebase Web API key é pública e serve para validar o ID token Google no Worker.
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 # ID do produto "VIP 30 dias" no dashboard AbacatePay (obrigatório p/ abc_dev_).

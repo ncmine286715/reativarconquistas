@@ -29,7 +29,7 @@ function documentFor(name){return new JSDOM(source(name).replace(/<script\b[^>]*
  assert.equal(w.document.querySelectorAll('#payModal [name=payplan]').length,4,'checkout shows every compatible plan for a fair comparison');
  assert.equal(w.document.querySelector('#payModal [name=payplan]:checked').value,'essential7v4');
  const trioRadio=w.document.querySelector('#payModal [value=pro7v4]');
- trioRadio.click();assert.equal(w.document.getElementById('payPlanPrice').textContent,'R$ 19,90');assert.match(w.document.getElementById('paySub').textContent,/12 operações/);
+ trioRadio.click();assert.equal(w.document.getElementById('payPlanPrice').textContent,'R$ 14,90');assert.match(w.document.getElementById('paySub').textContent,/12 operações/);
  assert.match(w.document.getElementById('paySub').textContent,/World Studio não incluído/);
  assert.match(w.document.querySelector('.plan-featured').textContent,/30 dias/,'month pass has a clear use period');
  w.document.querySelector('#payModal [value=essential7v4]').click();
