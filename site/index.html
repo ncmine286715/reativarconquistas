@@ -26,7 +26,7 @@
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
-<link rel="stylesheet" href="worldify-shell.css?v=20260930v"><link rel="stylesheet" href="worldify-glass.css?v=20260930v"><script defer src="worldify-shell.js?v=20260930v"></script>
+<link rel="stylesheet" href="worldify-shell.css?v=plans20261003"><link rel="stylesheet" href="worldify-glass.css?v=20260930v"><script defer src="worldify-shell.js?v=20260930v"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -558,7 +558,21 @@
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
   </main>
 
-<section class="section" id="planos"><p class="kicker">NO SEU RITMO</p><h2>Mais espaço para criar.</h2><p class="plans-sub">Até 10 MB grátis. Para ir além, escolha uma opção. Compra única pela InfinitePay.</p><div class="wf-plans"><article class="plan"><img class="wf-plan-icon" src="mc/item/iron_ingot.png" width="32" height="32" alt=""><h3>1 mundo</h3><div class="price">R$ 5,99</div><p>1 crédito · até 150 MB</p><p class="sub">Reedições no mesmo mundo por 30 dias</p><button type="button" class="btn-plan btn-pay" data-pay="world1">Escolher 1 mundo</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/gold_ingot.png" width="32" height="32" alt=""><h3>2 mundos</h3><div class="price">R$ 11,90</div><p>2 créditos · até 150 MB cada</p><p class="sub">Use cada crédito quando precisar</p><button type="button" class="btn-plan btn-pay" data-pay="worlds2v1">Escolher 2 mundos</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/diamond.png" width="32" height="32" alt=""><h3>Passe 7 dias</h3><div class="price">R$ 7,99</div><p>Até 500 MB · 5 mundos por lote</p><p class="sub">Inclui modelar mundos e ferramentas avançadas</p><button type="button" class="btn-plan btn-pay" data-pay="vip7">Escolher passe 7 dias</button></article><article class="plan"><img class="wf-plan-icon" src="mc/item/netherite_chestplate.png" width="32" height="32" alt=""><h3>Passe 30 dias</h3><div class="price">R$ 24,90</div><p>10 mundos por lote · inclui modelagem</p><p class="sub">Tamanho limitado pela memória do aparelho</p><button type="button" class="btn-plan btn-pay" data-pay="vip30">Escolher passe 30 dias</button></article></div><p class="pay-note">Créditos não expiram antes do uso. Os passes começam na confirmação do pagamento e não renovam sozinhos.</p></section>
+  <section class="section" id="planos">
+    <h2>Escolha como quer usar</h2>
+    <p class="plans-sub">Créditos cobrem mundos individuais; passes liberam recursos premium por um período. Compra única, sem renovação automática.</p>
+    <div class="wf-free-strip plan-free"><h3>Grátis <span>R$ 0</span></h3><p>Até 10 MB · análise local · funções básicas com limites diários</p><a class="btn-ghost" href="#converter">Experimentar com meu mundo</a></div>
+    <p id="catalogStatus" role="status">Consultando preços e limites no servidor…</p>
+    <label class="plan-goal-label" for="planGoal">O que você quer fazer?</label><select id="planGoal"><option value="one">Editar um mundo, sem pressa</option><option value="several">Editar vários mundos neste período</option><option value="studio">Pintar e criar no World Studio</option><option value="continuous">Usar ao longo do mês</option></select><p id="planAdvice" role="status">Carregando orientação…</p>
+    <div class="wf-plans"><article class="plan wf-plan-slot" data-slot="0"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/iron_ingot.png" alt=""><span data-plan-title>1 mundo</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="world1" type="button" disabled>Carregando plano…</button></article>
+<article class="plan wf-plan-slot" data-slot="1"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/copper_ingot.png" alt=""><span data-plan-title>Trio · 3 mundos</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="worlds3plus" type="button" disabled>Carregando plano…</button></article>
+<article class="plan wf-plan-slot" data-slot="2"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/gold_ingot.png" alt=""><span data-plan-title>Pacote 5 mundos</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="worlds5" type="button" disabled>Carregando plano…</button></article>
+<article class="plan wf-plan-slot" data-slot="3"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/emerald.png" alt=""><span data-plan-title>PRO 7 dias</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="pro7" type="button" disabled>Carregando plano…</button></article>
+<article class="plan wf-plan-slot" data-slot="4"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/diamond.png" alt=""><span data-plan-title>World Studio VIP</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="studio7" type="button" disabled>Carregando plano…</button></article>
+<article class="plan wf-plan-slot" data-slot="5"><h3><img width="28" height="28" class="wf-plan-icon" src="mc/item/nether_star.png" alt=""><span data-plan-title>Criador 30 dias</span></h3><p class="plan-fit" data-plan-fit></p><div class="price">Consultar preço</div><ul><li>Preços e benefícios confirmados pelo servidor.</li></ul><button class="btn-plan btn-pay" data-pay="creator30" type="button" disabled>Carregando plano…</button></article></div>
+    <p class="pay-note">*Arquivos grandes dependem da memória e capacidade do navegador. Pix confirmado libera o acesso; créditos não expiram antes do uso e passes são compras únicas, sem renovação automática. <b>Use o mesmo e-mail da sua conta Google.</b></p>
+  <div id="planComparison" class="plan-comparison" role="region" aria-label="Comparação de planos" tabindex="0"></div><p class="plan-memory-note">¹ O plano não aumenta a memória do aparelho. Mapas e edições grandes dependem da capacidade do navegador. Guarde o arquivo original.</p>
+  </section>
   <section class="section" id="como-funciona">
     <h2>Como funciona</h2>
     <div class="steps">
@@ -619,11 +633,11 @@
 <script src="db-common.js?v=20260929c"></script>
 <script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
-<script src="tool-intents.js?v=1"></script>
+<script src="tool-intents.js?v=plans20261003"></script>
 <script src="app.js?v=20260930v"></script>
 <script src="firebase-config.js?v=20260929c"></script>
 <script src="auth.js?v=worldify-20260930v"></script>
-<script src="pagamento.js?v=worldify-20260930v"></script>
+<script src="pagamento.js?v=plans20261003"></script>
 <script src="entitlements.js?v=20260930"></script>
 <script src="guia-site.js?v=20260929c"></script>
 <script src="world-folder.js?v=20260930"></script>

@@ -151,6 +151,7 @@
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var paymentServerConfig = null;
+  var salesEnabled = true;
   var planCatalogReady = false;
   var planCatalogPending = null;
   var planModalWaiting = false;
@@ -160,12 +161,34 @@
     var p = PUBLIC_PLANS[id] || {};
     var limit = p.max_file_mb === null ? "sem limite comercial de tamanho" : "até " + p.max_file_mb + " MB por mundo";
     var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
-    if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + " cada. Não expiram até o uso; reedite cada mundo por " + (p.project_window_days || 30) + " dias após começar.";
-    return "Acesso por " + (p.duration_days || 0) + " dias, " + limit + " e " + batch + ". Pagamento único, sem renovação automática.";
+    if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + ". Use um mundo por vez. Créditos sem uso não expiram; reedite cada projeto reconhecido por " + (p.project_window_days || 30) + " dias após a última operação concluída. Inclui editor e Builder; " + (window.RC_toolIntents.includesStudio(p) ? "inclui World Studio" : "não inclui World Studio") + ". Compra única, sem renovação automática.";
+    return "Acesso por " + (p.duration_days || 0) + " dias a partir da confirmação do pagamento, " + limit + " e " + batch + ". " + (window.RC_toolIntents.includesStudio(p) ? "Inclui World Studio. " : "World Studio não incluído. ") + "Pagamento único, sem renovação automática.";
   }
   function applyPlanCatalog(config) {
     paymentServerConfig = config || null;
     PUBLIC_PLANS = config && config.plans || {};
+    salesEnabled = !config || config.sales_enabled !== false;
+    PLANS = {};
+    PLAN_IDS = window.RC_toolIntents ? window.RC_toolIntents.catalogIds(config) : [];
+    var grid = document.querySelector('.wf-plans');
+    if (grid) {
+      while (grid.querySelectorAll('.wf-plan-slot').length < PLAN_IDS.length) {
+        var template = grid.querySelector('.wf-plan-slot');
+        if (!template) break;
+        var clone = template.cloneNode(true);
+        clone.querySelector('[data-pay]').addEventListener('click', function(event) { event.preventDefault(); checkout(this.getAttribute('data-pay'), null, {source:'pricing_card'}); });
+        grid.appendChild(clone);
+      }
+    }
+    document.querySelectorAll('.wf-plan-slot').forEach(function(card, i) {
+      var button = card.querySelector('[data-pay]');
+      card.hidden = !PLAN_IDS[i];
+      if (button && PLAN_IDS[i]) { button.setAttribute('data-pay', PLAN_IDS[i]); button.disabled = !PUBLIC_PLANS[PLAN_IDS[i]]; }
+    });
+    var catalogStatus = document.getElementById('catalogStatus');
+    if (catalogStatus) catalogStatus.textContent = salesEnabled
+      ? 'Pagamento único · sem renovação automática. Preços e limites verificados no servidor.'
+      : 'Vendas temporariamente suspensas. Quem já pagou mantém o acesso até o fim do período contratado.';
     PLAN_IDS.forEach(function (id) {
       var p = PUBLIC_PLANS[id];
       if (!p) return;
@@ -173,15 +196,30 @@
       var price = priceText(p.price_cents);
       PLANS[id] = { title: title, price: price, cta: "Comprar " + title + " · " + price, sub: planSummary(id) };
     });
-    planCatalogReady = PLAN_IDS.every(function (id) { return !!PUBLIC_PLANS[id] && !!PLANS[id]; });
+    planCatalogReady = PLAN_IDS.length > 0 && PLAN_IDS.every(function (id) { return !!PUBLIC_PLANS[id] && !!PLANS[id]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (button) {
       var id = button.getAttribute("data-pay");
       var p = PUBLIC_PLANS[id];
-      if (!p) return;
+      if (!p) { button.disabled = true; button.textContent = 'Plano indisponível'; return; }
+      button.disabled = !salesEnabled;
       var size = p.max_file_mb === null ? "sem limite comercial de tamanho" : (p.max_file_mb + " MB por mundo");
       var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
       var card = button.closest ? button.closest(".plan") : null;
+      if (card) {
+        card.classList.toggle('plan-featured', p.kind === 'time' && p.duration_days === 7);
+        card.setAttribute('data-plan-kind', p.kind);
+        var offer = card.querySelector('[data-plan-offer]');
+        if (!offer) { offer = document.createElement('p'); offer.setAttribute('data-plan-offer', ''); offer.className = 'plan-offer'; card.insertBefore(offer, card.querySelector('ul')); }
+        offer.hidden = p.kind !== 'time';
+        offer.textContent = p.duration_days >= 30 ? 'Para usar ao longo do mês' : 'Para concentrar suas edições neste período';
+      }
       if (card && p.kind === "world_credit" && paymentProvider() === "kiwify") card.hidden = true;
+      var title = card && card.querySelector("[data-plan-title]");
+      if (title) title.textContent = String(p.label || id);
+      var fit = card && card.querySelector("[data-plan-fit]");
+      if (fit) fit.textContent = p.kind === "world_credit"
+        ? ((p.credit_count || 1) === 1 ? "Para resolver um mundo agora" : "Use um agora e guarde os demais para outros mundos")
+        : (p.duration_days >= 30 ? "Para editar com frequência ao longo do mês" : window.RC_toolIntents.includesStudio(p) ? "Para editar vários mundos e usar o World Studio neste período" : "Para editar vários mundos neste período");
       var priceBox = card && card.querySelector(".price");
       var list = card && card.querySelector("ul");
       var creditPlan = p.kind === "world_credit";
@@ -189,11 +227,11 @@
       if (list) {
         var count = p.credit_count || 1;
         var bullets = creditPlan
-          ? [count + " crédito(s) · " + size + " cada", priceText(Math.round((+p.price_cents || 0) / count)) + " por mundo" + ((+PUBLIC_PLANS.world1.price_cents * count > +p.price_cents) ? " · economize " + priceText((+PUBLIC_PLANS.world1.price_cents * count) - (+p.price_cents || 0)) : ""), "Cada crédito cobre um mundo", "Sem validade até o uso; reedite por " + (p.project_window_days || 30) + " dias após começar"]
-          : ["Acesso por " + (p.duration_days || 0) + " dias", size, batch, "Recursos avançados incluídos no plano"];
+          ? [count + " crédito(s) · " + size, (count > 1 ? "Cerca de " : "") + priceText(Math.round((+p.price_cents || 0) / count)) + " por mundo" + ((PUBLIC_PLANS.world1 && +PUBLIC_PLANS.world1.price_cents * count > +p.price_cents) ? " · economize " + priceText((+PUBLIC_PLANS.world1.price_cents * count) - (+p.price_cents || 0)) + " frente a " + count + " compras avulsas" : ""), "Editor e Builder · um mundo por vez · " + (window.RC_toolIntents.includesStudio(p) ? "World Studio incluído" : "World Studio não incluído"), "Créditos sem uso não expiram; reedite cada projeto reconhecido por " + (p.project_window_days || 30) + " dias após a última operação concluída"]
+          : ["Acesso por " + (p.duration_days || 0) + " dias", size, batch, window.RC_toolIntents.includesStudio(p) ? "World Studio: pintar e exportar mundos" : "Editor e Builder · World Studio não incluído"];
         list.innerHTML = bullets.map(function (item) { return "<li class='yes'>" + escH(item) + "</li>"; }).join("");
       }
-      button.textContent = String(p.label || id) + " · " + planPrice(id);
+      button.textContent = salesEnabled ? String(p.label || id) + " · " + planPrice(id) : "Vendas pausadas";
     });
     var creditGrid = document.querySelector(".credit-plans");
     var creditGroup = creditGrid && creditGrid.closest ? creditGrid.closest(".plan-group") : null;
@@ -201,31 +239,53 @@
     var free = PUBLIC_PLANS.free;
     var freeCard = document.querySelector(".plan-free");
     if (free && freeCard) {
+      var freeDescription = freeCard.querySelector("p");
+      if (freeDescription) freeDescription.textContent = "Até " + free.max_file_mb + " MB · análise local · funções básicas com limites diários";
       var freeItems = freeCard.querySelectorAll("ul li");
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
     }
     var overview = document.querySelector(".plans-sub");
-    if (overview) overview.textContent = "Um mundo de vez em quando? Use crédito. Muitos mundos na mesma semana? Use passe. Compra única, sem renovação automática.";
-    updateRecommendation();
+    if (overview) overview.textContent = "Um mundo, sem pressa: use créditos. Vários mundos ou criação no Studio: compare os passes. Pagamento único, sem renovação automática.";
+    renderPlanComparison();
   }
-  function updateRecommendation() {
-    var select = document.getElementById("planUse"), text = document.getElementById("planRecommendation"), button = document.getElementById("recommendedPlan");
-    if (!select || !text || !button) return;
-    var choice = { single: "world1", week: "vip7", month: "vip30", batch: "vip30", flexible: "worlds2v1" }[select.value] || "world1";
-    var p = PUBLIC_PLANS[choice];
-    if (!p) { text.textContent = "Carregando opções e preços…"; button.disabled = true; return; }
-    var description = {
-      single: "Para um único mundo, um crédito é suficiente.",
-      week: "Para vários mundos nos próximos 7 dias, o passe evita comprar um crédito a cada mundo.",
-      month: "Para editar ao longo do mês, o passe mantém as ferramentas disponíveis por 30 dias.",
-      batch: "Para trabalhar com 11 a 20 mundos por lote, o Criador oferece a capacidade necessária.",
-      flexible: "Para 3 mundos em datas diferentes, o pacote de créditos não vence antes do uso."
-    }[select.value];
-    if (select.value === "week" && PUBLIC_PLANS.world1) description += " Custa " + priceText(p.price_cents - PUBLIC_PLANS.world1.price_cents) + " a mais que um crédito.";
-    text.textContent = description + " " + planSummary(choice);
-    button.textContent = "Escolher " + p.label + " · " + planPrice(choice);
-    button.disabled = false;
-    button.onclick = function () { checkout(choice, null, { source: "pricing_card" }); };
+  function renderPlanComparison() {
+    var host = document.getElementById('planComparison');
+    if (!host) return;
+    var ids = PLAN_IDS.filter(function (id) { return !!PUBLIC_PLANS[id]; });
+    var rows = [
+      ['Pagamento único', function(p) { return priceText(p.price_cents); }],
+      ['O que você compra', function(p) { return p.kind === 'world_credit' ? p.credit_count + ' mundo(s), um por vez' : 'Acesso por ' + p.duration_days + ' dias'; }],
+      ['Tamanho por arquivo', function(p) { return p.max_file_mb === null ? 'Sem teto comercial¹' : 'Até ' + p.max_file_mb + ' MB'; }],
+      ['Mundos por lote', function(p) { return String(p.max_batch); }],
+      ['Editor e Builder', function(p) { return (p.allowed_tools || []).indexOf('builder') >= 0 ? 'Incluídos' : 'Confira as ferramentas do plano'; }],
+      ['World Studio', function(p) { return window.RC_toolIntents.includesStudio(p) ? 'Incluído' : 'Não incluído'; }],
+      ['Quando usar', function(p) { return p.kind === 'world_credit' ? 'Créditos sem uso não expiram; reedições por ' + p.project_window_days + ' dias após a última operação concluída' : 'Durante ' + p.duration_days + ' dias após a confirmação'; }]
+    ];
+    host.innerHTML = '<table><caption>Compare o que cada plano entrega</caption><thead><tr><th scope="col">Benefício</th>' + ids.map(function(id) { return '<th scope="col">' + escH(PUBLIC_PLANS[id].label) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function(row) { return '<tr><th scope="row">' + row[0] + '</th>' + ids.map(function(id) { return '<td>' + escH(row[1](PUBLIC_PLANS[id])) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+    var grid = document.querySelector('.wf-plans');
+    if (grid) {
+      ['world_credit','time'].forEach(function(kind) {
+        var heading = grid.querySelector('[data-plan-heading="' + kind + '"]');
+        if (!heading) { heading = document.createElement('h3'); heading.setAttribute('data-plan-heading',kind); heading.className = 'plan-group-heading'; }
+        heading.textContent = kind === 'world_credit' ? 'Créditos · para mundos individuais, no seu ritmo' : 'Passes · para editar e criar durante um período';
+        var cards = Array.prototype.filter.call(grid.querySelectorAll('.wf-plan-slot'),function(card) { return !card.hidden && card.getAttribute('data-plan-kind') === kind; });
+        heading.hidden = !cards.length;
+        grid.appendChild(heading); cards.forEach(function(card) { grid.appendChild(card); });
+      });
+    }
+    var goal = document.getElementById('planGoal');
+    var advice = document.getElementById('planAdvice');
+    if (!goal || !advice) return;
+    function recommend() {
+      var context = {goal:goal.value};
+      var eligible = relevantPlanIds(context);
+      var id = window.RC_toolIntents.choosePlan(eligible,'',PUBLIC_PLANS,context);
+      var p = PUBLIC_PLANS[id];
+      advice.textContent = p ? 'Para esse uso: ' + p.label + ' · ' + planPrice(id) + '. ' + planSummary(id) : 'Nenhum plano disponível atende a esse uso agora.';
+      document.querySelectorAll('.wf-plan-slot').forEach(function(card) { var btn = card.querySelector('[data-pay]'); card.classList.toggle('plan-recommended',!!id && btn.getAttribute('data-pay') === id); });
+    }
+    goal.onchange = recommend;
+    recommend();
   }
   function ensurePlanCatalog() {
     if (planCatalogReady) return Promise.resolve(PUBLIC_PLANS);
@@ -242,13 +302,13 @@
   function renderPlanOptions(selectedPlan, context) {
     var eligible = relevantPlanIds(context);
     var selected = window.RC_toolIntents
-      ? window.RC_toolIntents.choosePlan(eligible, selectedPlan, PUBLIC_PLANS)
+      ? window.RC_toolIntents.choosePlan(eligible, selectedPlan, PUBLIC_PLANS, context)
       : (eligible.indexOf(selectedPlan) >= 0 ? selectedPlan : eligible[0]);
     return eligible.map(function (id) {
       var p = PUBLIC_PLANS[id];
       var size = p.max_file_mb === null ? "sem limite comercial" : (p.max_file_mb + " MB");
       var batch = p.kind === "world_credit" ? (p.credit_count || 1) + " crédito(s), sem validade" : (p.max_batch || 1) + " por lote";
-      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch) + "</small></span></label>";
+      return "<label><input type='radio' name='payplan' value='" + escH(id) + "'" + (selected === id ? " checked" : "") + "><span class='plan-main'><strong>" + escH(p.label) + "</strong><b>" + escH(planPrice(id)) + "</b><small>" + escH(size + " · " + batch + (p.kind === "time" ? " · " + p.duration_days + " dias" : "") + " · " + (window.RC_toolIntents.includesStudio(p) ? "Studio incluído" : "Sem Studio")) + "</small></span></label>";
     }).join("");
   }
   function normalizePlan(plan) { return PLANS[plan] ? plan : ""; }  /* ---------- Depix (Pix via Worker — segredos NUNCA no navegador) ---------- */
@@ -424,7 +484,7 @@
       alert("Nenhum produto atual atende ao tamanho ou à quantidade de mundos selecionada.");
       return;
     }
-    if (window.RC_toolIntents) plan = window.RC_toolIntents.choosePlan(eligiblePlans, plan, PUBLIC_PLANS) || plan;
+    if (window.RC_toolIntents) plan = window.RC_toolIntents.choosePlan(eligiblePlans, plan, PUBLIC_PLANS, context) || plan;
     checkoutRequestId = newRequestId();
     storeCheckoutContext(plan, context);
     track("checkout_opened", Object.assign({ plan: plan }, context));
@@ -944,8 +1004,7 @@
   function wire() {
     if (wireInstalled) return;
     wireInstalled = true;
-    var planUse = document.getElementById("planUse");
-    if (planUse) planUse.addEventListener("change", updateRecommendation);
+
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (b) {
       var plan = String(b.getAttribute("data-pay") || "");
       if (!depixEnabled() && !kiwifyUrl(plan) && !enabled()) { b.hidden = true; return; }

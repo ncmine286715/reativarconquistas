@@ -18,3 +18,10 @@ html[data-theme=dark]{--wf-ink:#eef0f4;--wf-surface:#20242c;--wf-line:#383f49;--
 
 /* Help remains available through the upload guide and Tutorial menu. */
 #rcSiteGuideLauncher{display:none!important}
+
+/* Server-owned plan comparison */
+
+.wf-plans{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:680px){.wf-plans{grid-template-columns:1fr}}
+.wf-plans .plan-group-heading{grid-column:1/-1;margin:1.2rem 0 .2rem;font-size:1.15rem}.plan-goal-label{display:block;font-weight:700;margin:1rem 0 .4rem}#planGoal{max-width:100%;padding:.7rem;font:inherit}#planAdvice{max-width:75ch;line-height:1.6}.plan-recommended{outline:2px solid var(--wf-accent);outline-offset:3px}.plan-comparison{overflow:auto;margin-top:1.5rem}.plan-comparison table{border-collapse:collapse;width:100%;min-width:680px}.plan-comparison caption{text-align:left;font-weight:700;margin:.7rem 0}.plan-comparison th,.plan-comparison td{text-align:left;vertical-align:top;padding:.8rem;border-bottom:1px solid var(--wf-line)}.plan-comparison td{min-width:130px}.plan-memory-note{font-size:.9rem;line-height:1.5}.plan-comparison:focus-visible,#planGoal:focus-visible{outline:2px solid var(--wf-accent);outline-offset:3px}
+
+#planGoal{background:var(--wf-surface);color:var(--wf-ink);border:1px solid var(--wf-line);border-radius:12px;min-height:44px}.wf-plans .plan-fit{color:var(--wf-muted);min-height:3em}.wf-plans ul{padding-left:18px;margin:16px 0;flex:1}.wf-plans li{margin:8px 0;font-size:13px}.wf-plans .plan-group-heading{color:var(--wf-ink)}.wf-plans .plan-offer{font-size:12px;font-weight:700;color:var(--wf-accent)}.wf-free-strip{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:18px 0}.wf-free-strip h3{margin:0}.wf-free-strip p{flex:1;margin:0}.wf-free-strip a{min-height:44px;display:flex;align-items:center}.wf-plan-slot h3{display:flex;gap:10px;align-items:center}.wf-plan-slot h3 img{object-fit:contain}
