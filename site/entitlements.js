@@ -1,7 +1,7 @@
 /* One browser facade for the server owned plan catalog and user entitlements. */
 (function () {
   "use strict";
-  var state = { status: "loading", authenticated: false, active: false, plan: "", plan_label: "", expires_at: null, premium_until_ms: 0, world_credits: 0, active_world_projects: 0, max_file_mb: null, max_file_bytes: null, max_batch: 0, allowed_tools: [], capabilities: {}, account_email: "", error: null, loaded_at: 0, _identity_key: "" };
+  var state = { status: "loading", authenticated: false, active: false, plan: "", plan_label: "", expires_at: null, premium_until_ms: 0, world_credits: 0, coin_balance: 0, active_world_projects: 0, max_file_mb: null, max_file_bytes: null, max_batch: 0, allowed_tools: [], capabilities: {}, account_email: "", error: null, loaded_at: 0, _identity_key: "" };
   var pending = null;
   var authWait = null;
   var listeners = [];

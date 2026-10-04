@@ -1646,3 +1646,5 @@ body {
 .rc-consent button{cursor:pointer;padding:9px 13px;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg-2);color:var(--ink);font:inherit;font-weight:700}
 .rc-consent button[data-consent="accepted"]{background:var(--orange);border-color:var(--orange);color:#fff}
 .rc-consent button:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.coin-shop{margin:22px 0 8px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.coin-shop h3{margin:0 0 6px}.coin-shop>p{margin:0 0 14px;color:var(--muted);font-size:14px;line-height:1.5}.coin-plans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.coin-card{padding:14px;border:1px solid var(--line);border-radius:12px}.coin-card h4{margin:0 0 10px;font-size:16px}.coin-card p{margin:4px 0 10px;color:var(--muted);font-size:13px}.coin-card .btn-plan{width:100%}@media(max-width:720px){.coin-plans{grid-template-columns:repeat(2,minmax(0,1fr))}}

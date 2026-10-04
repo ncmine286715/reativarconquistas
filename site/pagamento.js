@@ -158,6 +158,7 @@
   }
 
   var PLAN_IDS = ["essential7v4","pro7v4","creator30v4","studio30v4"];
+  var COIN_PLAN_IDS = ["copper10v1","gold30v1","diamond80v1","netherite180v1"];
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var payReturnFocus = null;
@@ -181,6 +182,8 @@
     salesEnabled = !config || config.sales_enabled !== false;
     PLANS = {};
     PLAN_IDS = window.RC_toolIntents ? window.RC_toolIntents.catalogIds(config) : [];
+    COIN_PLAN_IDS = Array.isArray(config && config.coin_plan_ids) ? config.coin_plan_ids.slice() : [];
+    var checkoutIds = PLAN_IDS.concat(COIN_PLAN_IDS);
     var grid = document.querySelector('.wf-pricing');
     if (grid) {
       while (grid.querySelectorAll('.wf-plan-slot').length < PLAN_IDS.length) {
@@ -200,14 +203,14 @@
     if (catalogStatus) catalogStatus.textContent = salesEnabled
       ? 'Pagamento único · sem renovação automática. Preços e limites verificados no servidor.'
       : 'Vendas temporariamente suspensas. Quem já pagou mantém o acesso até o fim do período contratado.';
-    PLAN_IDS.forEach(function (id) {
+    checkoutIds.forEach(function (id) {
       var p = PUBLIC_PLANS[id];
       if (!p) return;
       var title = String(p.label || id);
       var price = priceText(p.price_cents);
       PLANS[id] = { title: title, price: price, cta: "Comprar " + title + " · " + price, sub: planSummary(id) };
     });
-    planCatalogReady = PLAN_IDS.length > 0 && PLAN_IDS.every(function (id) { return !!PUBLIC_PLANS[id] && !!PLANS[id]; });
+    planCatalogReady = PLAN_IDS.length > 0 && checkoutIds.every(function (id) { return !!PUBLIC_PLANS[id] && !!PLANS[id]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-pay]"), function (button) {
       var id = button.getAttribute("data-pay");
       var p = PUBLIC_PLANS[id];
@@ -304,7 +307,8 @@
     return planCatalogPending;
   }
   function relevantPlanIds(context) {
-    var ids = paymentProvider() === "kiwify" ? PLAN_IDS.filter(function (id) { return !(PUBLIC_PLANS[id] && PUBLIC_PLANS[id].kind === "world_credit"); }) : PLAN_IDS;
+    var allIds = PLAN_IDS.concat(COIN_PLAN_IDS);
+    var ids = paymentProvider() === "kiwify" ? allIds.filter(function (id) { return !(PUBLIC_PLANS[id] && PUBLIC_PLANS[id].kind === "world_credit"); }) : allIds;
     return window.RC_toolIntents
       ? window.RC_toolIntents.eligiblePlanIds(ids, PUBLIC_PLANS, context || {})
       : ids.filter(function (id) { return !!PUBLIC_PLANS[id]; });

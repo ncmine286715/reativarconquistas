@@ -89,6 +89,10 @@ essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents"
 pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
 creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
 studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":4990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+  copper10v1: Object.freeze({label:"Cobre · 10 moedas",duration_days:0,price_cents:490,credit_count:10,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 50 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  gold30v1: Object.freeze({label:"Ouro · 30 moedas",duration_days:0,price_cents:990,credit_count:30,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 150 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  diamond80v1: Object.freeze({label:"Diamante · 80 moedas",duration_days:0,price_cents:1990,credit_count:80,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 500 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  netherite180v1: Object.freeze({label:"Netherita · 180 moedas",duration_days:0,price_cents:3490,credit_count:180,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 1,5 GB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
   free: Object.freeze({
     label: "Plano gratuito", duration_days: 0, price_cents: 0,
     max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
@@ -158,15 +162,24 @@ studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":499
 });
 // New SKU: existing receipts keep their original price and credit count.
 const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
+export function coinCostForBytes(sizeBytes) {
+  const mb = Number(sizeBytes || 0) / 1048576;
+  if (mb <= 50) return { coins: 1, tier: "Cobre" };
+  if (mb <= 150) return { coins: 3, tier: "Ouro" };
+  if (mb <= 500) return { coins: 7, tier: "Diamante" };
+  if (mb <= 1536) return { coins: 12, tier: "Netherita" };
+  return { coins: 0, tier: "" };
+}
 const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
   id, daily_operations: plan.daily_operations || 0, fit: plan.fit || "", featured: plan.featured === true, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
   kind: plan.kind || "time", credit_count: plan.credit_count || 0,
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
-}]).filter(([id]) => ["free","essential7v4","pro7v4","creator30v4","studio30v4"].includes(id))));
+}]).filter(([id]) => ["free","essential7v4","pro7v4","creator30v4","studio30v4","copper10v1","gold30v1","diamond80v1","netherite180v1"].includes(id))));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const PURCHASABLE_PLAN_IDS = new Set(["essential7v4","pro7v4","creator30v4","studio30v4"]);
+const COIN_PLAN_IDS = ["copper10v1","gold30v1","diamond80v1","netherite180v1"];
+const PURCHASABLE_PLAN_IDS = new Set(["essential7v4","pro7v4","creator30v4","studio30v4",...COIN_PLAN_IDS]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -1151,7 +1164,7 @@ export async function getUserEntitlements(env, firebaseUid, user = {}) {
     authenticated: true, active, status: active ? "active" : "free", plan,
     plan_label: definition.label, expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     premium_until_ms: plan === "world1" ? 0 : (timeUntil > now ? timeUntil : 0),
-    world_credits: worldCredits, active_world_projects: activeProjects.length,
+    world_credits: worldCredits, coin_balance: worldCredits, active_world_projects: activeProjects.length,
     world_projects: activeProjects.map((project) => ({ id: project.id, expires_at: +project.expires_at })),
     max_file_mb: definition.max_file_mb, max_file_bytes: definition.max_file_bytes,
     max_batch: definition.max_batch, allowed_tools: definition.allowed_tools,
@@ -1208,6 +1221,11 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
   }
   if (plan === "free") return { allowed: false, code: "NO_ENTITLEMENT", plan: "free" };
   const limit = PLAN_LIMITS[plan];
+  if (plan === "world1" && worldPlanActive) {
+    const coinLimit = 1536 * 1024 * 1024;
+    if (sizeBytes > coinLimit) return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: 1536, max_file_bytes: coinLimit };
+    return { allowed: true, plan, max_batch: 1, max_file_mb: 1536, requires_credit: true, requires_completion: true };
+  }
   if (worlds > limit.max_batch) return { allowed: false, code: "BATCH_LIMIT", plan, max_batch: limit.max_batch };
   if (limit.max_file_bytes !== null && sizeBytes > limit.max_file_bytes) {
     return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: limit.max_file_mb, max_file_bytes: limit.max_file_bytes };
@@ -1509,7 +1527,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ payment_provider: "abacate", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: false, abacate_configured: !!(env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY), abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, catalog_version: "worldify-v4", display_plan_ids: [...PURCHASABLE_PLAN_IDS], purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], plans: PUBLIC_PLAN_CATALOG }, 200, cors);
+        return json({ payment_provider: "abacate", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: false, abacate_configured: !!(env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY), abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, catalog_version: "worldify-v5-coins", display_plan_ids: ["essential7v4","pro7v4","creator30v4","studio30v4"], coin_plan_ids: COIN_PLAN_IDS, purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], coin_costs: {copper:{max_mb:50,coins:1},gold:{max_mb:150,coins:3},diamond:{max_mb:500,coins:7},netherite:{max_mb:1536,coins:12}}, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -2101,7 +2119,7 @@ export default {
           const worldFingerprint = String(body.world_fingerprint || "").trim().slice(0, 160);
           const reservation = await stub.fetch("https://entitlements/reserve-world", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, candidate_project_id: crypto.randomUUID() })
+            body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, size_bytes: body.size_bytes, candidate_project_id: crypto.randomUUID() })
           });
           const reservationData = await reservation.json();
           if (!reservation.ok) {
@@ -2110,11 +2128,13 @@ export default {
             return json(denied, reservation.status, cors);
           }
           decision.world_project_id = reservationData.world_project_id;
+          decision.coin_cost = reservationData.coin_cost || 0;
+          decision.coin_tier = reservationData.coin_tier || "";
           decision.requires_completion = true;
         }
         if (!decision.allowed) await metric(env, "premium_operation_denied", { plan: ent.plan, reason: decision.code }, req);
         else if (decision.plan !== "free") await metric(env, "premium_operation_authorized", { plan: decision.plan }, req);
-        return json({ ...decision, world_credits: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
+        return json({ ...decision, world_credits: ent.world_credits, coin_balance: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
       }
 
       if (["/api/entitlements/complete", "/api/entitlements/consume", "/api/entitlements/release"].includes(url.pathname) && req.method === "POST") {
@@ -2441,6 +2461,7 @@ export class EntitlementDO {
     if (url.pathname === "/reserve-world") {
       const operationId = String(body.operation_id || "").slice(0, 120);
       const projectId = String(body.world_project_id || "").slice(0, 120);
+      const coinCost = coinCostForBytes(body.size_bytes);
       const fingerprintRaw = String(body.world_fingerprint || "").toLowerCase().slice(0, 64);
       const fingerprint = /^[a-f0-9]{64}$/.test(fingerprintRaw) ? fingerprintRaw : "";
       const candidateId = String(body.candidate_project_id || "").slice(0, 120);
@@ -2479,12 +2500,13 @@ export class EntitlementDO {
           if (pendingMatch) { chosenId = pendingMatch.project_id; isNew = true; }
           else {
             const pendingIds = new Set(Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).map((r) => r.project_id));
-            if ((+data.world_credits || 0) <= pendingIds.size) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" } };
+            const reservedCoins = Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).reduce((sum, r) => sum + (+r.coin_cost || 1), 0);
+            if (!coinCost.coins || (+data.world_credits || 0) < reservedCoins + coinCost.coins) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED", coin_cost: coinCost.coins, coin_tier: coinCost.tier } };
             chosenId = candidateId; isNew = true;
           }
         }
-        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, fingerprint, expires_at: Date.now() + 3600000 };
-        return { value: { allowed: true, world_project_id: chosenId, new_project: isNew } };
+        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, coin_cost: isNew ? coinCost.coins : 0, fingerprint, expires_at: Date.now() + 3600000 };
+        return { value: { allowed: true, world_project_id: chosenId, new_project: isNew, coin_cost: isNew ? coinCost.coins : 0, coin_tier: isNew ? coinCost.tier : "" } };
       });
       return json(result.value, result.status || (result.value.allowed ? 200 : 409));
     }
@@ -2508,8 +2530,9 @@ export class EntitlementDO {
           else if (reservation.kind === "world") {
             const project = data.world_projects[reservation.project_id];
             if (reservation.new_project && !project) {
-              if ((+data.world_credits || 0) < 1) return { persist: false, status: 409, value: { error: "World credit unavailable.", code: "WORLD_CREDIT_EXHAUSTED" } };
-              data.world_credits -= 1;
+              const cost = Math.max(1, +reservation.coin_cost || 1);
+              if ((+data.world_credits || 0) < cost) return { persist: false, status: 409, value: { error: "Moedas insuficientes.", code: "WORLD_CREDIT_EXHAUSTED", coin_cost: cost } };
+              data.world_credits -= cost;
               data.world_projects[reservation.project_id] = { created_at: now, expires_at: now + WORLD_PROJECT_WINDOW_MS, operations: {}, fingerprints: {} };
               creditConsumed = true;
             } else if (!project || +project.expires_at <= now) return { persist: false, status: 409, value: { error: "World session expired.", code: "WORLD_PROJECT_EXPIRED" } };
