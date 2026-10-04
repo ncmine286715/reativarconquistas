@@ -1,9 +1,5 @@
-/* ReativaConquistas — pagamento AbacatePay 100% em JS, SEM segredo no navegador.
-   A chave abc_* fica SÓ no Cloudflare Worker (worker/): o site chama o Worker,
-   o Worker chama o AbacatePay. Ativação: WORKER_URL em config.js.
-   Fluxo: [data-pay] -> modal (e-mail + status visível) -> POST /api/abacate/create ->
-   redireciona p/ checkout -> volta em sucesso.html?id=BILLING_ID ->
-   checkReturn() consulta /api/abacate/status e mostra o resultado.
+/* Worldify — fluxo de compra vinculado à conta Google.
+   InfinitePay cria e confirma cobranças pelo Worker. Os segredos ficam no servidor.
 */
 (function () {
   "use strict";
@@ -16,7 +12,7 @@
   function enabled() { return !!base() && !!window.fetch; }
   function paymentProvider() {
     var p = String((window.RC_CONFIG || {}).PAYMENT_PROVIDER || "depix").toLowerCase();
-    return p === "abacate" ? "abacate" : (p === "kiwify" || p === "hybrid" ? p : "depix");
+    return p === "abacate" || p === "infinitepay" ? p : (p === "kiwify" || p === "hybrid" ? p : "depix");
   }
 
   function req(path, opts) {
@@ -157,8 +153,8 @@
     });
   }
 
-  var PLAN_IDS = ["essential7v4","pro7v4","creator30v4","studio30v4"];
-  var COIN_PLAN_IDS = ["copper10v1","gold30v1","diamond80v1","netherite180v1"];
+  var PLAN_IDS = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5"];
+  var COIN_PLAN_IDS = [];
   var PLANS = {};
   var PUBLIC_PLANS = {};
   var payReturnFocus = null;
@@ -339,7 +335,7 @@
       return !!(!infinitepayEnabled() && cfg.DEPIX_ENABLED && (paymentProvider() === "depix" || paymentProvider() === "hybrid") && base());
     } catch (e) { return false; }
   }
-  function infinitepayEnabled() { return false; }
+  function infinitepayEnabled() { return paymentProvider() === "infinitepay" && !!base(); }
   function kiwifyEnabled() {
     try { return !!((window.RC_CONFIG || {}).KIWIFY_ENABLED && (paymentProvider() === "kiwify" || paymentProvider() === "hybrid")); } catch (e) { return false; }
   }
@@ -385,7 +381,7 @@
         payer_email: String(payerEmail || "").trim().toLowerCase(),
         source: String(source || "").slice(0, 40),
         terms_accepted: true,
-        terms_version: "2026-10-03-v4",
+        terms_version: "2026-10-04-v1",
         request_id: checkoutRequestId
       })
     }).then(function (r) { return r; });
@@ -397,7 +393,7 @@
     if (!checkoutRequestId) checkoutRequestId = newRequestId();
     return authReq("/api/infinitepay/create", {
       method: "POST", headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ plan: normalizePlan(plan), source: String(source || "").slice(0, 40), terms_accepted: true, terms_version: "2026-10-03-v4", request_id: checkoutRequestId })
+      body: JSON.stringify({ plan: normalizePlan(plan), source: String(source || "").slice(0, 40), terms_accepted: true, terms_version: "2026-10-04-v1", request_id: checkoutRequestId })
     });
   }
   function infinitepayStatus(params) {
@@ -561,8 +557,8 @@
       "</div>" +
       "<div class='pay-footer'>" +
         "<div class='status' id='payMsg' hidden></div>" +
-        "<div class='pay-next-step' id='payNextStep'>Você será levado à AbacatePay para pagar com Pix.</div>" +
-        "<div class='secure' id='payConn'>Conexão com AbacatePay: verificando…</div>" +
+        "<div class='pay-next-step' id='payNextStep'>Você será levado à InfinitePay para concluir a compra.</div>" +
+        "<div class='secure' id='payConn'>Conexão com InfinitePay: verificando…</div>" +
         "<div class='row2 pay-actions'>" +
           "<button class='btn-ghost' id='payBack' type='button'>Voltar</button>" +
           "<button class='btn-ghost pay-primary' id='payGo' type='button'></button>" +
@@ -577,13 +573,13 @@
       var dataLabel = bg.querySelector(".pay-data-label");
       if (dataLabel) dataLabel.hidden = true;
       var badge = bg.querySelector("#payMethodBadge");
-      if (badge) badge.textContent = "CHECKOUT · ABACATEPAY";
+      if (badge) badge.textContent = infinitepayEnabled() ? "CHECKOUT · INFINITEPAY" : "CHECKOUT · ABACATEPAY";
       var intro = bg.querySelector("#payIntroText");
       if (intro) intro.textContent = "Compra única, sem renovação automática. O acesso será vinculado à conta Google exibida acima.";
       var next = bg.querySelector("#payNextStep");
-      if (next) next.textContent = "Próxima etapa: abrir o checkout seguro da AbacatePay para pagar com Pix.";
+      if (next) next.textContent = infinitepayEnabled() ? "Próxima etapa: abrir o checkout seguro da InfinitePay para concluir a compra." : "Próxima etapa: abrir o checkout seguro da AbacatePay para pagar com Pix.";
       var conn = bg.querySelector("#payConn");
-      if (conn) conn.textContent = "AbacatePay · Pix";
+      if (conn) conn.textContent = infinitepayEnabled() ? "InfinitePay · checkout seguro" : "AbacatePay · Pix";
     }
     bg.addEventListener('keydown', function(e) {
       if (e.key !== 'Tab') return;
@@ -653,8 +649,8 @@
         return r.json();
       }).then(function (cfg) {
         var c = document.getElementById("payConn");
-        if (c) c.textContent = (cfg.abacate_configured && cfg.sales_enabled)
-          ? "AbacatePay · Pix · vendas ativas"
+        if (c) c.textContent = (cfg.infinitepay_configured && cfg.sales_enabled)
+          ? "InfinitePay · vendas ativas"
           : (paymentProvider() === "kiwify" ? "Checkout Kiwify configurado" : (cfg.depix_configured ? "✓ Pix disponível via Depix" : "Serviço de pagamento disponível"));
       }).catch(function (err) {
         logClient("selftest", (err && err.message) || err);
@@ -903,7 +899,7 @@
             request_id: checkoutRequestId,
             source: String(context.source || "").slice(0, 40),
             terms_accepted: true,
-            terms_version: "2026-10-03-v4"
+            terms_version: "2026-10-04-v1"
           })
         }).then(function (r) {
           if (!/^https:\/\/(?:app\.)?abacatepay\.com\//i.test(String(r.url || ""))) throw new Error("Checkout AbacatePay inválido.");

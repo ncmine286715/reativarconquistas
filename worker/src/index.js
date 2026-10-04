@@ -89,6 +89,11 @@ essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents"
 pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
 creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
 studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":4990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+single1v5: Object.freeze({label:"Pontual",duration_days:1,price_cents:599,max_file_mb:50,max_file_bytes:52428800,max_batch:1,kind:"time",daily_operations:3,fit:"Uma edição pontual em um mundo pequeno",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+week7v5: Object.freeze({label:"Essencial",duration_days:7,price_cents:799,max_file_mb:150,max_file_bytes:157286400,max_batch:1,kind:"time",daily_operations:5,fit:"Para editar seu mundo durante uma semana",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+pro7v5: Object.freeze({label:"Pro",duration_days:7,price_cents:1195,max_file_mb:300,max_file_bytes:314572800,max_batch:2,kind:"time",daily_operations:12,fit:"Mais espaço para vários mundos na semana",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+creator30v5: Object.freeze({label:"Criador",duration_days:30,price_cents:1499,max_file_mb:750,max_file_bytes:786432000,max_batch:5,kind:"time",daily_operations:30,fit:"Edição, pintura e exportação durante 30 dias",featured:true,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],capabilities:{premium_features:true,world_studio:true}}),
+studio30v5: Object.freeze({label:"Studio",duration_days:30,price_cents:2290,max_file_mb:1536,max_file_bytes:1610612736,max_batch:8,kind:"time",daily_operations:60,fit:"30 dias para mundos grandes e criação no Studio",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],capabilities:{premium_features:true,world_studio:true}}),
   copper10v1: Object.freeze({label:"Cobre · 10 moedas",duration_days:0,price_cents:490,credit_count:10,kind:"world_credit",coin_pack:true,max_file_mb:50,max_file_bytes:50*1048576,fit:"Para mundos de até 50 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
   gold30v1: Object.freeze({label:"Ouro · 30 moedas",duration_days:0,price_cents:990,credit_count:30,kind:"world_credit",coin_pack:true,max_file_mb:150,max_file_bytes:150*1048576,fit:"Para mundos de até 150 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
   diamond80v1: Object.freeze({label:"Diamante · 80 moedas",duration_days:0,price_cents:1990,credit_count:80,kind:"world_credit",coin_pack:true,max_file_mb:500,max_file_bytes:500*1048576,fit:"Para mundos de até 500 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
@@ -176,10 +181,11 @@ const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
-}]).filter(([id]) => ["free","essential7v4","pro7v4","creator30v4","studio30v4","copper10v1","gold30v1","diamond80v1","netherite180v1"].includes(id))));
+}]).filter(([id]) => ["free","single1v5","week7v5","pro7v5","creator30v5","studio30v5"].includes(id))));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const COIN_PLAN_IDS = ["copper10v1","gold30v1","diamond80v1","netherite180v1"];
-const PURCHASABLE_PLAN_IDS = new Set(["essential7v4","pro7v4","creator30v4","studio30v4",...COIN_PLAN_IDS]);
+const COIN_PLAN_IDS = [];
+const DISPLAY_PLAN_IDS = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5"];
+const PURCHASABLE_PLAN_IDS = new Set([...DISPLAY_PLAN_IDS]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -1239,7 +1245,7 @@ export default {
     const url = new URL(req.url);
     if (url.pathname.startsWith("/api/") && env.PAYMENT_SERVICE) { const dest = new URL(url.pathname + url.search, env.PAYMENT_API_URL); return env.PAYMENT_SERVICE.fetch(new Request(dest,req)); }
     const cors = corsHeaders(req, env);
-    if (req.method === "POST" && ["/api/infinitepay/create", "/api/depix/create"].includes(url.pathname)) return json({error:"Este checkout foi substituído pela AbacatePay. Atualize a página."},410,cors);
+    if (req.method === "POST" && url.pathname === "/api/depix/create") return json({error:"Este checkout foi substituído pela InfinitePay. Atualize a página."},410,cors);
     if (req.method === "OPTIONS") {
       if (!req.headers.get("Origin") || !cors["Access-Control-Allow-Origin"]) {
         return withSecurityHeaders(new Response(null, { status: 403, headers: securityHeaders() }));
@@ -1527,7 +1533,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ payment_provider: "abacate", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: false, abacate_configured: !!(env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY), abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, catalog_version: "worldify-v5-coins", display_plan_ids: ["essential7v4","pro7v4","creator30v4","studio30v4"], coin_plan_ids: COIN_PLAN_IDS, purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], coin_costs: {copper:{max_mb:50,coins:1},gold:{max_mb:150,coins:3},diamond:{max_mb:500,coins:7},netherite:{max_mb:1536,coins:12}}, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
+        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: false, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, terms_version: TERMS_VERSION, free_daily: FREE_DAILY, catalog_version: "worldify-v5-plans", display_plan_ids: DISPLAY_PLAN_IDS, coin_plan_ids: [], purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -1678,7 +1684,7 @@ export default {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: requestId, plan, result: checkout })
           });
-          if (!saved.ok) throw new Error("Checkout criado, mas não foi possível registrar o pedido.");
+          if (!saved.ok) { await checkoutStub.fetch("https://entitlements/checkout-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan, result: checkout }) }).catch(() => {}); }
           // Legacy fallback only; quota exhaustion must not hide a valid link.
           await env.PREMIUM_KV.put(pendKey(orderNsu), JSON.stringify({ uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay" }), { expirationTtl: 30 * 86400 }).catch(() => {});
           await recordCheckout(env, { id: orderNsu, uid: fb.uid, email: fb.email, plan, source, provider: "infinitepay", expires_at: Date.now() + 30 * 86400000 });
@@ -1882,6 +1888,7 @@ export default {
       }
       // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
+        if (String(env.PAYMENT_PROVIDER || "infinitepay").toLowerCase() === "infinitepay") return json({ error: "As novas compras são processadas pela InfinitePay. Atualize a página e tente novamente." }, 410, cors);
         if (String(env.SALES_ENABLED || "1") === "0") return json({error:"As vendas estão temporariamente suspensas."},503,cors);
 
         if (!(env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY)) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);

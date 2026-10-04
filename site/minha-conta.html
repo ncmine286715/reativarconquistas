@@ -29,12 +29,12 @@
 </div>
 </div>
 </div>
-<script src="config.js?v=20261003v5"></script>
+<script src="config.js?v=20261004v1"></script>
 
-<script src="firebase-config.js?v=20261003v5"></script>
+<script src="firebase-config.js?v=20261004v1"></script>
 <script src="auth.js?v=worldify-20260930v"></script>
-<script src="pagamento.js?v=20261003v5"></script>
-<script src="entitlements.js?v=20261003v5"></script>
+<script src="pagamento.js?v=20261004v1"></script>
+<script src="entitlements.js?v=20261004v1"></script>
 <script>
 (function () {
   try {
@@ -93,7 +93,7 @@
         }
         var details = "<p><b>Plano atual:</b> " + esc(ent.plan_label || ent.plan || "Plano gratuito") + "</p>" +
           "<p><b>Status:</b> " + (active ? "Ativo" : "Gratuito") + (until ? " · <b>Expira:</b> " + esc(until) : "") + "</p>" +
-          (ent.plan === "world1" ? "<p><b>🪙 Moedas:</b> " + (+ent.coin_balance || +ent.world_credits || 0) + " · <b>Projetos ativos:</b> " + (+ent.active_world_projects || 0) + "</p><p><b>Custo:</b> 1 Cobre até 50 MB; 3 Ouro até 150 MB; 7 Diamante até 500 MB; 12 Netherita até 1,5 GB.</p>" : "<p><b>Limite por mundo:</b> " + esc(limit) + "</p>");
+          "<p><b>Limite por mundo:</b> " + esc(limit) + "</p>";
         if (ent.pending_payment) details += "<p class='sub'><b>" + (ent.pending_payment.status === "checkout_creation_uncertain" ? "Cobrança em confirmação:" : "Pagamento em confirmação:") + "</b> " + esc(window.RC_entitlements.messageForPending(ent.pending_payment)) + "</p>";
         show("<p><b>" + esc(u.name || "") + "</b> · " + esc(u.email || "") + "</p>" + details + pendingAction +
           "<p><button class='btn-ghost' id='refreshBenefits' type='button'>Atualizar benefícios</button></p>" +

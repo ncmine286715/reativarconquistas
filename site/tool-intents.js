@@ -26,7 +26,7 @@
     addon: "addons", packs: "addons", construction: "builder", construcao: "builder",
     world: "mundo", settings: "mundo", converter: "upload", conversor: "upload"
   };
-  var PLAN_ORDER = ["essential7v4","pro7v4","creator30v4","studio30v4","world1", "worlds2v1", "worlds3plus", "worlds5", "worlds2", "worlds3v2", "pro7", "studio7", "creator30", "ouro", "vip7", "vip30", "creator"];
+  var PLAN_ORDER = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5","world1", "worlds2v1", "worlds3plus", "worlds5", "worlds2", "worlds3v2", "pro7", "studio7", "creator30", "ouro", "vip7", "vip30", "creator"];
 
   function includesStudio(plan) {
     return !!plan && ((plan.allowed_tools || []).indexOf('world_paint') >= 0 || !!(plan.capabilities && plan.capabilities.world_studio));

@@ -71,9 +71,9 @@ ABACATEPAY_PRODUCT_ID_NETHERITE180V1 = "prod_RwJ6SyMcMKaghazSwztdfX51"
 
 # "1" = teste (site mostra aviso); "0"/vazio = produção.
 DEPIX_TEST_MODE = "0"
-PAYMENT_PROVIDER = "abacate"
+PAYMENT_PROVIDER = "infinitepay"
 PAYMENT_API_URL = "https://reativa-pay.rosidomingos032.workers.dev"
-INFINITEPAY_HANDLE = ""
+INFINITEPAY_HANDLE = "fabio-rogerio-lhv"
 # Somente consulta de pagamentos anteriores; novas compras estão bloqueadas.
 INFINITEPAY_LEGACY_HANDLE = "fabio-rogerio-lhv"
 SALES_ENABLED = "1"

@@ -24,8 +24,8 @@ window.RC_CONFIG = {
      LIMITES DO SITE
      ========================= */
 
-  // Todas as novas compras usam AbacatePay. Os recibos legados continuam válidos.
-  PAYMENT_PROVIDER: "abacate",
+  // Novas compras são processadas pela InfinitePay.
+  PAYMENT_PROVIDER: "infinitepay",
 
   // Limite padrão para usuários grátis.
 
