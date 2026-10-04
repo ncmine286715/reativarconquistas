@@ -1,7 +1,7 @@
 /* One browser facade for the server owned plan catalog and user entitlements. */
 (function () {
   "use strict";
-  var state = { status: "loading", authenticated: false, active: false, plan: "", plan_label: "", expires_at: null, premium_until_ms: 0, world_credits: 0, active_world_projects: 0, max_file_mb: null, max_file_bytes: null, max_batch: 0, allowed_tools: [], capabilities: {}, account_email: "", error: null, loaded_at: 0, _identity_key: "" };
+  var state = { status: "loading", authenticated: false, active: false, plan: "", plan_label: "", expires_at: null, premium_until_ms: 0, world_credits: 0, coin_balance: 0, active_world_projects: 0, max_file_mb: null, max_file_bytes: null, max_batch: 0, allowed_tools: [], capabilities: {}, account_email: "", error: null, loaded_at: 0, _identity_key: "" };
   var pending = null;
   var authWait = null;
   var listeners = [];
@@ -151,7 +151,7 @@
     if (error && (error.status === 401 || code === "AUTH_EXPIRED")) return "Sua sessão Google expirou. Entre novamente para verificar seus benefícios.";
     if (error && (error.status === 503 || error.status >= 500) || code === "ENTITLEMENT_UNAVAILABLE") return "Não foi possível verificar seu plano agora. Tente novamente. Nenhuma nova compra é necessária.";
     if (code === "PAYMENT_PENDING") return messageForPending(state.pending_payment);
-    if (code === "TOOL_QUOTA_EXCEEDED") return "O limite gratuito diário desta ferramenta foi atingido. Seu arquivo original permanece intacto.";
+    if (code === "TOOL_QUOTA_EXCEEDED") return "O limite diário de operações do seu plano foi atingido. Ele reinicia às 21h de Brasília (00h UTC). Seu arquivo original permanece intacto.";
     if (code === "SIZE_LIMIT") {
       var limit = error.payload && error.payload.max_file_mb;
       return limit == null ? "O arquivo excede o limite deste plano." : "O arquivo excede o limite de " + limit + " MB deste plano.";

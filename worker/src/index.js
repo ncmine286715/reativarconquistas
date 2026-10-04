@@ -29,7 +29,7 @@
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "PAYMENT_CONFIRMED"]);
-const TERMS_VERSION = "2026-09-20-v1.6";
+const TERMS_VERSION = "2026-10-03-v4";
 const SECURITY_REWARD_DAYS = 9999;
 
 function json(data, status = 200, cors = {}) {
@@ -85,6 +85,19 @@ const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
 // A única fonte de permissões, limites e preços. Os clientes recebem somente
 // a projeção pública deste catálogo; cada autorização usa estes mesmos dados.
 export const PLAN_LIMITS = Object.freeze({
+essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents":790,"max_file_mb":75,"max_file_bytes":78643200,"max_batch":1,"kind":"time","daily_operations":3,"fit":"Para resolver edições pontuais no seu mundo","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
+pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
+creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":4990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
+single1v5: Object.freeze({label:"Pontual",duration_days:1,price_cents:599,max_file_mb:50,max_file_bytes:52428800,max_batch:1,kind:"time",daily_operations:3,fit:"Uma edição pontual em um mundo pequeno",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+week7v5: Object.freeze({label:"Essencial",duration_days:7,price_cents:799,max_file_mb:150,max_file_bytes:157286400,max_batch:1,kind:"time",daily_operations:5,fit:"Para editar seu mundo durante uma semana",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+pro7v5: Object.freeze({label:"Pro",duration_days:7,price_cents:1195,max_file_mb:300,max_file_bytes:314572800,max_batch:2,kind:"time",daily_operations:12,fit:"Mais espaço para vários mundos na semana",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true,world_studio:false}}),
+creator30v5: Object.freeze({label:"Criador",duration_days:30,price_cents:1499,max_file_mb:750,max_file_bytes:786432000,max_batch:5,kind:"time",daily_operations:30,fit:"Edição, pintura e exportação durante 30 dias",featured:true,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],capabilities:{premium_features:true,world_studio:true}}),
+studio30v5: Object.freeze({label:"Studio",duration_days:30,price_cents:2290,max_file_mb:1536,max_file_bytes:1610612736,max_batch:8,kind:"time",daily_operations:60,fit:"30 dias para mundos grandes e criação no Studio",featured:false,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],capabilities:{premium_features:true,world_studio:true}}),
+  copper10v1: Object.freeze({label:"Cobre · 10 moedas",duration_days:0,price_cents:490,credit_count:10,kind:"world_credit",coin_pack:true,max_file_mb:50,max_file_bytes:50*1048576,fit:"Para mundos de até 50 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  gold30v1: Object.freeze({label:"Ouro · 30 moedas",duration_days:0,price_cents:990,credit_count:30,kind:"world_credit",coin_pack:true,max_file_mb:150,max_file_bytes:150*1048576,fit:"Para mundos de até 150 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  diamond80v1: Object.freeze({label:"Diamante · 80 moedas",duration_days:0,price_cents:1990,credit_count:80,kind:"world_credit",coin_pack:true,max_file_mb:500,max_file_bytes:500*1048576,fit:"Para mundos de até 500 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  netherite180v1: Object.freeze({label:"Netherita · 180 moedas",duration_days:0,price_cents:3490,credit_count:180,kind:"world_credit",coin_pack:true,max_file_mb:1536,max_file_bytes:1536*1048576,fit:"Para mundos de até 1,5 GB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
   free: Object.freeze({
     label: "Plano gratuito", duration_days: 0, price_cents: 0,
     max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
@@ -154,15 +167,25 @@ export const PLAN_LIMITS = Object.freeze({
 });
 // New SKU: existing receipts keep their original price and credit count.
 const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
+export function coinCostForBytes(sizeBytes) {
+  const mb = Number(sizeBytes || 0) / 1048576;
+  if (mb <= 50) return { coins: 1, tier: "Cobre" };
+  if (mb <= 150) return { coins: 3, tier: "Ouro" };
+  if (mb <= 500) return { coins: 7, tier: "Diamante" };
+  if (mb <= 1536) return { coins: 12, tier: "Netherita" };
+  return { coins: 0, tier: "" };
+}
 const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
-  id, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
-  kind: plan.kind || "time", credit_count: plan.credit_count || 0,
+  id, daily_operations: plan.daily_operations || 0, fit: plan.fit || "", featured: plan.featured === true, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
+  kind: plan.kind || "time", credit_count: plan.credit_count || 0, coin_pack: plan.coin_pack === true,
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
-}]).filter(([id]) => ["free", "world1", "worlds2v1", "vip7", "vip30"].includes(id))));
+}]).filter(([id]) => ["free","single1v5","week7v5","pro7v5","creator30v5","studio30v5"].includes(id))));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
-const PURCHASABLE_PLAN_IDS = new Set(["world1", "worlds2v1", "vip7", "vip30"]);
+const COIN_PLAN_IDS = [];
+const DISPLAY_PLAN_IDS = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5"];
+const PURCHASABLE_PLAN_IDS = new Set([...DISPLAY_PLAN_IDS]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -593,27 +616,30 @@ export function isSecurityResearcherReward(env, email) {
   return !!configured && configured === String(email || "").trim().toLowerCase();
 }
 
-async function abacateCreate(env, email, name, uid, origin, plan) {
-  const pid = plan === "world1" ? env.ABACATEPAY_PRODUCT_ID_WORLD1
-    : plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H
-    : env.ABACATEPAY_PRODUCT_ID;
+export async function abacateCreate(env, email, name, uid, origin, plan) {
+  const pid = PURCHASABLE_PLAN_IDS.has(plan) ? env["ABACATEPAY_PRODUCT_ID_" + plan.toUpperCase()] : (plan === "world1" ? env.ABACATEPAY_PRODUCT_ID_WORLD1 : plan === "vip24h" ? env.ABACATEPAY_PRODUCT_ID_24H : env.ABACATEPAY_PRODUCT_ID);
   if (!pid) {
     throw new Error(plan === "world1"
       ? "Produto de 1 mundo não configurado no servidor (ABACATEPAY_PRODUCT_ID_WORLD1)."
       : plan === "vip24h" ? "Produto legado de 24 horas não configurado no servidor (ABACATEPAY_PRODUCT_ID_24H)."
       : "Produto não configurado no servidor (ABACATEPAY_PRODUCT_ID).");
   }
-  const base = (origin || String(env.PUBLIC_BASE_URL || "")).replace(/\/+$/, "");
+  if (PURCHASABLE_PLAN_IDS.has(plan)) {
+    const productResponse = await fetch("https://api.abacatepay.com/v2/products/get?id=" + encodeURIComponent(pid), {headers:{Authorization:"Bearer " + (env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY)}});
+    const product = (await productResponse.json()).data;
+    if (!productResponse.ok || !product || product.id !== pid || product.price !== PLAN_LIMITS[plan].price_cents || product.currency !== "BRL" || product.cycle || product.status !== "ACTIVE" || product.devMode) throw new Error("Produto ou preço incompatível. Nenhuma cobrança foi criada.");
+  }
+  const base = String(env.PUBLIC_BASE_URL || "").replace(/\/+$/, "");
   const body = {
     items: [{ id: pid, quantity: 1 }],
     returnUrl: base + "/",
     completionUrl: base + "/sucesso.html",
     metadata: { firebase_uid: uid || "", email, name, plan },
-    methods: ["PIX", "CARD"],
+    methods: ["PIX"],
   };
   const resp = await fetch("https://api.abacatepay.com/v2/checkouts/create", {
     method: "POST",
-    headers: { Authorization: "Bearer " + env.ABACATEPAY_API_KEY, "Content-Type": "application/json" },
+    headers: { Authorization: "Bearer " + (env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY), "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const txt = await resp.text();
@@ -628,26 +654,31 @@ async function abacateCreate(env, email, name, uid, origin, plan) {
   }
   const d = data.data || data;
   if (!d.url) throw new Error("AbacatePay não retornou URL de pagamento.");
+  if (PURCHASABLE_PLAN_IDS.has(plan) && (d.amount !== PLAN_LIMITS[plan].price_cents || d.devMode || !/^https:\/\/(?:app\.)?abacatepay\.com\//i.test(d.url))) throw new Error("Checkout inválido. Consulte o suporte antes de repetir a compra.");
   return { url: d.url, id: d.id, plan, expires_at: timestampMs(d.expiresAt || d.expires_at) };
 }
 
-async function abacateStatus(env, id) {
+export async function abacateStatus(env, id) {
   const urls = [
     "https://api.abacatepay.com/v2/checkouts/get?id=" + encodeURIComponent(id),
     "https://api.abacatepay.com/v1/billing/get?id=" + encodeURIComponent(id),
   ];
   let last = null;
-  for (const u of urls) {
+  const attempts = [...new Set([env.ABACATEPAY_V4_API_KEY,env.ABACATEPAY_API_KEY].filter(Boolean))].flatMap(token => urls.map(url => ({token,url})));
+  for (const attempt of attempts) {
+    const u = attempt.url;
     try {
-      const resp = await fetch(u, { headers: { Authorization: "Bearer " + env.ABACATEPAY_API_KEY } });
+      const resp = await fetch(u, { headers: { Authorization: "Bearer " + attempt.token } });
       if (!resp.ok) { last = new Error("HTTP " + resp.status); continue; }
       const data = await resp.json();
       const b = data.data || data;
       const status = String(b.status || "").toUpperCase();
+      const verifiedPlan = normalizeDepixPlan(b.metadata && b.metadata.plan);
+      if (isPaidPaymentStatus(status) && PURCHASABLE_PLAN_IDS.has(verifiedPlan) && (b.amount !== PLAN_LIMITS[verifiedPlan].price_cents || b.paidAmount !== PLAN_LIMITS[verifiedPlan].price_cents || b.devMode)) throw new Error("Pagamento com valor ou ambiente incompatível.");
       const meta = b.metadata || {};
       const cust = b.customer || {};
       const email = String(meta.email || cust.email || "").toLowerCase();
-      return { status: status || "UNKNOWN", paid: isPaidPaymentStatus(status), email, uid: String(meta.firebase_uid || "").slice(0, 160), plan: normalizeDepixPlan(meta.plan),
+      return { amount: b.amount, paidAmount: b.paidAmount, devMode: b.devMode, status: status || "UNKNOWN", paid: isPaidPaymentStatus(status), email, uid: String(meta.firebase_uid || "").slice(0, 160), plan: normalizeDepixPlan(meta.plan),
         paid_at: timestampMs(b.paidAt || b.paid_at || b.approvedAt || b.approved_at || b.completedAt || b.updatedAt || b.updated_at) };
     } catch (e) { last = e; }
   }
@@ -929,7 +960,7 @@ async function infinitePayCreate(env, { orderNsu, plan, email, name, uid }) {
 }
 
 async function infinitePayCheck(env, event) {
-  const handle = String(env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
+  const handle = String(env.INFINITEPAY_LEGACY_HANDLE || env.INFINITEPAY_HANDLE || "").trim().replace(/^\$/, "");
   if (!handle) throw new Error("INFINITEPAY_HANDLE não configurado.");
   const response = await fetch("https://api.checkout.infinitepay.io/payment_check", {
     method: "POST",
@@ -1139,7 +1170,7 @@ export async function getUserEntitlements(env, firebaseUid, user = {}) {
     authenticated: true, active, status: active ? "active" : "free", plan,
     plan_label: definition.label, expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
     premium_until_ms: plan === "world1" ? 0 : (timeUntil > now ? timeUntil : 0),
-    world_credits: worldCredits, active_world_projects: activeProjects.length,
+    world_credits: worldCredits, coin_balance: worldCredits, active_world_projects: activeProjects.length,
     world_projects: activeProjects.map((project) => ({ id: project.id, expires_at: +project.expires_at })),
     max_file_mb: definition.max_file_mb, max_file_bytes: definition.max_file_bytes,
     max_batch: definition.max_batch, allowed_tools: definition.allowed_tools,
@@ -1186,11 +1217,8 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
   if (tools.some((tool) => !planDefinition.allowed_tools.includes(tool))) {
     return { allowed: false, code: "TOOL_NOT_INCLUDED", plan };
   }
-  if (!paidFeature && timeActive) {
-    const limit = PLAN_LIMITS[plan];
-    return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb, requires_completion: false };
-  }
-  if (!paidFeature && !worldPlanActive) {
+
+  if (!paidFeature && !worldPlanActive && !timeActive) {
     return { allowed: true, plan: "free", max_batch: free.max_batch, max_file_mb: free.max_file_mb,
       free_quota_tools: tools.map((tool) => ({ tool, limit: tool === "convert" ? free.capabilities.convert.daily_operations : (tool === "chunks_restore" ? free.capabilities.chunks_restore.daily_operations : (tool === "player_basic" ? free.capabilities.player.daily_operations : (tool === "builder" ? free.capabilities.builder.daily_operations : 0))) })).filter((item) => item.limit > 0) };
   }
@@ -1199,18 +1227,25 @@ export function checkEntitlement(ent, worlds, sizeBytes, now = Date.now(), featu
   }
   if (plan === "free") return { allowed: false, code: "NO_ENTITLEMENT", plan: "free" };
   const limit = PLAN_LIMITS[plan];
+  if (plan === "world1" && worldPlanActive) {
+    const coinLimit = 1536 * 1024 * 1024;
+    if (sizeBytes > coinLimit) return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: 1536, max_file_bytes: coinLimit };
+    return { allowed: true, plan, max_batch: 1, max_file_mb: 1536, requires_credit: true, requires_completion: true };
+  }
   if (worlds > limit.max_batch) return { allowed: false, code: "BATCH_LIMIT", plan, max_batch: limit.max_batch };
   if (limit.max_file_bytes !== null && sizeBytes > limit.max_file_bytes) {
     return { allowed: false, code: "SIZE_LIMIT", plan, max_file_mb: limit.max_file_mb, max_file_bytes: limit.max_file_bytes };
   }
   return { allowed: true, plan, max_batch: limit.max_batch, max_file_mb: limit.max_file_mb,
-    requires_credit: plan === "world1", requires_completion: plan === "world1" };
+    requires_credit: plan === "world1", requires_completion: plan === "world1" || !!limit.daily_operations, ...(limit.daily_operations ? {free_quota_tools:[{tool:"paid_operations",limit:limit.daily_operations}]} : {}) };
 }
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (url.pathname.startsWith("/api/") && env.PAYMENT_SERVICE) { const dest = new URL(url.pathname + url.search, env.PAYMENT_API_URL); return env.PAYMENT_SERVICE.fetch(new Request(dest,req)); }
     const cors = corsHeaders(req, env);
+    if (req.method === "POST" && url.pathname === "/api/depix/create") return json({error:"Este checkout foi substituído pela InfinitePay. Atualize a página."},410,cors);
     if (req.method === "OPTIONS") {
       if (!req.headers.get("Origin") || !cors["Access-Control-Allow-Origin"]) {
         return withSecurityHeaders(new Response(null, { status: 403, headers: securityHeaders() }));
@@ -1498,7 +1533,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: !!env.ABACATEPAY_API_KEY, abacate_world1_configured: !!env.ABACATEPAY_PRODUCT_ID_WORLD1, product_configured: !!env.ABACATEPAY_PRODUCT_ID, product24h_configured: !!env.ABACATEPAY_PRODUCT_ID_24H, premium_days: PLAN_LIMITS.vip30.duration_days, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, depix_configured: !!env.DEPIX_API_KEY, depix_test_mode: String(env.DEPIX_TEST_MODE || "") === "1" || String(env.DEPIX_API_KEY || "").startsWith("sk_test_"), terms_version: TERMS_VERSION, free_daily: FREE_DAILY, world_project_window_days: PLAN_LIMITS.world1.project_window_days, plans: PUBLIC_PLAN_CATALOG }, 200, cors);
+        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: false, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, terms_version: TERMS_VERSION, free_daily: FREE_DAILY, catalog_version: "worldify-v5-plans", display_plan_ids: DISPLAY_PLAN_IDS, coin_plan_ids: [], purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -1534,7 +1569,7 @@ export default {
 
       // ---------- Depix: criar checkout Pix ----------
       if (url.pathname === "/api/depix/create" && req.method === "POST") {
-        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
+
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const plan = normalizeDepixPlan(body.plan);
@@ -1649,7 +1684,7 @@ export default {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ request_id: requestId, plan, result: checkout })
           });
-          if (!saved.ok) throw new Error("Checkout criado, mas não foi possível registrar o pedido.");
+          if (!saved.ok) { await checkoutStub.fetch("https://entitlements/checkout-result", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan, result: checkout }) }).catch(() => {}); }
           // Legacy fallback only; quota exhaustion must not hide a valid link.
           await env.PREMIUM_KV.put(pendKey(orderNsu), JSON.stringify({ uid: fb.uid, email: fb.email, at: Date.now(), plan, source, via: "infinitepay" }), { expirationTtl: 30 * 86400 }).catch(() => {});
           await recordCheckout(env, { id: orderNsu, uid: fb.uid, email: fb.email, plan, source, provider: "infinitepay", expires_at: Date.now() + 30 * 86400000 });
@@ -1853,13 +1888,15 @@ export default {
       }
       // ---------- criar checkout ----------
       if (url.pathname === "/api/abacate/create" && req.method === "POST") {
-        if (String(env.PAYMENT_PROVIDER || "infinitepay") === "infinitepay") return json({ error: "Novas compras usam InfinitePay. Atualize a página e tente novamente.", code: "PROVIDER_MIGRATED" }, 410, cors);
-        if (!env.ABACATEPAY_API_KEY) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
+        if (String(env.PAYMENT_PROVIDER || "infinitepay").toLowerCase() === "infinitepay") return json({ error: "As novas compras são processadas pela InfinitePay. Atualize a página e tente novamente." }, 410, cors);
+        if (String(env.SALES_ENABLED || "1") === "0") return json({error:"As vendas estão temporariamente suspensas."},503,cors);
+
+        if (!(env.ABACATEPAY_V4_API_KEY || env.ABACATEPAY_API_KEY)) return json({ error: "Pagamento não configurado no servidor." }, 502, cors);
         let body = {};
         try { body = await req.json(); } catch { return json({ error: "JSON inválido." }, 400, cors); }
         const requestedPlan = normalizeDepixPlan(body.plan);
         if (!requestedPlan) return json({ error: "Plano inválido." }, 400, cors);
-        if (!["world1", "vip30"].includes(requestedPlan)) return json({ error: "Este provedor reserva só suporta Resolver 1 mundo e Passe 30 dias; use o Pix principal para este plano." }, 400, cors);
+        if (!PURCHASABLE_PLAN_IDS.has(requestedPlan)) return json({error:"Oferta antiga encerrada. Atualize os planos antes de comprar."},400,cors);
         const source = TELEMETRY_SOURCES.has(String(body.source || "")) ? String(body.source) : "";
         const providerPlan = requestedPlan;
         if (providerPlan === "world1" && !env.ABACATEPAY_PRODUCT_ID_WORLD1) return json({ error: "Produto Resolver 1 mundo não configurado no servidor." }, 502, cors);
@@ -1892,7 +1929,14 @@ export default {
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
           });
-          if (!saved.ok) throw new Error("Checkout iniciado, mas não consegui guardar o link. Não gere outra cobrança; consulte o suporte.");
+          // O link já foi criado no AbacatePay. Se o primeiro registro no DO
+          // falhar por uma indisponibilidade transitória, tente uma segunda
+          // vez, mas nunca descarte o link nem bloqueie o comprador.
+          if (!saved.ok) {
+            await checkoutStub.fetch("https://entitlements/checkout-result", {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
+            }).catch(() => {});
+          }
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan: requestedPlan, source, via: "abacate",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
@@ -1933,6 +1977,7 @@ export default {
           out.source = String((pend && pend.source) || "").slice(0, 80);
           if (!out.plan) return json({ error: "Pagamento confirmado, mas o plano não pôde ser identificado. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
           if (info.plan && info.plan !== out.plan) return json({ error: "O plano confirmado não corresponde ao checkout. Entre em contato com o suporte sem fazer outra compra." }, 409, cors);
+          if (PURCHASABLE_PLAN_IDS.has(out.plan) && (info.amount !== PLAN_LIMITS[out.plan].price_cents || info.paidAmount !== PLAN_LIMITS[out.plan].price_cents || info.devMode)) return json({error:"Valor confirmado não corresponde ao plano. Contate o suporte."},409,cors);
           const uid = String(info.uid || (pend && pend.uid) || fb.uid);
           const paidAt = timestampMs(info.paid_at);
           const receipt = await persistConfirmedPayment(env, { id, email, uid, plan: out.plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
@@ -1949,13 +1994,13 @@ export default {
 
       // ---------- webhook (AbacatePay -> Worker; nunca confia só no POST) ----------
       if (url.pathname === "/api/abacate/webhook" && req.method === "POST") {
-        if (!env.WEBHOOK_SECRET || url.searchParams.get("secret") !== env.WEBHOOK_SECRET) {
+        if (![env.WEBHOOK_SECRET, env.ABACATEPAY_V4_WEBHOOK_SECRET].filter(Boolean).includes(url.searchParams.get("secret"))) {
           return json({ error: "forbidden" }, 403, cors);
         }
         let evt = {};
         try { evt = await req.json(); } catch { evt = {}; }
         const data = evt.data || evt;
-        const billing = data.billing || data;
+        const billing = data.checkout || data.billing || data;
         const bid = String(billing.id || data.id || "");
         if (bid) {
           try {
@@ -1972,6 +2017,7 @@ export default {
               const plan = normalizeDepixPlan((pend && pend.plan) || info.plan);
               if (!plan) throw new Error("plano não reconhecido");
               if (info.plan && info.plan !== plan) throw new Error("plano de pagamento incompatível");
+              if (PURCHASABLE_PLAN_IDS.has(plan) && (info.amount !== PLAN_LIMITS[plan].price_cents || info.paidAmount !== PLAN_LIMITS[plan].price_cents || info.devMode)) throw new Error("Valor confirmado incompatível");
               const uid = String(info.uid || (pend && pend.uid) || "");
               const paidAt = timestampMs(info.paid_at);
               const receipt = await persistConfirmedPayment(env, { id: bid, email, uid, plan, provider: "abacate", source: pend && pend.source, paid_at: paidAt });
@@ -2073,7 +2119,7 @@ export default {
             const quotaState = await quota.json();
             if (!quota.ok || quotaState.allowed === false) {
               if (operationId) await stub.fetch("https://entitlements/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ operation_id: operationId }) });
-              const denied = { allowed: false, code: "TOOL_QUOTA_EXCEEDED", tool: item.tool, remaining: 0 };
+              const denied = { allowed: false, code: "TOOL_QUOTA_EXCEEDED", tool: item.tool, remaining: 0, plan: decision.plan };
               await metric(env, "premium_operation_denied", { plan: ent.plan, reason: denied.code }, req);
               return json(denied, 403, cors);
             }
@@ -2087,7 +2133,7 @@ export default {
           const worldFingerprint = String(body.world_fingerprint || "").trim().slice(0, 160);
           const reservation = await stub.fetch("https://entitlements/reserve-world", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, candidate_project_id: crypto.randomUUID() })
+            body: JSON.stringify({ operation_id: operationId, world_project_id: projectId, world_fingerprint: worldFingerprint, size_bytes: body.size_bytes, candidate_project_id: crypto.randomUUID() })
           });
           const reservationData = await reservation.json();
           if (!reservation.ok) {
@@ -2096,11 +2142,13 @@ export default {
             return json(denied, reservation.status, cors);
           }
           decision.world_project_id = reservationData.world_project_id;
+          decision.coin_cost = reservationData.coin_cost || 0;
+          decision.coin_tier = reservationData.coin_tier || "";
           decision.requires_completion = true;
         }
         if (!decision.allowed) await metric(env, "premium_operation_denied", { plan: ent.plan, reason: decision.code }, req);
         else if (decision.plan !== "free") await metric(env, "premium_operation_authorized", { plan: decision.plan }, req);
-        return json({ ...decision, world_credits: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
+        return json({ ...decision, world_credits: ent.world_credits, coin_balance: ent.world_credits, premium_until_ms: ent.premium_until_ms }, decision.allowed ? 200 : 403, cors);
       }
 
       if (["/api/entitlements/complete", "/api/entitlements/consume", "/api/entitlements/release"].includes(url.pathname) && req.method === "POST") {
@@ -2246,10 +2294,21 @@ export class EntitlementDO {
           data.time_passes = Array.isArray(data.time_passes) ? data.time_passes : [];
           const priorUntil = Math.max(+data.premium_until_ms || 0, ...data.time_passes.map((pass) => +pass.expires_at || 0));
           const confirmedAt = Math.min(timestampMs(body.paid_at) || now, now);
-          const startsAt = Math.max(confirmedAt, priorUntil);
+          let startsAt = Math.max(confirmedAt, priorUntil);
+          const activePass = data.time_passes.find(pass => +pass.starts_at <= now && +pass.expires_at > now);
+          const activePlan = activePass ? activePass.plan : (+data.premium_until_ms > now ? data.plan : '');
+          const oldDefinition = PLAN_LIMITS[activePlan];
+          const upgradeNow = oldDefinition && ((definition.capabilities.world_studio && !oldDefinition.capabilities.world_studio && !(oldDefinition.allowed_tools || []).includes('world_paint')) || (definition.daily_operations && oldDefinition.daily_operations && definition.daily_operations > oldDefinition.daily_operations));
+          if (upgradeNow) {
+            const shift = definition.duration_days * 86400000;
+            if (!activePass && oldDefinition.kind === 'time') data.time_passes.push({plan:activePlan,starts_at:now,expires_at:+data.premium_until_ms,billing_id:'preserved-legacy-pass'});
+            data.time_passes.forEach(pass => {if (+pass.expires_at > now) {pass.starts_at = Math.max(now,+pass.starts_at) + shift; pass.expires_at = +pass.expires_at + shift;}});
+            startsAt = now;
+          }
+
           const expiresAt = startsAt + definition.duration_days * 86400000;
           data.time_passes.push({ plan, starts_at: startsAt, expires_at: expiresAt, billing_id: bid });
-          data.premium_until_ms = Math.max(priorUntil, expiresAt);
+          data.premium_until_ms = Math.max(priorUntil, expiresAt, ...data.time_passes.map(pass=>+pass.expires_at||0));
           if (startsAt <= now) data.plan = plan;
         }
         data.purchases[bid] = { plan, at: now };
@@ -2344,6 +2403,24 @@ export class EntitlementDO {
             if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && (provider === "infinitepay" || (pending.result && pending.result.id))) {
               return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
             }
+            if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.url) {
+              return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
+            }
+            if (pending.status === "ready" && pending.provider === provider && pending.result && (pending.result.url || pending.result.id)) {
+              return { persist: false, status: 409, value: { error: "Já existe uma cobrança pronta para esta conta. Abra o checkout existente para concluir ou aguarde a confirmação.", pending: true, pending_plan: pending.plan, existing_checkout: { id: pending.result.id || pendingRequestId, url: pending.result.url || "", plan: pending.plan, provider: pending.provider } } };
+            }
+            if (pending.status === "ready") {
+              pending.status = "failed";
+              pending.error = "Checkout anterior sem link válido; nova tentativa autorizada.";
+              pending.last_error_at = Date.now();
+              return { value: { create: true, retry: true, retry_request_id: pendingRequestId } };
+            }
+            if (pending.provider === provider && pending.plan === plan && pending.status === "creating") {
+              pending.status = "failed";
+              pending.error = "Checkout anterior não recebeu um link; nova tentativa autorizada.";
+              pending.last_error_at = Date.now();
+              return { value: { create: true, retry: true, retry_request_id: pendingRequestId } };
+            }
             if (pending.status === "creating" && provider === "depix" && pending.provider === "depix" && pending.plan === plan) {
               return { persist: false, value: { create: true, retry: true, retry_request_id: pendingRequestId } };
             }
@@ -2407,6 +2484,7 @@ export class EntitlementDO {
     if (url.pathname === "/reserve-world") {
       const operationId = String(body.operation_id || "").slice(0, 120);
       const projectId = String(body.world_project_id || "").slice(0, 120);
+      const coinCost = coinCostForBytes(body.size_bytes);
       const fingerprintRaw = String(body.world_fingerprint || "").toLowerCase().slice(0, 64);
       const fingerprint = /^[a-f0-9]{64}$/.test(fingerprintRaw) ? fingerprintRaw : "";
       const candidateId = String(body.candidate_project_id || "").slice(0, 120);
@@ -2445,12 +2523,13 @@ export class EntitlementDO {
           if (pendingMatch) { chosenId = pendingMatch.project_id; isNew = true; }
           else {
             const pendingIds = new Set(Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).map((r) => r.project_id));
-            if ((+data.world_credits || 0) <= pendingIds.size) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED" } };
+            const reservedCoins = Object.values(data.reservations).filter((r) => r.kind === "world" && r.new_project && +r.expires_at > Date.now()).reduce((sum, r) => sum + (+r.coin_cost || 1), 0);
+            if (!coinCost.coins || (+data.world_credits || 0) < reservedCoins + coinCost.coins) return { persist: false, status: 409, value: { allowed: false, code: "WORLD_CREDIT_EXHAUSTED", coin_cost: coinCost.coins, coin_tier: coinCost.tier } };
             chosenId = candidateId; isNew = true;
           }
         }
-        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, fingerprint, expires_at: Date.now() + 3600000 };
-        return { value: { allowed: true, world_project_id: chosenId, new_project: isNew } };
+        data.reservations[operationId] = { kind: "world", project_id: chosenId, new_project: isNew, coin_cost: isNew ? coinCost.coins : 0, fingerprint, expires_at: Date.now() + 3600000 };
+        return { value: { allowed: true, world_project_id: chosenId, new_project: isNew, coin_cost: isNew ? coinCost.coins : 0, coin_tier: isNew ? coinCost.tier : "" } };
       });
       return json(result.value, result.status || (result.value.allowed ? 200 : 409));
     }
@@ -2474,8 +2553,9 @@ export class EntitlementDO {
           else if (reservation.kind === "world") {
             const project = data.world_projects[reservation.project_id];
             if (reservation.new_project && !project) {
-              if ((+data.world_credits || 0) < 1) return { persist: false, status: 409, value: { error: "World credit unavailable.", code: "WORLD_CREDIT_EXHAUSTED" } };
-              data.world_credits -= 1;
+              const cost = Math.max(1, +reservation.coin_cost || 1);
+              if ((+data.world_credits || 0) < cost) return { persist: false, status: 409, value: { error: "Moedas insuficientes.", code: "WORLD_CREDIT_EXHAUSTED", coin_cost: cost } };
+              data.world_credits -= cost;
               data.world_projects[reservation.project_id] = { created_at: now, expires_at: now + WORLD_PROJECT_WINDOW_MS, operations: {}, fingerprints: {} };
               creditConsumed = true;
             } else if (!project || +project.expires_at <= now) return { persist: false, status: 409, value: { error: "World session expired.", code: "WORLD_PROJECT_EXPIRED" } };

@@ -690,7 +690,7 @@
     }
     if (code === "BATCH_LIMIT") return "Seu plano permite até " + escapeHtml((err.payload && err.payload.max_batch) || serverEntitlement.max_batch || 1) + " mundo(s) por lote.";
     if (code === "WORLD_CREDIT_EXHAUSTED") return "Seu crédito de 1 mundo já foi utilizado. Reenvie o mundo marcado para continuar editando o mesmo projeto ou adquira outro crédito.";
-    if (code === "TOOL_QUOTA_EXCEEDED") return "O limite gratuito diário desta ferramenta foi atingido. Seu arquivo original permanece intacto.";
+    if (code === "TOOL_QUOTA_EXCEEDED") return "O limite diário de operações do seu plano foi atingido. Ele reinicia às 21h de Brasília (00h UTC). Seu arquivo original permanece intacto.";
     if (code === "NO_ENTITLEMENT") return "Este recurso exige um plano pago. Seus benefícios foram verificados agora.";
     if (/FREE_QUOTA_EXCEEDED|QUOTA_EXCEEDED/i.test(m)) return "Você usou as conversões grátis disponíveis hoje. O plano pago libera operações premium.";
     if (/level\.dat n(o|ã)o encontrado/i.test(m)) return "Esse arquivo <b>não parece um mundo válido</b> (falta o level.dat dentro). Exporte de novo pelo jogo — veja <a href='#faq'><b>onde achar o .mcworld</b></a>.";

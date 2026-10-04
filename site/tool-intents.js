@@ -26,7 +26,24 @@
     addon: "addons", packs: "addons", construction: "builder", construcao: "builder",
     world: "mundo", settings: "mundo", converter: "upload", conversor: "upload"
   };
-  var PLAN_ORDER = ["world1", "vip7", "vip30", "creator"];
+  var PLAN_ORDER = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5","world1", "worlds2v1", "worlds3plus", "worlds5", "worlds2", "worlds3v2", "pro7", "studio7", "creator30", "ouro", "vip7", "vip30", "creator"];
+
+  function includesStudio(plan) {
+    return !!plan && ((plan.allowed_tools || []).indexOf('world_paint') >= 0 || !!(plan.capabilities && plan.capabilities.world_studio));
+  }
+  function catalogIds(config) {
+    var catalog = config && config.plans || {};
+    var ids = Array.isArray(config && config.display_plan_ids) ? config.display_plan_ids
+      : config && config.catalog_version === 'worldify-v2' ? ['world1','worlds2','worlds3v2','pro7','studio7','creator30']
+      : PLAN_ORDER.concat(Object.keys(catalog));
+    return ids.filter(function (id, i) {
+      var p = catalog[id];
+      return id !== 'free' && ids.indexOf(id) === i && p && Number.isFinite(p.price_cents) && p.price_cents > 0 &&
+        (p.kind === 'world_credit' || p.kind === 'time') && Array.isArray(p.allowed_tools) &&
+        (p.max_file_bytes === null || Number.isFinite(p.max_file_bytes)) && p.max_batch > 0 &&
+        (p.kind === 'world_credit' ? p.credit_count > 0 : p.duration_days > 0);
+    });
+  }
 
   function normalize(value) {
     var text = String(value == null ? "" : value).trim().toLowerCase();
@@ -57,9 +74,12 @@
     context = context || {};
     var size = Number(context.world_size_bytes || context.size_bytes || 0);
     var worlds = Math.max(1, Number(context.worlds || 1));
+    var daily = Math.max(0, Number(context.operations_per_day || 0));
     return ids.filter(function (id) {
       var plan = catalog[id];
       if (!plan) return false;
+      if (daily && plan.daily_operations && daily > plan.daily_operations) return false;
+      if ((context.tool === "studio" || context.tool === "world_paint" || context.goal === "studio") && !includesStudio(plan)) return false;
       var maxBytes = plan.max_file_bytes;
       if (maxBytes === undefined && plan.max_file_mb !== null && plan.max_file_mb !== undefined) maxBytes = Number(plan.max_file_mb) * 1024 * 1024;
       if (size > 0 && maxBytes !== null && maxBytes !== undefined && size > Number(maxBytes)) return false;
@@ -68,10 +88,17 @@
     });
   }
 
-  function choosePlan(ids, selected, catalog) {
+  function choosePlan(ids, selected, catalog, context) {
     if (!ids || !ids.length) return "";
     if (ids.indexOf(selected) >= 0) return selected;
-    return ids.slice().sort(function (a, b) {
+    context = context || {};
+    var candidates = ids.slice();
+    if (context.goal === "several" && candidates.some(function(id){return catalog[id].daily_operations;})) candidates = candidates.filter(function(id){return catalog[id].daily_operations >= 12;});
+    if (context.goal === 'several' || context.goal === 'continuous') {
+      var passes = candidates.filter(function (id) { return catalog[id].kind === 'time' && (context.goal !== 'continuous' || catalog[id].duration_days >= 30); });
+      if (passes.length) candidates = passes;
+    }
+    return candidates.sort(function (a, b) {
       return (Number(catalog[a] && catalog[a].price_cents) || 0) - (Number(catalog[b] && catalog[b].price_cents) || 0);
     })[0];
   }
@@ -83,5 +110,5 @@
     return "index.html?tool=" + encodeURIComponent(intent.slug) + (resume ? "&resume=1" : "") + "#converter";
   }
 
-  return { resolve: resolve, fromSearch: fromSearch, eligiblePlanIds: eligiblePlanIds, choosePlan: choosePlan, returnHref: returnHref };
+  return { resolve: resolve, fromSearch: fromSearch, eligiblePlanIds: eligiblePlanIds, choosePlan: choosePlan, returnHref: returnHref, catalogIds: catalogIds, includesStudio: includesStudio };
 });

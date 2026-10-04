@@ -22,6 +22,15 @@ id = "acfc4981776e4dd0b8513722597f8f01"
 preview_id = "acfc4981776e4dd0b8513722597f8f01"
 
 [vars]
+ABACATEPAY_PRODUCT_ID_COPPER10V1 = "prod_HHXZUKRf1YZ6LFA3BFkzmH1H"
+ABACATEPAY_PRODUCT_ID_GOLD30V1 = "prod_GW1xBU6wasqBcC43Bp5BZRtx"
+ABACATEPAY_PRODUCT_ID_DIAMOND80V1 = "prod_RGGETLAYGshCZbzH33NktSUu"
+ABACATEPAY_PRODUCT_ID_NETHERITE180V1 = "prod_RwJ6SyMcMKaghazSwztdfX51"
+
+ABACATEPAY_PRODUCT_ID_STUDIO30V4 = "prod_D20BaeaXFxjdcjU4CeTbTgNq"
+ABACATEPAY_PRODUCT_ID_CREATOR30V4 = "prod_shBHAzztHnAMkecUNwfyMa5h"
+ABACATEPAY_PRODUCT_ID_ESSENTIAL7V4 = "prod_KGWpQzunJhDF0wjsYbssKQGp"
+ABACATEPAY_PRODUCT_ID_PRO7V4 = "prod_sNSdPXdh1uFjE2uLGXCryQTZ"
 # Firebase Web API key é pública e serve para validar o ID token Google no Worker.
 FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
 ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
@@ -42,6 +51,8 @@ DEPIX_TEST_MODE = "0"
 PAYMENT_PROVIDER = "infinitepay"
 PAYMENT_API_URL = "https://reativa-pay.rosidomingos032.workers.dev"
 INFINITEPAY_HANDLE = "fabio-rogerio-lhv"
+# Somente consulta de pagamentos anteriores; novas compras estão bloqueadas.
+INFINITEPAY_LEGACY_HANDLE = "fabio-rogerio-lhv"
 SALES_ENABLED = "1"
 ADMIN_EMAILS = "ncmine75@gmail.com,rosidomingos032@gmail.com"
 

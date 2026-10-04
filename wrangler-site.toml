@@ -1,9 +1,64 @@
-﻿# Worker dedicado a servir os arquivos estaticos do site principal.
-# A API e pagamentos continuam no Worker reativa-pay.
+# Publica o domínio worldify.com.br no Worker existente, preservando seus bindings e migrações.
+# O frontend continua consultando reativa-pay para pagamentos.
+# Configuração para provedores que executam o Wrangler na raiz do repositório.
+# O código e a configuração detalhada continuam organizados em worker/.
 name = "reativarconquistas"
-compatibility_date = "2026-09-24"
-workers_dev = true
+main = "worker/src/index.js"
+compatibility_date = "2024-11-01"
+
+[[durable_objects.bindings]]
+name = "ENTITLEMENTS"
+class_name = "EntitlementDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EntitlementDO"]
 
 [assets]
 directory = "./site"
+binding = "ASSETS"
 not_found_handling = "404-page"
+run_worker_first = ["/api/*"]
+
+[[kv_namespaces]]
+binding = "PREMIUM_KV"
+id = "acfc4981776e4dd0b8513722597f8f01"
+
+[vars]
+ABACATEPAY_PRODUCT_ID_STUDIO30V4 = "prod_yfFhsWaGA1SpXQNHnERLcF3j"
+ABACATEPAY_PRODUCT_ID_CREATOR30V4 = "prod_Paue6teWHkz1J2jtNT4fdxaX"
+ABACATEPAY_PRODUCT_ID_ESSENTIAL7V4 = "prod_gqz5QbMGAq4ccuLR0NWU1gHw"
+ABACATEPAY_PRODUCT_ID_PRO7V4 = "prod_MmnMWAzZjN4S1JctedLrrW3J"
+PAYMENT_PROVIDER = "abacate"
+# Firebase Web API key é pública e serve para validar o ID token Google no Worker.
+FIREBASE_WEB_API_KEY = "AIzaSyBblhjZ2XRkjojhA-IHV_ISgW3Qs3Iq_JQ"
+ABACATEPAY_PRODUCT_ID = "prod_ZC3tefGJJZtyGBPqyYdgq5Yk"
+# Configure um produto dedicado antes de ativar o fallback AbacatePay para World1.
+ABACATEPAY_PRODUCT_ID_WORLD1 = ""
+# Produto legado de 24h; nunca conceder como crédito World1.
+ABACATEPAY_PRODUCT_ID_24H = "prod_sfQEAQQcWr2P2UtJG4yqUsSq"
+ABACATEPAY_PRODUCT_ID_7D = ""
+ABACATEPAY_PRODUCT_ID_CREATOR = ""
+KIWIFY_PID_WORLD1 = ""
+KIWIFY_PID_7D = ""
+KIWIFY_PID_24H = ""
+KIWIFY_PID_30D = ""
+KIWIFY_PID_CREATOR = ""
+PUBLIC_BASE_URL = "https://worldify.com.br"
+PAYMENT_WORKER_URL = "https://reativa-pay.rosidomingos032.workers.dev"
+# InfiniteTag da conta InfinitePay; o checkout continua fechado enquanto SALES_ENABLED="0".
+INFINITEPAY_HANDLE = ""
+# Somente consulta de pagamentos anteriores; novas compras estão bloqueadas.
+INFINITEPAY_LEGACY_HANDLE = "fabio-rogerio-lhv"
+ALLOWED_ORIGINS = "https://bedrock-buddy-restore.lovable.app, https://id-preview--1e0ec2a6-99a2-44e3-8753-4c009dc119e4.lovable.app, https://worldify.com.br, https://reativarconquistas.pages.dev, *.reativarconquistas.pages.dev, https://reativarconquistas.rosidomingos032.workers.dev"
+DEPIX_TEST_MODE = "0"
+# Keep checkout closed until explicitly reopened; set to "1" to resume sales.
+SALES_ENABLED = "1"
+ADMIN_EMAILS = "ncmine75@gmail.com,rosidomingos032@gmail.com"
+
+[triggers]
+crons = []
+
+[[services]]
+binding = "PAYMENT_SERVICE"
+service = "reativa-pay"
