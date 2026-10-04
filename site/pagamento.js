@@ -173,7 +173,7 @@
     var p = PUBLIC_PLANS[id] || {};
     var limit = p.max_file_mb === null ? "sem limite comercial de tamanho" : "até " + p.max_file_mb + " MB por mundo";
     var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
-    if (p.kind === "world_credit") return (p.credit_count || 1) + " crédito(s), " + limit + ". Use um mundo por vez. Créditos sem uso não expiram; reedite cada projeto reconhecido por " + (p.project_window_days || 30) + " dias após a última operação concluída. Inclui editor e Builder; " + (window.RC_toolIntents.includesStudio(p) ? "inclui World Studio" : "não inclui World Studio") + ". Compra única, sem renovação automática.";
+    if (p.kind === "world_credit") return (p.coin_pack ? (p.credit_count || 1) + " moedas" : (p.credit_count || 1) + " crédito(s)") + (limit ? ", " + limit : "") + ". Cada mundo consome moedas uma única vez conforme o tamanho do arquivo. Saldo sem vencimento; edições do mesmo projeto reconhecido não cobram novamente por " + (p.project_window_days || 30) + " dias. Inclui editor e Builder; " + (window.RC_toolIntents.includesStudio(p) ? "inclui World Studio" : "não inclui World Studio") + ". Compra única, sem renovação automática.";
     return "Acesso por " + (p.duration_days || 0) + " dias a partir da confirmação do pagamento, " + limit + " e " + batch + ". " + (window.RC_toolIntents.includesStudio(p) ? "Inclui World Studio. " : "World Studio não incluído. ") + (p.daily_operations ? p.daily_operations + " operações concluídas por dia, reset às 21h de Brasília (00h UTC). " : "") + "Pagamento único, sem renovação automática.";
   }
   function applyPlanCatalog(config) {

@@ -89,10 +89,10 @@ essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents"
 pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
 creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
 studio30v4: Object.freeze({"label":"Studio","duration_days":30,"price_cents":4990,"max_file_mb":1536,"max_file_bytes":1610612736,"max_batch":12,"kind":"time","daily_operations":80,"fit":"Para quem trabalha com muitos mundos e arquivos grandes","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
-  copper10v1: Object.freeze({label:"Cobre · 10 moedas",duration_days:0,price_cents:490,credit_count:10,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 50 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
-  gold30v1: Object.freeze({label:"Ouro · 30 moedas",duration_days:0,price_cents:990,credit_count:30,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 150 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
-  diamond80v1: Object.freeze({label:"Diamante · 80 moedas",duration_days:0,price_cents:1990,credit_count:80,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 500 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
-  netherite180v1: Object.freeze({label:"Netherita · 180 moedas",duration_days:0,price_cents:3490,credit_count:180,kind:"world_credit",coin_pack:true,fit:"Para mundos de até 1,5 GB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  copper10v1: Object.freeze({label:"Cobre · 10 moedas",duration_days:0,price_cents:490,credit_count:10,kind:"world_credit",coin_pack:true,max_file_mb:50,max_file_bytes:50*1048576,fit:"Para mundos de até 50 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  gold30v1: Object.freeze({label:"Ouro · 30 moedas",duration_days:0,price_cents:990,credit_count:30,kind:"world_credit",coin_pack:true,max_file_mb:150,max_file_bytes:150*1048576,fit:"Para mundos de até 150 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  diamond80v1: Object.freeze({label:"Diamante · 80 moedas",duration_days:0,price_cents:1990,credit_count:80,kind:"world_credit",coin_pack:true,max_file_mb:500,max_file_bytes:500*1048576,fit:"Para mundos de até 500 MB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
+  netherite180v1: Object.freeze({label:"Netherita · 180 moedas",duration_days:0,price_cents:3490,credit_count:180,kind:"world_credit",coin_pack:true,max_file_mb:1536,max_file_bytes:1536*1048576,fit:"Para mundos de até 1,5 GB",project_window_days:30,allowed_tools:["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],capabilities:{premium_features:true}}),
   free: Object.freeze({
     label: "Plano gratuito", duration_days: 0, price_cents: 0,
     max_file_mb: 10, max_file_bytes: 10 * 1024 * 1024, max_batch: 2,
@@ -172,7 +172,7 @@ export function coinCostForBytes(sizeBytes) {
 }
 const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, {
   id, daily_operations: plan.daily_operations || 0, fit: plan.fit || "", featured: plan.featured === true, label: plan.catalog_label || plan.label, duration_days: plan.duration_days, price_cents: plan.price_cents,
-  kind: plan.kind || "time", credit_count: plan.credit_count || 0,
+  kind: plan.kind || "time", credit_count: plan.credit_count || 0, coin_pack: plan.coin_pack === true,
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
   project_window_days: plan.project_window_days || 0
@@ -2391,6 +2391,15 @@ export class EntitlementDO {
             }
             if (pending.status === "ready" && pending.provider === provider && pending.plan === plan && pending.result && pending.result.url) {
               return { persist: false, value: { create: false, result: pending.result, duplicate: true, checkout_request_id: pendingRequestId } };
+            }
+            if (pending.status === "ready" && pending.provider === provider && pending.result && (pending.result.url || pending.result.id)) {
+              return { persist: false, status: 409, value: { error: "Já existe uma cobrança pronta para esta conta. Abra o checkout existente para concluir ou aguarde a confirmação.", pending: true, pending_plan: pending.plan, existing_checkout: { id: pending.result.id || pendingRequestId, url: pending.result.url || "", plan: pending.plan, provider: pending.provider } } };
+            }
+            if (pending.status === "ready") {
+              pending.status = "failed";
+              pending.error = "Checkout anterior sem link válido; nova tentativa autorizada.";
+              pending.last_error_at = Date.now();
+              return { value: { create: true, retry: true, retry_request_id: pendingRequestId } };
             }
             if (pending.provider === provider && pending.plan === plan && pending.status === "creating") {
               pending.status = "failed";
