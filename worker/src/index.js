@@ -1922,7 +1922,14 @@ export default {
           const saved = await checkoutStub.fetch("https://entitlements/checkout-result", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
           });
-          if (!saved.ok) throw new Error("Checkout iniciado, mas não consegui guardar o link. Não gere outra cobrança; consulte o suporte.");
+          // O link já foi criado no AbacatePay. Se o primeiro registro no DO
+          // falhar por uma indisponibilidade transitória, tente uma segunda
+          // vez, mas nunca descarte o link nem bloqueie o comprador.
+          if (!saved.ok) {
+            await checkoutStub.fetch("https://entitlements/checkout-result", {
+              method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ request_id: requestId, plan: requestedPlan, result: safe })
+            }).catch(() => {});
+          }
           await env.PREMIUM_KV.put(pendKey(r.id), JSON.stringify({
             uid, email, at: Date.now(), plan: requestedPlan, source, via: "abacate",
             terms_version: TERMS_VERSION, client_terms_version: String(body.terms_version || "").slice(0, 40), terms_accepted_at: Date.now()
