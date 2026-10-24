@@ -23,6 +23,8 @@
 <meta name="theme-color" content="#f4f5f7">
 <link rel="stylesheet" href="style.css?v=29">
 <link rel="stylesheet" href="focus.css?v=20260929c">
+<link rel="stylesheet" href="mundra-promo.css?v=20261022">
+<link rel="stylesheet" href="funnel.css?v=20261022">
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
@@ -127,6 +129,7 @@
     <span id="quotaText">Verificando seu plano…</span>
   </div>
 
+  <section class="wf-entry-path" aria-label="Por onde começar"><div><small>PRIMEIRO, TESTE COM SEU MUNDO</small><h2>Reative conquistas e edite uma cópia.</h2><p>Use as funções grátis em arquivos de até 10 MB, com os limites diários exibidos. O processamento acontece no navegador.</p><a class="wf-free-start" href="#converter" data-funnel-step="free">Testar meu mundo grátis ↓</a></div><div class="wf-entry-paid"><small>SE PRECISAR DE MAIS CAPACIDADE</small><strong>Básico · R$ 5,99 por mês.</strong><p>Arquivos de até 50 MB e 3 operações concluídas por dia. Editor e Builder incluídos. Um mês de acesso.</p><a href="#planos" data-funnel-step="basic">Comparar antes de pagar →</a><small>Pagamento antecipado. Renovação manual. Anual: R$ 71,88 por 12 meses.</small></div></section>
   <main class="card" id="converter">
     <div class="wf-workspace-heading"><div><h2 id="wfWorldTitle">Seu próximo mundo.</h2></div><a class="wf-help" href="importar.html" aria-label="Aprender a enviar meu mundo">?</a></div>
 
@@ -556,11 +559,14 @@
 </form>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+    <aside id="worldifyNextStep" class="wf-next-step" aria-label="Próximo passo opcional" hidden><small>PRÓXIMO PASSO OPCIONAL</small><h2>O que você quer criar agora?</h2><p>Encontre addons compatíveis ou gere uma cidade real para explorar. Seu download continua disponível acima.</p><div class="wf-next-links"><a data-funnel-step="addons" href="https://mineaddonsnews.online/?utm_source=worldify&utm_medium=site&utm_campaign=ecossistema_nc&utm_content=after-download" target="_blank" rel="noopener noreferrer">Encontrar addons grátis ↗</a><a data-funnel-step="mundra" href="https://mundra-c7q.pages.dev/?utm_source=worldify&utm_medium=site&utm_campaign=ecossistema_nc&utm_content=after-download" target="_blank" rel="noopener noreferrer">Testar minha cidade no Mundra ↗</a></div></aside>
   </main>
+  <aside class="mundra-promo" aria-label="Conheça o Mundra"><div><small>NOVO PROJETO DO @NCMINE · MUNDRA</small><h2>Sua cidade também pode virar um mundo.</h2><p>Transforme uma área do mapa real em Minecraft Java ou Bedrock. Exporte .mcworld ou .zip com o Mundra.</p></div><a href="https://mundra-c7q.pages.dev/?utm_source=worldify&utm_medium=site&utm_campaign=ecossistema_nc&utm_content=conquistas" target="_blank" rel="noopener noreferrer">Conhecer o Mundra ↗</a></aside>
 
   <section class="section" id="planos">
     <h2>Escolha como quer usar</h2>
-    <p class="plans-sub">Resolva uma edição pontual ou tenha espaço para criar todo mês. Compare tamanho, lote, operações e World Studio. Pagamento único, sem renovação automática.</p>
+    <p class="plans-sub">Escolha acesso mensal ou anual. A mensalidade mantém os valores atuais; o anual custa 12 mensalidades, sem desconto. Pagamento antecipado pelo InfinitePay, com renovação manual.</p>
+    <div class="worldify-billing" role="group" aria-label="Período do plano"><button type="button" data-billing-cycle="monthly" aria-pressed="true">Mensal</button><button type="button" data-billing-cycle="yearly" aria-pressed="false">Anual · 12 meses</button></div>
     <div class="wf-free-strip plan-free"><h3>Grátis <span>R$ 0</span></h3><p>Até 10 MB · análise local · funções básicas com limites diários</p><a class="btn-ghost" href="#converter">Experimentar com meu mundo</a></div>
     <p id="catalogStatus" role="status">Consultando preços e limites no servidor…</p>
     <label class="plan-goal-label" for="planGoal">O que você quer fazer?</label><select id="planGoal"><option value="one">Resolver edições pontuais</option><option value="several">Editar vários mundos neste período</option><option value="studio">Pintar e criar no World Studio</option><option value="continuous">Usar ao longo do mês</option></select><p id="planAdvice" role="status">Carregando orientação…</p>
@@ -591,13 +597,14 @@
     <details class="faq"><summary>Arquivo vai p/ servidor?</summary><p>Não. Tudo no navegador.</p></details>
     <details class="faq"><summary>Vale o VIP?</summary><p>Ele libera arquivos maiores, lote, modo de jogo, foto, clima e recursos avançados de inventário. Se você não precisa disso, use o grátis.</p></details>
     <details class="faq"><summary>Como é o gemado?</summary><p>Monte hotbar/armadura/ender e baixe equipado. <b>Grátis: hotbar 2/dia.</b></p></details>
-    <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Não. Os novos planos duram 7 ou 30 dias e têm limites diários claros. Você só paga de novo se escolher outra compra. Compras antigas mantêm os benefícios originais.</p></details>
-    <details class="faq"><summary>Como escolher meu plano?</summary><p>Essencial para edições pontuais. Pro para vários mundos na semana. Criador inclui World Studio e 30 dias para uso frequente. Studio oferece a maior capacidade de arquivo, lote e operações. Confira os limites na comparação.</p></details>
+    <details class="faq"><summary>Tem mensalidade ou renovação automática?</summary><p>Você pode contratar 1 mês ou 12 meses. O anual custa 12 mensalidades, sem desconto. O pagamento é antecipado pelo InfinitePay; a renovação é manual, sem débito automático. Compras antigas mantêm a validade original.</p></details>
+    <details class="faq"><summary>Como escolher meu plano?</summary><p>Compare tamanho máximo por arquivo, mundos por lote e operações por dia. Básico, Essencial e Pro incluem Editor e Builder; Criador e Studio também incluem World Studio. Todos têm opção mensal e anual.</p></details>
     <details class="faq"><summary>Como compro?</summary><p>Escolha a opção, entre com sua conta Google e pague no checkout InfinitePay. O acesso é liberado após a confirmação.</p></details>
     <details class="faq"><summary>E se não funcionar?</summary><p>Teste no Survival, sem behavior packs e guarde o original. Se houver falha técnica do serviço, envie o arquivo original, o resultado e o comprovante ao suporte; os pedidos são tratados conforme a <a href="reembolso.html">Política de Reembolso</a>.</p></details>
     <details class="faq"><summary>Onde acho o .mcworld?</summary><p>Consulte o <a href="#guia-envio">guia rápido</a>. A opção de exportar e o acesso às pastas dependem da plataforma.</p></details>
   </section>
 
+  <aside class="mundra-promo mundra-promo-small" aria-label="Criar cidades no Minecraft"><div><small>MUNDRA / MAPAS REAIS</small><h2>Quer um mundo novo para editar?</h2><p>Crie sua conta no Mundra e experimente gerar uma área de 200 × 200 m com 1 crédito grátis.</p></div><a href="https://mundra-c7q.pages.dev/?utm_source=worldify&utm_medium=site&utm_campaign=ecossistema_nc&utm_content=footer" target="_blank" rel="noopener noreferrer">Criar minha cidade ↗</a></aside>
   <footer class="foot">
     <nav>
       <a href="ferramentas.html">Ferramentas</a>
@@ -634,10 +641,10 @@
 <script src="chunks.js?v=11"></script>
 <script src="player.js?v=9"></script>
 <script src="tool-intents.js?v=20261004v1"></script>
-<script src="app.js?v=20261004v1"></script>
+<script src="app.js?v=20261022funnel"></script>
 <script src="firebase-config.js?v=20261004v1"></script>
 <script src="auth.js?v=worldify-20260930v"></script>
-<script src="pagamento.js?v=20261004v1"></script>
+<script src="pagamento.js?v=20261022v6b"></script>
 <script src="entitlements.js?v=20261004v1"></script>
 <script src="guia-site.js?v=20260929c"></script>
 <script src="world-folder.js?v=20260930"></script>
@@ -645,5 +652,6 @@
 <script>if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {} }</script>
 <script src="audit.js?v=20260930"></script>
 <script src="worldify-editor.js?v=20260930v"></script>
+<script src="funnel.js?v=20261022b"></script>
 </body>
 </html>

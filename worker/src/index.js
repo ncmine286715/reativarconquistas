@@ -1,3 +1,4 @@
+import {subscriptionOffers,periodEnd,MONTHLY_IDS,ANNUAL_IDS} from './billing-periods.mjs';
 /* ReativaConquistas — Worker Cloudflare (API: Depix + AbacatePay + contas).
    NENHUM segredo neste arquivo: tudo via `wrangler secret put` (nunca no git/site).
    Planos: world1 (1 crédito = 599 centavos), ouro (3 = 1499), diamante (5 = 2290), vip7, vip30 e creator.
@@ -29,7 +30,7 @@
 */
 
 const PAID = new Set(["PAID", "COMPLETED", "APPROVED", "PAYMENT_CONFIRMED"]);
-const TERMS_VERSION = "2026-10-03-v4";
+const TERMS_VERSION = "2026-10-22-v6";
 const SECURITY_REWARD_DAYS = 9999;
 
 function json(data, status = 200, cors = {}) {
@@ -84,7 +85,7 @@ const pendKey = (id) => "pend:" + id;
 const grantKey = (id) => "grant:" + String(id || "").trim().slice(0, 180);
 // A única fonte de permissões, limites e preços. Os clientes recebem somente
 // a projeção pública deste catálogo; cada autorização usa estes mesmos dados.
-export const PLAN_LIMITS = Object.freeze({
+const LEGACY_PLAN_LIMITS = Object.freeze({
 essential7v4: Object.freeze({"label":"Essencial","duration_days":7,"price_cents":790,"max_file_mb":75,"max_file_bytes":78643200,"max_batch":1,"kind":"time","daily_operations":3,"fit":"Para resolver edições pontuais no seu mundo","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
 pro7v4: Object.freeze({"label":"Pro","duration_days":7,"price_cents":1490,"max_file_mb":300,"max_file_bytes":314572800,"max_batch":3,"kind":"time","daily_operations":12,"fit":"Para editar vários mundos durante a semana","featured":false,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder"],"capabilities":{"premium_features":true,"world_studio":false}}),
 creator30v4: Object.freeze({"label":"Criador","duration_days":30,"price_cents":2990,"max_file_mb":750,"max_file_bytes":786432000,"max_batch":6,"kind":"time","daily_operations":30,"fit":"Para editar, pintar e exportar mundos durante o mês","featured":true,"allowed_tools":["convert","world_map","world_analysis","chunks_restore","player_basic","builder","world_paint"],"capabilities":{"premium_features":true,"world_studio":true}}),
@@ -165,6 +166,7 @@ studio30v5: Object.freeze({label:"Studio",duration_days:30,price_cents:2290,max_
     capabilities: { premium_features: true }
   })
 });
+export const PLAN_LIMITS = Object.freeze({...LEGACY_PLAN_LIMITS,...subscriptionOffers(LEGACY_PLAN_LIMITS)});
 // New SKU: existing receipts keep their original price and credit count.
 const WORLD_PROJECT_WINDOW_MS = PLAN_LIMITS.world1.project_window_days * 86400000;
 export function coinCostForBytes(sizeBytes) {
@@ -180,12 +182,14 @@ const PUBLIC_PLAN_CATALOG = Object.freeze(Object.fromEntries(Object.entries(PLAN
   kind: plan.kind || "time", credit_count: plan.credit_count || 0, coin_pack: plan.coin_pack === true,
   max_file_mb: plan.max_file_mb, max_file_bytes: plan.max_file_bytes, max_batch: plan.max_batch,
   allowed_tools: plan.allowed_tools, capabilities: plan.capabilities,
-  project_window_days: plan.project_window_days || 0
-}]).filter(([id]) => ["free","single1v5","week7v5","pro7v5","creator30v5","studio30v5"].includes(id))));
+  project_window_days: plan.project_window_days || 0,
+  billing_interval: plan.billing_interval || null, renewal_mode: plan.renewal_mode || null,
+  monthly_price_cents: plan.monthly_price_cents || plan.price_cents
+}]).filter(([id]) => ['free',...MONTHLY_IDS,...ANNUAL_IDS].includes(id))));
 const FREE_DAILY = PLAN_LIMITS.free.capabilities.convert.daily_operations;
 const COIN_PLAN_IDS = [];
-const DISPLAY_PLAN_IDS = ["single1v5","week7v5","pro7v5","creator30v5","studio30v5"];
-const PURCHASABLE_PLAN_IDS = new Set([...DISPLAY_PLAN_IDS]);
+const DISPLAY_PLAN_IDS = MONTHLY_IDS;
+const PURCHASABLE_PLAN_IDS = new Set([...MONTHLY_IDS,...ANNUAL_IDS]);
 const KNOWN_TOOL_IDS = new Set(Object.values(PLAN_LIMITS).flatMap((plan) => plan.allowed_tools));
 const PLAN_PRICES = Object.freeze(Object.fromEntries(Object.entries(PLAN_LIMITS).map(([id, plan]) => [id, plan.price_cents]).filter(([, price]) => price > 0)));
 const ANALYTICS_EVENTS = new Set(["page_view", "converter_view", "file_selected", "file_valid", "file_too_large", "world_analyzed", "operation_started", "operation_completed", "operation_failed", "download_started", "paywall_shown", "plan_viewed", "buy_clicked", "checkout_opened", "kiwify_checkout_redirect", "cpf_valid", "checkout_validation_failed", "pix_create_clicked", "pix_create_success", "pix_create_error", "pix_checkout_redirect", "payment_pending", "payment_paid", "webhook_received", "webhook_verified", "plan_granted", "payment_expired", "entitlement_loaded", "entitlement_load_error", "premium_operation_authorized", "premium_operation_denied", "credit_consumed"]);
@@ -930,7 +934,7 @@ async function infinitePayCreate(env, { orderNsu, plan, email, name, uid }) {
       webhook_url: String(env.PAYMENT_API_URL || base).replace(/\/$/, "") + "/api/infinitepay/webhook",
       order_nsu: orderNsu,
       customer: { name: String(name || "Worldify").slice(0, 100), email },
-      items: [{ quantity: 1, price: definition.price_cents, description: (definition.catalog_label || definition.label).slice(0, 100) }]
+      items: [{ quantity: 1, price: definition.price_cents, description: ('Worldify '+(definition.catalog_label || definition.label)+(definition.billing_interval==='yearly'?' · 12 meses':definition.billing_interval==='monthly'?' · 1 mês':'')).slice(0, 100) }]
     })
   });
   const payload = await response.json().catch(() => ({}));
@@ -1533,7 +1537,7 @@ export default {
       }
 
       if (url.pathname === "/api/config" && req.method === "GET") {
-        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: false, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, terms_version: TERMS_VERSION, free_daily: FREE_DAILY, catalog_version: "worldify-v5-plans", display_plan_ids: DISPLAY_PLAN_IDS, coin_plan_ids: [], purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], plans: PUBLIC_PLAN_CATALOG }, 200, cors);
+        return json({ payment_provider: "infinitepay", sales_enabled: String(env.SALES_ENABLED || "1") !== "0", infinitepay_configured: !!env.INFINITEPAY_HANDLE, abacate_configured: false, accounts: true, firebase_auth: !!env.FIREBASE_WEB_API_KEY, terms_version: TERMS_VERSION, free_daily: FREE_DAILY, catalog_version: "worldify-v6-periods", display_plan_ids: DISPLAY_PLAN_IDS, monthly_plan_ids: MONTHLY_IDS, annual_plan_ids: ANNUAL_IDS, renewal_mode: "manual", coin_plan_ids: [], purchasable_plan_ids: [...PURCHASABLE_PLAN_IDS], plans: PUBLIC_PLAN_CATALOG }, 200, cors);
       }
 
       // The browser may display quota locally, but it cannot be the authority
@@ -2300,13 +2304,13 @@ export class EntitlementDO {
           const oldDefinition = PLAN_LIMITS[activePlan];
           const upgradeNow = oldDefinition && ((definition.capabilities.world_studio && !oldDefinition.capabilities.world_studio && !(oldDefinition.allowed_tools || []).includes('world_paint')) || (definition.daily_operations && oldDefinition.daily_operations && definition.daily_operations > oldDefinition.daily_operations));
           if (upgradeNow) {
-            const shift = definition.duration_days * 86400000;
+            const shift = periodEnd(now,definition) - now;
             if (!activePass && oldDefinition.kind === 'time') data.time_passes.push({plan:activePlan,starts_at:now,expires_at:+data.premium_until_ms,billing_id:'preserved-legacy-pass'});
             data.time_passes.forEach(pass => {if (+pass.expires_at > now) {pass.starts_at = Math.max(now,+pass.starts_at) + shift; pass.expires_at = +pass.expires_at + shift;}});
             startsAt = now;
           }
 
-          const expiresAt = startsAt + definition.duration_days * 86400000;
+          const expiresAt = periodEnd(startsAt,definition);
           data.time_passes.push({ plan, starts_at: startsAt, expires_at: expiresAt, billing_id: bid });
           data.premium_until_ms = Math.max(priorUntil, expiresAt, ...data.time_passes.map(pass=>+pass.expires_at||0));
           if (startsAt <= now) data.plan = plan;

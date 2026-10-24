@@ -157,6 +157,9 @@
   var COIN_PLAN_IDS = [];
   var PLANS = {};
   var PUBLIC_PLANS = {};
+  var annualBilling = false;
+  function refreshBillingCycle() { if (paymentServerConfig) applyPlanCatalog(paymentServerConfig); }
+  document.addEventListener("click", function(e){var b=e.target.closest("[data-billing-cycle]");if(!b)return;annualBilling=b.getAttribute("data-billing-cycle")==="yearly";document.querySelectorAll("[data-billing-cycle]").forEach(function(x){x.setAttribute("aria-pressed",String((x.getAttribute("data-billing-cycle")==="yearly")===annualBilling));});refreshBillingCycle();});
   var payReturnFocus = null;
   var planCatalogReady = false;
   var planCatalogPending = null;
@@ -170,14 +173,15 @@
     var limit = p.max_file_mb === null ? "sem limite comercial de tamanho" : "até " + p.max_file_mb + " MB por mundo";
     var batch = "até " + (p.max_batch || 1) + " mundo(s) por lote";
     if (p.kind === "world_credit") return (p.coin_pack ? (p.credit_count || 1) + " moedas" : (p.credit_count || 1) + " crédito(s)") + (limit ? ", " + limit : "") + ". Cada mundo consome moedas uma única vez conforme o tamanho do arquivo. Saldo sem vencimento; edições do mesmo projeto reconhecido não cobram novamente por " + (p.project_window_days || 30) + " dias. Inclui editor e Builder; " + (window.RC_toolIntents.includesStudio(p) ? "inclui World Studio" : "não inclui World Studio") + ". Compra única, sem renovação automática.";
-    return "Acesso por " + (p.duration_days || 0) + " dias a partir da confirmação do pagamento, " + limit + " e " + batch + ". " + (window.RC_toolIntents.includesStudio(p) ? "Inclui World Studio. " : "World Studio não incluído. ") + (p.daily_operations ? p.daily_operations + " operações concluídas por dia, reset às 21h de Brasília (00h UTC). " : "") + "Pagamento único, sem renovação automática.";
+    return "Acesso por " + (p.billing_interval === "yearly" ? "12 meses" : p.billing_interval === "monthly" ? "1 mês" : (p.duration_days || 0) + " dias") + " a partir da confirmação do pagamento, " + limit + " e " + batch + ". " + (window.RC_toolIntents.includesStudio(p) ? "Inclui World Studio. " : "World Studio não incluído. ") + (p.daily_operations ? p.daily_operations + " operações concluídas por dia, reset às 21h de Brasília (00h UTC). " : "") + "Pagamento único, sem renovação automática.";
   }
   function applyPlanCatalog(config) {
     paymentServerConfig = config || null;
     PUBLIC_PLANS = config && config.plans || {};
     salesEnabled = !config || config.sales_enabled !== false;
     PLANS = {};
-    PLAN_IDS = window.RC_toolIntents ? window.RC_toolIntents.catalogIds(config) : [];
+    var periodIds = annualBilling ? config.annual_plan_ids : config.monthly_plan_ids;
+    PLAN_IDS = window.RC_toolIntents ? window.RC_toolIntents.catalogIds(Object.assign({},config,periodIds?{display_plan_ids:periodIds}:{})) : [];
     COIN_PLAN_IDS = Array.isArray(config && config.coin_plan_ids) ? config.coin_plan_ids.slice() : [];
     var checkoutIds = PLAN_IDS.concat(COIN_PLAN_IDS);
     var grid = document.querySelector('.wf-pricing');
@@ -197,7 +201,7 @@
     });
     var catalogStatus = document.getElementById('catalogStatus');
     if (catalogStatus) catalogStatus.textContent = salesEnabled
-      ? 'Pagamento único · sem renovação automática. Preços e limites verificados no servidor.'
+      ? 'Mensal ou anual pré-pago · renovação manual pelo InfinitePay. Anual = 12 mensalidades, sem desconto. Compras anteriores mantêm a validade original.'
       : 'Vendas temporariamente suspensas. Quem já pagou mantém o acesso até o fim do período contratado.';
     checkoutIds.forEach(function (id) {
       var p = PUBLIC_PLANS[id];
@@ -231,12 +235,12 @@
       var priceBox = card && card.querySelector(".price");
       var list = card && card.querySelector("ul");
       var creditPlan = p.kind === "world_credit";
-      if (priceBox) priceBox.innerHTML = escH(planPrice(id)) + "<small> · " + escH(creditPlan ? (p.credit_count || 1) + " crédito(s)" : (p.duration_days || 0) + " dias") + "</small>";
+      if (priceBox) priceBox.innerHTML = escH(priceText(p.monthly_price_cents || p.price_cents)) + "<small>/mês" + (p.billing_interval === "yearly" ? " · " + escH(planPrice(id)) + " por ano" : " · cobrança mensal") + "</small>";
       if (list) {
         var count = p.credit_count || 1;
         var bullets = creditPlan
           ? [count + " crédito(s) · " + size, (count > 1 ? "Cerca de " : "") + priceText(Math.round((+p.price_cents || 0) / count)) + " por mundo" + ((PUBLIC_PLANS.world1 && +PUBLIC_PLANS.world1.price_cents * count > +p.price_cents) ? " · economize " + priceText((+PUBLIC_PLANS.world1.price_cents * count) - (+p.price_cents || 0)) + " frente a " + count + " compras avulsas" : ""), "Editor e Builder · um mundo por vez · " + (window.RC_toolIntents.includesStudio(p) ? "World Studio incluído" : "World Studio não incluído"), "Créditos sem uso não expiram; reedite cada projeto reconhecido por " + (p.project_window_days || 30) + " dias após a última operação concluída"]
-          : ["Acesso por " + (p.duration_days || 0) + " dias", (p.daily_operations ? p.daily_operations + " operações concluídas por dia (UTC)" : "Conforme o plano"), size, batch, window.RC_toolIntents.includesStudio(p) ? "World Studio: pintar e exportar mundos" : "Editor e Builder · World Studio não incluído"];
+          : ["Acesso por " + (p.billing_interval === "yearly" ? "12 meses" : p.billing_interval === "monthly" ? "1 mês" : (p.duration_days || 0) + " dias"), (p.daily_operations ? p.daily_operations + " operações concluídas por dia (UTC)" : "Conforme o plano"), size, batch, window.RC_toolIntents.includesStudio(p) ? "World Studio: pintar e exportar mundos" : "Editor e Builder · World Studio não incluído"];
         list.innerHTML = bullets.map(function (item) { return "<li class='yes'>" + escH(item) + "</li>"; }).join("");
       }
       button.textContent = salesEnabled ? String(p.label || id) + " · " + planPrice(id) : "Vendas pausadas";
@@ -253,7 +257,7 @@
       if (freeItems[0]) freeItems[0].innerHTML = "Até <b>" + (+free.max_file_mb) + " MB</b> por mundo e " + (+((free.capabilities && free.capabilities.convert && free.capabilities.convert.daily_operations) || 0)) + " operações/dia";
     }
     var overview = document.querySelector(".plans-sub");
-    if (overview) overview.textContent = "Edições pontuais, vários mundos ou criação frequente: escolha pelo resultado e pela capacidade. Pagamento único, sem renovação automática.";
+    if (overview) overview.textContent = "Escolha acesso mensal ou anual. O anual custa 12 mensalidades, sem desconto. Pagamento antecipado pelo InfinitePay, com renovação manual.";
     renderPlanComparison();
   }
   function renderPlanComparison() {
@@ -261,14 +265,14 @@
     if (!host) return;
     var ids = PLAN_IDS.filter(function (id) { return !!PUBLIC_PLANS[id]; });
     var rows = [
-      ['Pagamento único', function(p) { return priceText(p.price_cents); }],
-      ['O que você compra', function(p) { return p.kind === 'world_credit' ? p.credit_count + ' mundo(s), um por vez' : 'Acesso por ' + p.duration_days + ' dias'; }],
+      ['Valor do período', function(p) { return priceText(p.price_cents) + (p.billing_interval === 'yearly' ? ' por ano' : p.billing_interval === 'monthly' ? ' por mês' : ''); }],
+      ['O que você compra', function(p) { return p.kind === 'world_credit' ? p.credit_count + ' mundo(s), um por vez' : 'Acesso por ' + (p.billing_interval === 'yearly' ? '12 meses' : p.billing_interval === 'monthly' ? '1 mês' : p.duration_days + ' dias'); }],
       ['Tamanho por arquivo', function(p) { return p.max_file_mb === null ? 'Sem teto comercial¹' : 'Até ' + p.max_file_mb + ' MB'; }],
       ['Operações por dia (UTC)', function(p) { return p.daily_operations ? String(p.daily_operations) : 'Conforme oferta original'; }],
       ['Mundos por lote', function(p) { return String(p.max_batch); }],
       ['Editor e Builder', function(p) { return (p.allowed_tools || []).indexOf('builder') >= 0 ? 'Incluídos' : 'Confira as ferramentas do plano'; }],
       ['World Studio', function(p) { return window.RC_toolIntents.includesStudio(p) ? 'Incluído' : 'Não incluído'; }],
-      ['Quando usar', function(p) { return p.kind === 'world_credit' ? 'Créditos sem uso não expiram; reedições por ' + p.project_window_days + ' dias após a última operação concluída' : 'Durante ' + p.duration_days + ' dias após a confirmação'; }]
+      ['Quando usar', function(p) { return p.kind === 'world_credit' ? 'Créditos sem uso não expiram; reedições por ' + p.project_window_days + ' dias após a última operação concluída' : 'Durante ' + (p.billing_interval === 'yearly' ? '12 meses' : p.billing_interval === 'monthly' ? '1 mês' : p.duration_days + ' dias') + ' de vigência'; }]
     ];
     host.innerHTML = '<table><caption>Compare o que cada plano entrega</caption><thead><tr><th scope="col">Benefício</th>' + ids.map(function(id) { return '<th scope="col">' + escH(PUBLIC_PLANS[id].label) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function(row) { return '<tr><th scope="row">' + row[0] + '</th>' + ids.map(function(id) { return '<td>' + escH(row[1](PUBLIC_PLANS[id])) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
     var grid = document.querySelector('.wf-pricing');

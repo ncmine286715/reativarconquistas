@@ -1487,7 +1487,8 @@
       document.body.appendChild(a);
       a.click();
       a.remove();
-      try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("download_started", { source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e) {}
+try { if (window.RC_pay && window.RC_pay.track) window.RC_pay.track("download_started", { source: sourceForTool(currentToolSlug() || "conquistas") }); } catch (e) {}
+      document.dispatchEvent(new CustomEvent("wf-download-ready"));
       setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
     }
 
