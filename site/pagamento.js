@@ -496,13 +496,14 @@
       return;
     }
     plan = normalizePlan(plan || "world1");
-    if (!plan) return;
     context = context || {};
     var eligiblePlans = relevantPlanIds(context);
     if (!eligiblePlans.length) {
       alert("Nenhum produto atual atende ao tamanho ou à quantidade de mundos selecionada.");
       return;
     }
+    // Planos legados (ex.: vip30) já não existem no catálogo: usa a escolha recomendada entre os planos atuais.
+    if (!plan) plan = eligiblePlans[0];
     if (window.RC_toolIntents) plan = window.RC_toolIntents.choosePlan(eligiblePlans, context.source === 'pricing_card' ? plan : '', PUBLIC_PLANS, context) || plan;
     checkoutRequestId = newRequestId();
     storeCheckoutContext(plan, context);

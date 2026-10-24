@@ -1,6 +1,6 @@
 /* E2E do shell do editor: carrega um mundo, confere o shell, exporta pelo painel Exportar e
    compara o arquivo gerado com o original (só level.dat pode mudar).
-   Requer playwright-core e um Chromium: PLAYWRIGHT_CORE=<pasta do playwright-core> CHROME=<chrome.exe>. */
+   BASE_URL=https://worldify.com.br roda contra produção (consome a cota grátis do IP). Requer playwright-core e um Chromium: PLAYWRIGHT_CORE=<pasta do playwright-core> CHROME=<chrome.exe>. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),os=require('node:os');
 const JSZip=require('../../site/vendor/jszip.min.js');
 const {chromium}=require(process.env.PLAYWRIGHT_CORE||'playwright-core');
@@ -8,7 +8,7 @@ const site=path.resolve(__dirname,'../../site'),world=path.join(site,'tests/prev
 const T={'.html':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml','.webp':'image/webp','.jpg':'image/jpeg','.json':'application/json'};
 (async()=>{
  const srv=http.createServer((q,r)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u.endsWith('/'))u+='index.html';const f=path.join(site,u);fs.readFile(f,(e,d)=>{if(e){r.writeHead(404);return r.end()}r.writeHead(200,{'content-type':T[path.extname(f)]||'application/octet-stream'});r.end(d)})});
- await new Promise(r=>srv.listen(0,r));const base='http://localhost:'+srv.address().port;
+ await new Promise(r=>srv.listen(0,r));const base=process.env.BASE_URL||('http://localhost:'+srv.address().port);
  const b=await chromium.launch({executablePath:process.env.CHROME});
  try{
   const ctx=await b.newContext({viewport:{width:1440,height:1000},acceptDownloads:true}),p=await ctx.newPage();

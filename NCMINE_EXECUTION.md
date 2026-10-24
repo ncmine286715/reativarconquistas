@@ -46,3 +46,13 @@ Registro vivo. Só marca como feito o que foi executado e verificado.
 - **Teste**: `tests/e2e/workspace-export.cjs` (Playwright): sem mundo o shell fica desligado; com `preview-world.mcworld` aparecem todas as ferramentas; download bloqueado até aceitar termos; exportado = mesma lista de arquivos, **só `level.dat` alterado** (5 arquivos do banco idênticos byte a byte), zip íntegro, sem erros de página. PASS. Execução: `PLAYWRIGHT_CORE=… CHROME=… node tests/e2e/workspace-export.cjs`.
 - Evidência visual: capturas Chromium desktop 1440, tablet 820 e celular 390 com painéis Exportar, Mundo, Regras, Jogador, Add-ons, Chunks.
 - Limitação: testado só com o mundo de exemplo (10 KB) e com a opção padrão de conquistas; mundos grandes, ZIP inválido, cancelamento e abertura no Bedrock real **não** foram testados.
+
+## 7. Publicação em produção (2026-10-24)
+- Deploy: `wrangler deploy -c wrangler-site.toml` (frontend; `worker/` e `wrangler*.toml` idênticos ao checkpoint, então pagamentos/webhooks/entitlements **não mudaram**). Branch `redesign/mission-04` enviada ao GitHub.
+- Design aplicado também em ferramentas, minha-conta, chunks, importar, sucesso, suporte, termos, privacidade, reembolso, objetivos e 404. `builder-lab` e `world-studio` ficaram **fora** do tema preto (têm tema 3D próprio; conflito de contraste).
+- Bug anterior corrigido: com a cota grátis esgotada, `openPayModal("vip30")` retornava em silêncio (plano legado inexistente no catálogo v6) e o usuário não via nada. Agora cai no plano elegível recomendado e abre o login/checkout. Testado até o modal de login; **checkout logado/pagamento real não foi exercitado** (sem login Google, sem cobrança).
+- Novo: o status do app é espelhado no painel Exportar (a mensagem original ficava abaixo do shell).
+- Verificado no domínio: arquivos servidos iguais ao local (diferença só de CRLF), `/api/config` = infinitepay, vendas ativas, shell do editor renderizando em worldify.com.br.
+- Não verificado em produção: exportação ponta a ponta (cota grátis do IP de teste esgotada por meus próprios testes; o E2E passou localmente e o shell renderiza em produção).
+- Rollback: `npx wrangler rollback` ou checkout da tag `checkpoint-prod-2026-10-23`.
+- **Pendentes (não feitos)**: 21st.dev (login), inventário com slots/drag-and-drop, chunks por toque, World Studio com `.mcstructure`, auditoria de segurança, SEO/conteúdo, testes com mundos grandes/ZIP inválido/cancelamento, abertura no Bedrock real. Testes antigos `plans-v4`/`purchase-v4`/`worldify.cjs` seguem falhando (esperam catálogo v4).

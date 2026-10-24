@@ -134,3 +134,5 @@ body.wf-ws-active #converter{backdrop-filter:none!important;-webkit-backdrop-fil
 
 #resetBtn{background:#fff!important;color:#000!important;border:0!important;border-radius:999px!important;font-weight:600}
 #resetBtn:disabled{background:#18181b!important;color:#71717a!important}
+
+.wf-ws-msg{margin:0;padding:12px 14px;border:1px solid #3f3f46;border-left:2px solid #fff;border-radius:12px;background:#111114;color:#e4e4e7;font-size:13px;line-height:1.5}

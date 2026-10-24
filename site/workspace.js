@@ -30,7 +30,7 @@
     exp.body.insertAdjacentHTML('beforeend',
       '<h4 class="wf-ws-h">Alterações nesta sessão</h4><ul id="wsChanges" class="wf-ws-list"><li class="muted">Nenhuma alteração além do padrão.</li></ul>' +
       '<h4 class="wf-ws-h">Validação</h4><ul id="wsChecks" class="wf-ws-list"></ul>' +
-      '<div id="wsExportActions" class="wf-ws-export"></div>');
+      '<div id="wsExportActions" class="wf-ws-export"><p id="wsMsg" class="wf-ws-msg" role="status" aria-live="polite" hidden></p></div>');
     var actions = exp.body.querySelector('#wsExportActions');
     ['accept', 'submit', 'diagnose'].forEach(function (id) { var n = id === 'accept' ? (byId('accept') && byId('accept').closest('label')) : byId(id); if (n) actions.appendChild(n); });
     var diag = byId('diagnose'); if (diag) diag.removeAttribute('style');
@@ -108,6 +108,10 @@
     byId('wsReplace').onclick = function () { var f = byId('file'); if (f) f.click(); };
     var openExport = function () { api.open('wfExport'); render(); var t = api.tray; if (t && t.scrollIntoView) t.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
     byId('wsExport').onclick = openExport; byId('wsExport2').onclick = openExport;
+    // O #status original fica abaixo do shell; espelha a mensagem no painel para não passar despercebida.
+    var st = byId('status'), msg = byId('wsMsg');
+    function mirror() { var t = st && !st.hidden ? st.textContent.trim() : ''; msg.hidden = !t; msg.textContent = t; if (t) { api.open('wfExport'); } }
+    if (st && window.MutationObserver) new MutationObserver(mirror).observe(st, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
     var cap = byId('quotaText'); if (cap && window.MutationObserver) new MutationObserver(render).observe(cap, { childList: true, characterData: true, subtree: true });
   }
 

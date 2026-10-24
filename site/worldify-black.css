@@ -123,3 +123,9 @@ img[src*="assets/icons/"],.tool-card img[src*="icons"],.wf-tool-card img{filter:
 .legal code{background:#18181b;color:#e4e4e7;border-radius:6px;padding:1px 6px}
 .legal .summary,.legal .tldr,.legal .box{background:#111114!important;color:#d4d4d8!important;border:1px solid #27272a}
 .legal a{color:#fff;text-decoration:underline}
+
+/* modal de login */
+.modal-bg .modal button:not(.btn-ghost),.modal-bg [class*=google]{color:#000}
+.modal-bg .modal .btn-ghost{color:#fff}
+.modal-bg .modal,.modal-bg .modal h2,.modal-bg .modal h3{color:#fff}
+.modal-bg .modal p{color:#a1a1aa}
