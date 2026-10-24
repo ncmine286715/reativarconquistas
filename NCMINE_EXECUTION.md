@@ -30,3 +30,9 @@ Registro vivo. Só marca como feito o que foi executado e verificado.
 - Auditoria de segurança (CORS, tokens, webhooks, replay): **não iniciada**. Existe `SECURITY-REVIEW.md` anterior.
 - SEO/páginas de conteúdo: **não iniciado**.
 - Publicação em produção: **não realizada** (somente após aprovação do layout e testes críticos).
+
+## 5. Publicação
+- Preview: Worker version `7ca3f743-828a-40b7-82fd-f111bfdaa96d` enviada com `wrangler versions upload` (**não promovida**; produção continua na versão anterior).
+- Para promover: `npx wrangler versions deploy 7ca3f743-828a-40b7-82fd-f111bfdaa96d@100% -c wrangler-site.toml`.
+- Rollback: `npx wrangler rollback` (Worker) ou checkout da tag `checkpoint-prod-2026-10-23`.
+- Commits: `dfb5ac4` (checkpoint), `e806dd3` (tema preto + hero 3D + planos). Nada enviado ao GitHub ainda.
