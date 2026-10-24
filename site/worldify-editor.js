@@ -93,7 +93,8 @@
         if (chosen) window.WF_motion(chosen.el);
       }
     }
-    window.WF_editor = { open: choose };
+    window.WF_editor = { open: choose, tray: tray, nav: nav, form: form, add: function (id, label, icon, note, text) { descriptions[label] = text; return panel(id, label, icon, '', note); } };
+    document.dispatchEvent(new CustomEvent('wf-editor-ready'));
     // Existing deep links and payment return paths still find the original nodes.
     document.addEventListener('click', function (e) {
       var link = e.target.closest('a[href^="#"]'); if (!link) return;

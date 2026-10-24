@@ -45,9 +45,9 @@ input:focus,select:focus,textarea:focus{border-color:#fff;outline:none}
 .foot,.footer{border-color:#1c1c1f;color:#71717a}
 h1,h2,h3{letter-spacing:-.035em}
 
-rc-consent{background:#09090b!important;border-color:#27272a!important;box-shadow:0 20px 60px #000!important;border-radius:18px!important}
-rc-consent button{border-radius:999px!important;background:#111114;border-color:#3f3f46;color:#fff}
-rc-consent button[data-consent=accepted]{background:#fff!important;border-color:#fff!important;color:#000!important}
+.rc-consent{background:#09090b!important;border-color:#27272a!important;box-shadow:0 20px 60px #000!important;border-radius:18px!important}
+.rc-consent button{border-radius:999px!important;background:#111114;border-color:#3f3f46;color:#fff}
+.rc-consent button[data-consent=accepted]{background:#fff!important;border-color:#fff!important;color:#000!important}
 
 /* ---- HERO ---- */
 .wf-hero{background:#000!important;border:1px solid #1c1c1f;border-radius:28px;min-height:420px;height:min(62vh,560px);box-shadow:none!important;isolation:isolate}

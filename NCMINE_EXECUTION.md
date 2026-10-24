@@ -25,7 +25,7 @@ Registro vivo. Só marca como feito o que foi executado e verificado.
 
 ## 4. Pendente / bloqueios
 - **21st.dev**: `21st search` retorna `catalog search failed` sem login. Precisa de `npx @21st-dev/cli login` (navegador) feito pelo usuário. Componentes reais do 21st **ainda não integrados**.
-- Reorganização do editor em Mundo/Jogador/Regras/Add-ons/Chunks/World Studio/Exportar (layout desktop/mobile): **não iniciada**.
+- Editor reorganizado (ver seção 6). Ainda faltam: auditoria funcional profunda de cada ferramenta, inventário (slots/drag-and-drop), seleção de chunks por toque, tema escuro nos painéis do Jogador/Chunks revisados só visualmente.
 - Auditoria funcional das ferramentas (NBT, inventário, add-ons, chunks), World Studio com `.mcstructure`, testes de integridade com mundos reais: **não iniciados**.
 - Auditoria de segurança (CORS, tokens, webhooks, replay): **não iniciada**. Existe `SECURITY-REVIEW.md` anterior.
 - SEO/páginas de conteúdo: **não iniciado**.
@@ -36,3 +36,13 @@ Registro vivo. Só marca como feito o que foi executado e verificado.
 - Para promover: `npx wrangler versions deploy 7ca3f743-828a-40b7-82fd-f111bfdaa96d@100% -c wrangler-site.toml`.
 - Rollback: `npx wrangler rollback` (Worker) ou checkout da tag `checkpoint-prod-2026-10-23`.
 - Commits: `dfb5ac4` (checkpoint), `e806dd3` (tema preto + hero 3D + planos). Nada enviado ao GitHub ainda.
+
+## 6. Editor reorganizado (2026-10-24)
+- `site/workspace.js` + `site/worldify-workspace.css`: com um mundo carregado, o `#form` vira um shell: barra superior (nome, tamanho, aviso "editando uma cópia", Trocar mundo, Exportar), ferramentas laterais agrupadas (Mundo, Jogador, Regras, Pacotes, Mapa, Criar, Finalizar), visualização central (mapa e diagnóstico), painel contextual à direita e barra de status (nº de alterações, plano, "Revisar e exportar").
+- Mobile (<720 px): barra inferior com rolagem horizontal e painéis como folha deslizante; tablet: sidebar + painel abaixo.
+- Painel **Exportar** novo: resumo de alterações (diferença para o estado pós-diagnóstico), validações reais lidas do DOM, aceite dos termos, botão de download e Diagnóstico. Nenhuma ferramenta removida: os nós originais (IDs/handlers/portões de plano) foram apenas reposicionados. "Addons" → "Add-ons", "Detalhes" → "Diagnóstico", "Construir" → "World Studio ↗" (link para o Construtor 3D existente).
+- `worldify-editor.js` expõe `WF_editor.add/tray/nav` (e evento `wf-editor-ready`).
+- Corrigido: seletor `.rc-consent` no tema preto; `#converter` com `backdrop-filter` prendia elementos `fixed`.
+- **Teste**: `tests/e2e/workspace-export.cjs` (Playwright): sem mundo o shell fica desligado; com `preview-world.mcworld` aparecem todas as ferramentas; download bloqueado até aceitar termos; exportado = mesma lista de arquivos, **só `level.dat` alterado** (5 arquivos do banco idênticos byte a byte), zip íntegro, sem erros de página. PASS. Execução: `PLAYWRIGHT_CORE=… CHROME=… node tests/e2e/workspace-export.cjs`.
+- Evidência visual: capturas Chromium desktop 1440, tablet 820 e celular 390 com painéis Exportar, Mundo, Regras, Jogador, Add-ons, Chunks.
+- Limitação: testado só com o mundo de exemplo (10 KB) e com a opção padrão de conquistas; mundos grandes, ZIP inválido, cancelamento e abertura no Bedrock real **não** foram testados.
