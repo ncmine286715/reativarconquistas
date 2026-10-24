@@ -1,0 +1,165 @@
+/* Worldify — identidade NCMINE branca (GOAL 01), gerada a partir do tema preto da missão 04 (cinzas invertidos para os tokens NCMINE). Camada final: redefine os tokens usados por style.css,
+   worldify-shell.css e worldify-glass.css, de modo que o editor herda o novo visual sem reescrita.
+   A estética Minecraft fica no 3D, nos ícones de itens e no mapa; o resto é neutro. */
+:root,html[data-theme],html[data-theme=light],html[data-theme=dark]{
+  --background:#ffffff;--surface:#ffffff;--surface-2:#f8f8f9;--border:#e8e8eb;--foreground:#0b0b0d;--muted-fg:#52525b;
+  --bg:#ffffff;--bg-2:#ffffff;--card:#ffffff;--line:#e8e8eb;--line-strong:#d4d4d8;--ink:#0b0b0d;--muted:#52525b;--faint:#71717a;
+  --wf-ink:#0b0b0d;--wf-surface:#ffffff;--wf-line:#e8e8eb;--wf-muted:#52525b;--wf-accent:#0b0b0d;--wf-shadow:none;
+  --orange:#d4d4d8;--orange-2:#a1a1aa;--orange-dark:#3f3f46;--orange-soft:#f8f8f9;--green:#0b0b0d;--green-dark:#3f3f46;--green-soft:#f8f8f9;
+  --red:#f87171;--red-soft:#e3f0f0;--shadow:none;--shadow-sm:none;
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:light;
+}
+html body{background:#ffffff!important;background-image:none!important;color:#0b0b0d;font-family:var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.011em}
+a{color:#0b0b0d}a:hover{color:#3f3f46}
+:focus-visible{outline:2px solid #0b0b0d;outline-offset:3px}
+.theme-btn,.nav .theme-btn{display:none!important}
+
+/* barra superior */
+.topbar{background:rgba(255,255,255,.72)!important;backdrop-filter:saturate(180%) blur(18px);-webkit-backdrop-filter:saturate(180%) blur(18px);border-bottom:1px solid #ececef!important}
+.nav a{color:#52525b}.nav a:hover{color:#0b0b0d}
+.btn-nav,.nav .btn-nav{background:#0b0b0d!important;color:#ffffff!important;border-radius:999px;font-weight:600!important;padding:9px 18px}
+.btn-nav:hover{background:#27272a!important}
+.brand,.brand span{color:#0b0b0d}
+
+/* botões */
+.primary,button.primary,a.primary{background:#0b0b0d!important;color:#ffffff!important;border:1px solid #0b0b0d!important;border-radius:999px!important;font-weight:600;box-shadow:none!important}
+.primary:hover{background:#27272a!important}
+.btn-ghost{background:transparent!important;color:#0b0b0d!important;border:1px solid #d4d4d8!important;border-radius:999px!important}
+.btn-ghost:hover{background:#f8f8f9!important;border-color:#a1a1aa!important}
+.btn-plan{border-radius:999px!important}
+
+/* superfícies do editor */
+.card,#converter,.opt,.acc,.wf-entry-path,.wf-next-step,.mundra-promo,.tool-card,.wf-tool-card,.faq,.wf-download-grid a,.studio-sidebar,.studio-setup,.studio-options,.studio-canvas-shell{background:#ffffff!important;border-color:#e8e8eb!important;color:#0b0b0d;box-shadow:none!important}
+#converter{border-radius:24px}
+.wf-tool-dock{background:#ffffff!important;border-color:#e8e8eb!important}
+.wf-tool-dock button{color:#52525b}
+.wf-tool-dock button[aria-pressed=true]{background:#f1f1f3!important;color:#0b0b0d!important;border-color:#d4d4d8!important;box-shadow:none}
+.drop,html[data-theme] .drop{background:#ffffff!important;border:1px dashed #d4d4d8!important;color:#0b0b0d;border-radius:20px}
+.drop:hover,.drop.drag{border-color:#0b0b0d!important;background:#f8f8f9!important}
+input,select,textarea{background:#f8f8f9;color:#0b0b0d;border:1px solid #e8e8eb;border-radius:12px}
+input:focus,select:focus,textarea:focus{border-color:#0b0b0d;outline:none}
+.warn{background:#f8f8f9!important;border:1px solid #e8e8eb!important;color:#3f3f46!important}
+.quota,.wf-entry-path small,.wf-next-step small,.plans-sub,.pay-note,.plan-memory-note{color:#52525b!important}
+.wf-help,.wf-account{background:#ffffff;border-color:#e8e8eb;color:#0b0b0d}
+.foot,.footer{border-color:#ececef;color:#71717a}
+h1,h2,h3{letter-spacing:-.035em}
+
+.rc-consent{background:#ffffff!important;border-color:#e8e8eb!important;box-shadow:0 20px 60px #ffffff!important;border-radius:18px!important}
+.rc-consent button{border-radius:999px!important;background:#f8f8f9;border-color:#d4d4d8;color:#0b0b0d}
+.rc-consent button[data-consent=accepted]{background:#0b0b0d!important;border-color:#0b0b0d!important;color:#ffffff!important}
+
+/* ---- HERO ---- */
+.wf-hero{background:#ffffff!important;border:1px solid #ececef;border-radius:28px;min-height:420px;height:min(62vh,560px);box-shadow:none!important;isolation:isolate}
+.wf-hero picture,.wf-hero img{position:absolute;inset:0;width:100%;height:100%!important;object-fit:cover;filter:grayscale(.55) brightness(.55) contrast(1.05)}
+.wf-hero:after{background:linear-gradient(90deg,#ffffff 0,#ffffffcc 28%,transparent 64%),linear-gradient(0deg,#ffffff 0,transparent 30%)!important;z-index:1;pointer-events:none}
+.wf-hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:0;transition:opacity 1.1s ease;display:block}
+.wf-hero.wf-hero-3d .wf-hero-canvas{opacity:1}
+.wf-hero.wf-hero-3d picture{opacity:0;transition:opacity 1.1s ease}
+.wf-hero-overlay{z-index:2;padding:56px!important;max-width:620px;pointer-events:none}
+.wf-hero-overlay a{pointer-events:auto}
+.wf-hero-overlay>p:first-child{color:#52525b;letter-spacing:.28em;font-size:11px;font-weight:600}
+.wf-hero h1{font-size:clamp(2.6rem,6.2vw,5rem)!important;line-height:1.02!important;font-weight:650!important;letter-spacing:-.05em!important;margin:0 0 16px!important;background:linear-gradient(180deg,#0b0b0d 40%,#52525b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.wf-hero-overlay p.wf-hero-lead{letter-spacing:-.01em;font-weight:400;opacity:1;font-size:16px;line-height:1.55;color:#52525b;max-width:440px;margin:0 0 26px!important}
+.wf-hero .btn-ghost{color:#0b0b0d!important;border:1px solid #d4d4d8!important;background:#0b0b0d0d!important;backdrop-filter:blur(8px)}
+.wf-hero-step{position:absolute;z-index:2;left:56px;bottom:30px;font-size:12px;color:#3f3f46;letter-spacing:.01em;display:none;align-items:center;gap:9px;padding:7px 13px;border:1px solid #e8e8eb;border-radius:999px;background:#ffffffaa;backdrop-filter:blur(10px)}
+.wf-hero-step:before{content:"";width:6px;height:6px;border-radius:50%;background:#0b0b0d}
+.wf-hero.wf-hero-3d .wf-hero-step.on{display:inline-flex;animation:wf-chip .5s cubic-bezier(.16,1,.3,1)}
+@keyframes wf-chip{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---- PLANOS ---- */
+#planos h2,#faq h2,#como-funciona h2{text-transform:none!important;font-size:clamp(2rem,4.4vw,3.2rem);font-weight:650;letter-spacing:-.045em;text-align:center;margin:0 0 10px}
+#planos .plans-sub{text-align:center;margin:0 auto 26px;max-width:620px;font-size:15px}
+.worldify-billing{display:flex;width:max-content;max-width:100%;margin:0 auto 28px;padding:4px;border:1px solid #e8e8eb;border-radius:999px;background:#ffffff;gap:2px}
+.worldify-billing button{min-height:40px;padding:0 20px;border:0;border-radius:999px;background:transparent;color:#52525b;font-size:14px;font-weight:550;cursor:pointer}
+.worldify-billing button[aria-pressed=true]{background:#0b0b0d;color:#ffffff}
+.wf-free-strip{background:#ffffff!important;border:1px solid #e8e8eb!important;border-radius:20px!important}
+.wf-plans{gap:14px!important}
+.wf-plans .plan{background:#ffffff!important;border:1px solid #e8e8eb!important;border-radius:24px!important;padding:26px 22px!important;transition:border-color .25s,transform .25s,background .25s}
+.wf-plans .plan:hover{border-color:#a1a1aa!important;background:#f8f8f9!important;transform:translateY(-3px)}
+.wf-plans .plan h3{font-size:15px;font-weight:600;letter-spacing:-.01em;color:#3f3f46;display:flex;gap:10px;align-items:center;margin:0 0 6px}
+.wf-plans .price{font-size:clamp(2rem,3vw,2.6rem)!important;font-weight:650;letter-spacing:-.05em!important;color:#0b0b0d;margin:6px 0 4px}
+.wf-plans .plan ul{list-style:none;padding:0;margin:18px 0 24px;display:grid;gap:10px;color:#52525b;width:100%}
+.wf-plans .plan li{padding:0 0 0 24px!important;position:relative;border:0!important;font-size:13px!important;line-height:1.45;color:#3f3f46!important}
+.wf-plans .plan li::before{left:0!important;top:0!important;color:#0b0b0d!important;font-weight:600}
+.wf-plans .plan li.no::before{color:#a1a1aa!important}
+.wf-plans .plan .plan-offer{display:none}
+.wf-plans .plan .plan-fit{font-size:13px;color:#52525b;min-height:0;margin:0 0 14px;font-weight:400}
+.wf-plans .price small{display:block;font-size:12px;font-weight:400;color:#71717a;letter-spacing:0;margin-top:4px}
+.wf-plans .plan.popular,.wf-plans .plan.featured,.wf-plans .plan[data-featured],.wf-plans .plan.recommended{border-color:#0b0b0d!important}
+.wf-plans button.btn-plan{background:#0b0b0d!important;color:#ffffff!important;border:0!important;font-weight:600;min-height:46px}
+.wf-plans button.btn-plan:disabled{background:#f1f1f3!important;color:#71717a!important}
+.plan-comparison{background:#ffffff;border:1px solid #e8e8eb;border-radius:20px}
+.plan-comparison th,.plan-comparison td{border-color:#ececef!important;color:#3f3f46}
+.plan-comparison thead th{color:#0b0b0d;background:#f8f8f9!important}
+
+#planGoal{background:#f8f8f9;border:1px solid #e8e8eb;border-radius:999px;padding:0 18px;min-height:44px;color:#0b0b0d}
+.plan-goal-label{color:#52525b;font-size:13px;font-weight:500}
+#planAdvice,#catalogStatus{color:#52525b;font-size:13px;max-width:640px}
+
+/* ---- MODAIS ---- */
+.pay-modal,.modal{background:#ffffff!important;color:#0b0b0d;border:1px solid #e8e8eb;border-radius:24px}
+.modal-bg{background:#ffffffb3!important;backdrop-filter:blur(8px)}
+
+@media(max-width:720px){
+  .wf-hero{min-height:520px;height:auto;border-radius:22px}
+  .wf-hero-overlay{padding:26px!important;justify-content:flex-end!important;max-width:none}
+  .wf-hero:after{background:linear-gradient(0deg,#ffffff 0,#ffffffdd 40%,transparent 85%)!important}
+  .wf-hero h1{font-size:clamp(2.4rem,11vw,3.4rem)!important}
+  .wf-hero-overlay p.wf-hero-lead{font-size:14px}
+  .wf-hero-step{left:20px;bottom:auto;top:18px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.wf-hero-canvas{transition:none}.wf-plans .plan,.wf-plans .plan:hover{transition:none;transform:none}}
+
+/* ícones de interface (pixel art escura) ficam claros no fundo preto */
+img[src*="assets/icons/"],.tool-card img[src*="icons"],.wf-tool-card img{filter:invert(1) brightness(1.1)}
+.wf-world-action img[src*="assets/actions/"]{filter:none}
+
+/* páginas legais */
+.legal{background:#ffffff!important;border-color:#e8e8eb!important}
+.legal h1,.legal h2,.legal h3,.legal b,.legal strong{color:#0b0b0d!important}
+.legal p,.legal li{color:#52525b!important}
+.legal .updated{color:#71717a}
+.legal code{background:#f1f1f3;color:#27272a;border-radius:6px;padding:1px 6px}
+.legal .summary,.legal .tldr,.legal .box{background:#f8f8f9!important;color:#3f3f46!important;border:1px solid #e8e8eb}
+.legal a{color:#0b0b0d;text-decoration:underline}
+
+/* modal de login */
+.modal-bg .modal button:not(.btn-ghost),.modal-bg [class*=google]{color:#ffffff}
+.modal-bg .modal .btn-ghost{color:#0b0b0d}
+.modal-bg .modal,.modal-bg .modal h2,.modal-bg .modal h3{color:#0b0b0d}
+.modal-bg .modal p{color:#52525b}
+
+/* ===== acabamento NCMINE: branco principal, preto para ação, violeta só no foco ===== */
+:root{--accent:#7c6cff}
+:focus-visible{outline:2px solid #7c6cff!important;outline-offset:3px}
+a:hover{color:#3f3f46}
+/* título sem texto em gradiente */
+.wf-hero h1{background:none!important;-webkit-text-fill-color:currentColor!important;color:#0b0b0d!important}
+/* foto do hero sem escurecer; véu branco garante leitura */
+.wf-hero picture,.wf-hero img{filter:none}
+/* ícones pixel art escuros já contrastam com o branco */
+img[src*="assets/icons/"],.tool-card img[src*="icons"],.wf-tool-card img{filter:none}
+.wf-hero-step:before{background:#7c6cff}
+/* plano recomendado com contraste preto */
+.wf-plans .plan.popular,.wf-plans .plan.featured,.wf-plans .plan[data-featured],.wf-plans .plan.recommended,.wf-plans .plan.plan-recommended,.wf-plans .plan.plan-featured{border-color:#0b0b0d!important;box-shadow:0 0 0 1px #0b0b0d!important}
+.wf-plans .plan:hover{border-color:#a1a1aa!important;background:#fff!important;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px -8px rgba(0,0,0,.1)!important}
+.wf-plans .plan{box-shadow:0 1px 2px rgba(0,0,0,.05)!important}
+.wf-plans button.btn-plan:hover{background:#27272a!important}
+.primary:hover,button.primary:hover,a.primary:hover,.btn-nav:hover{background:#27272a!important}
+.status:empty,.status[hidden]{display:none!important}
+.status.ok{border-color:#15803d55!important;background:#15803d0d!important}
+.status.err{border-color:#dc262655!important;background:#dc26260d!important;color:#991b1b!important}
+.rc-consent{box-shadow:0 2px 4px rgba(0,0,0,.04),0 24px 60px -20px rgba(0,0,0,.18)!important}
+.modal-bg{background:rgba(9,9,11,.42)!important}
+/* botão de teste grátis e reset: mesma ação primária preta */
+.wf-free-start,.wf-entry-path a.wf-free-start,.wf-ws-export #submit{background:#0b0b0d!important;color:#fff!important;border:0!important;box-shadow:none!important}
+.wf-free-start:hover{background:#27272a!important}
+/* oferta do Mundra: neutra (uma oferta contextual, sem verde de outra identidade) */
+.mundra-promo{background:#f8f8f9!important;border:1px solid #e8e8eb!important;border-radius:20px!important;color:#0b0b0d!important}
+.mundra-promo small{color:#52525b!important}
+.mundra-promo p{color:#52525b!important}
+.mundra-promo a{background:#0b0b0d!important;color:#fff!important;border-radius:999px!important}
+.mundra-promo a:hover{background:#27272a!important}
+.mundra-promo a:focus-visible{outline:2px solid #7c6cff!important}
+.wf-next-step{border-color:#e8e8eb!important;background:#f8f8f9!important;border-radius:20px!important}.wf-entry-path a{border-radius:999px!important}

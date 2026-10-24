@@ -37,12 +37,12 @@
     var tier = small ? 0 : 1;
 
     var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: !small, alpha: false, powerPreference: 'high-performance' });
-    renderer.setClearColor(0x000000, 1);
+    renderer.setClearColor(0xffffff, 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, tier ? 1.75 : 1.25));
     if (tier) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
 
     var scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 50, 105);
+    scene.fog = new THREE.Fog(0xffffff, 60, 120);
     var camera = new THREE.PerspectiveCamera(36, 1, 0.5, 200);
 
     scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2440, 1.05));
