@@ -1,5 +1,4 @@
 /* Worldify — shell do editor. Ativo só com .wf-ws-on (mundo carregado, modo Editar/Chunks). */
-img[src*="assets/icons/"],img[src*="assets/actions/"]{filter:invert(1) brightness(1.1)}
 .wf-ws-bar,.wf-ws-status{display:none}
 body.wf-ws-active .wf-entry-path,body.wf-ws-active .mundra-promo,body.wf-ws-active .wf-workspace-heading,body.wf-ws-active .light-mode-control{display:none}
 body.wf-ws-active .page,body.wf-ws-active .page-wide{max-width:1480px}

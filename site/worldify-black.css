@@ -110,3 +110,16 @@ h1,h2,h3{letter-spacing:-.035em}
   .wf-hero-step{left:20px;bottom:auto;top:18px;font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.wf-hero-canvas{transition:none}.wf-plans .plan,.wf-plans .plan:hover{transition:none;transform:none}}
+
+/* ícones de interface (pixel art escura) ficam claros no fundo preto */
+img[src*="assets/icons/"],.tool-card img[src*="icons"],.wf-tool-card img{filter:invert(1) brightness(1.1)}
+.wf-world-action img[src*="assets/actions/"]{filter:none}
+
+/* páginas legais */
+.legal{background:#09090b!important;border-color:#27272a!important}
+.legal h1,.legal h2,.legal h3,.legal b,.legal strong{color:#fff!important}
+.legal p,.legal li{color:#a1a1aa!important}
+.legal .updated{color:#71717a}
+.legal code{background:#18181b;color:#e4e4e7;border-radius:6px;padding:1px 6px}
+.legal .summary,.legal .tldr,.legal .box{background:#111114!important;color:#d4d4d8!important;border:1px solid #27272a}
+.legal a{color:#fff;text-decoration:underline}
