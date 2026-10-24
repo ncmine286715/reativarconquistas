@@ -163,3 +163,22 @@ img[src*="assets/icons/"],.tool-card img[src*="icons"],.wf-tool-card img{filter:
 .mundra-promo a:hover{background:#27272a!important}
 .mundra-promo a:focus-visible{outline:2px solid #7c6cff!important}
 .wf-next-step{border-color:#e8e8eb!important;background:#f8f8f9!important;border-radius:20px!important}.wf-entry-path a{border-radius:999px!important}
+
+/* ===== conversão nos planos (pedido do dono): preço em destaque, uma escolha guiada ===== */
+@media (min-width:1000px){.wf-plans{display:flex!important;flex-wrap:wrap;justify-content:center}.wf-plans .plan{flex:0 1 calc((100% - 28px) / 3)}}
+.wf-plans .price{font-size:clamp(2.4rem,3.4vw,3rem)!important;font-weight:700!important;letter-spacing:-.05em!important;font-variant-numeric:tabular-nums;color:#0b0b0d}
+/* botões dos planos comuns: secundários (a escolha guiada fica com o plano indicado) */
+.wf-plans .plan:not(.plan-recommended) button.btn-plan{background:#fff!important;color:#0b0b0d!important;border:1px solid #d4d4d8!important}
+.wf-plans .plan:not(.plan-recommended) button.btn-plan:hover:not(:disabled){background:#0b0b0d!important;color:#fff!important;border-color:#0b0b0d!important}
+/* plano indicado para o objetivo escolhido: cartão preto */
+.wf-plans .plan.plan-recommended{background:#0b0b0d!important;border-color:#0b0b0d!important;outline:0!important;box-shadow:0 24px 60px -24px rgba(0,0,0,.45)!important;color:#fff!important;position:relative}
+.wf-plans .plan.plan-recommended::after{content:"Indicado para o que você quer fazer";position:absolute;top:14px;right:16px;padding:4px 10px;border-radius:999px;background:#fff;color:#0b0b0d;font-size:11px;font-weight:600;letter-spacing:0}
+.wf-plans .plan.plan-recommended h3,.wf-plans .plan.plan-recommended .price{color:#fff!important}
+.wf-plans .plan.plan-recommended .plan-fit,.wf-plans .plan.plan-recommended .price small{color:#a1a1aa!important}
+.wf-plans .plan.plan-recommended li{color:#e4e4e7!important}
+.wf-plans .plan.plan-recommended li::before{color:#fff!important}
+.wf-plans .plan.plan-recommended button.btn-plan{background:#fff!important;color:#0b0b0d!important;font-weight:700!important}
+.wf-plans .plan.plan-recommended button.btn-plan:hover:not(:disabled){background:#e4e4e7!important}
+.wf-plans .plan.plan-recommended:hover{background:#0b0b0d!important;border-color:#0b0b0d!important}
+.wf-plans .plan.plan-featured:not(.plan-recommended){border:1.5px solid #0b0b0d!important;box-shadow:none!important}
+@media (max-width:720px){.wf-plans .plan.plan-recommended::after{position:static;display:inline-block;margin:0 0 10px;order:-1}}
