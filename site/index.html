@@ -28,7 +28,7 @@
 <script src="compatibility.js?v=20260929c"></script>
 <script>try{var t=localStorage.getItem("rc_theme");if(t!=="dark"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","name":"Worldify","url":"https://worldify.com.br/","logo":"https://worldify.com.br/logo.png"},{"@type":"WebSite","name":"Worldify","url":"https://worldify.com.br/","inLanguage":"pt-BR"},{"@type":"WebApplication","name":"Worldify","url":"https://worldify.com.br/","applicationCategory":"UtilitiesApplication","operatingSystem":"Web","inLanguage":"pt-BR","description":"Reative conquistas e edite seu mundo Bedrock no navegador. Envie o .mcworld, confira o diagnóstico e baixe uma cópia."}]}</script>
-<link rel="stylesheet" href="worldify-shell.css?v=plans20261003"><link rel="stylesheet" href="worldify-glass.css?v=20260930v"><script defer src="worldify-shell.js?v=20260930v"></script>
+<link rel="stylesheet" href="worldify-shell.css?v=plans20261003"><link rel="stylesheet" href="worldify-glass.css?v=20260930v"><link rel="stylesheet" href="worldify-black.css?v=20261023"><script defer src="worldify-shell.js?v=20260930v"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -116,7 +116,8 @@
 
   <header class="wf-hero" aria-label="Worldify: seu mundo, do seu jeito">
     <picture><source srcset="assets/worldify-hero.webp" type="image/webp"><img src="assets/worldify-hero.jpg" width="1280" height="720" alt="Um mundo de blocos com rio, florestas e montanhas ao amanhecer" fetchpriority="high"></picture>
-    <div class="wf-hero-overlay"><p>WORLDIFY</p><h1>Seu mundo.<br>Do seu jeito.</h1><div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo ↗</a><a class="btn-ghost hero-btn" href="#guia-envio">Como enviar</a></div></div>
+    <canvas class="wf-hero-canvas" aria-hidden="true"></canvas><div class="wf-hero-step" aria-hidden="true"></div>
+    <div class="wf-hero-overlay"><p>WORLDIFY</p><h1>Seu mundo.<br>Sem limites.</h1><p class="wf-hero-lead">Edite seu mundo Minecraft Bedrock direto no navegador. Seu arquivo fica no seu aparelho.</p><div class="hero-cta"><a class="primary hero-btn" href="#converter">Enviar meu mundo ↗</a><a class="btn-ghost hero-btn" href="#guia-envio">Como enviar</a></div></div>
   </header>
   <section id="guia-envio" class="wf-learning-strip" aria-label="Exportar seu mundo">
     <a class="wf-learn-card" href="https://youtu.be/Zf9EvVe2b-c?si=t-2kcBG1YdK5rEt1" target="_blank" rel="noopener noreferrer"><img src="assets/icons/video.svg" width="40" height="40" alt=""><span><small>PASSO A PASSO · YOUTUBE</small><strong>Como exportar seu mundo</strong><span class="wf-learn-action">Assistir tutorial <span aria-hidden="true">↗</span></span></span></a>
@@ -653,5 +654,6 @@
 <script src="audit.js?v=20260930"></script>
 <script src="worldify-editor.js?v=20260930v"></script>
 <script src="funnel.js?v=20261022b"></script>
+<script defer src="hero3d.js?v=20261023"></script>
 </body>
 </html>
