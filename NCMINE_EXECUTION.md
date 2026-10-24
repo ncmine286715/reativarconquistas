@@ -56,3 +56,9 @@ Registro vivo. Só marca como feito o que foi executado e verificado.
 - Não verificado em produção: exportação ponta a ponta (cota grátis do IP de teste esgotada por meus próprios testes; o E2E passou localmente e o shell renderiza em produção).
 - Rollback: `npx wrangler rollback` ou checkout da tag `checkpoint-prod-2026-10-23`.
 - **Pendentes (não feitos)**: 21st.dev (login), inventário com slots/drag-and-drop, chunks por toque, World Studio com `.mcstructure`, auditoria de segurança, SEO/conteúdo, testes com mundos grandes/ZIP inválido/cancelamento, abertura no Bedrock real. Testes antigos `plans-v4`/`purchase-v4`/`worldify.cjs` seguem falhando (esperam catálogo v4).
+
+## 8. Ajuste de cor (2026-10-24)
+- Feedback: o preto não pode ser a única cor. Base continua preta, com destaque em cor: CTAs em gradiente violeta→azul, cor própria por plano (Básico azul-céu, Essencial âmbar, Pro violeta, Criador rosa, Studio laranja), ciano para status/aviso de cópia, brilho sutil no fundo.
+- Removida a barra branca: era o `#status` vazio com fundo branco (agora some quando vazio). Botão verde "Testar meu mundo grátis" trocado pelo gradiente de destaque.
+- Cena 3D do hero clareada.
+- E2E local passa até o download; o download depende da cota grátis por IP no servidor (esgotada pelos testes). Rodar de outro IP/dia seguinte.

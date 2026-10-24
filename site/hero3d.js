@@ -42,11 +42,11 @@
     if (tier) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
 
     var scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 38, 78);
+    scene.fog = new THREE.Fog(0x000000, 50, 105);
     var camera = new THREE.PerspectiveCamera(36, 1, 0.5, 200);
 
-    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x14110e, 0.78));
-    var sun = new THREE.DirectionalLight(0xfff1dc, 0.95);
+    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a2440, 1.05));
+    var sun = new THREE.DirectionalLight(0xfff1dc, 1.15);
     sun.position.set(-18, 34, 14);
     sun.target.position.set(16, 0, 16);
     scene.add(sun, sun.target);
